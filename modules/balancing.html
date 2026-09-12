@@ -1,0 +1,1594 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Is that a map of the geology, or of the source wavelet? | How Spectral Attributes Actually Work</title>
+<meta name="description" content="Why a peak frequency map made on unbalanced data is mostly a map of the source wavelet, what the balancing operator does, what prewhitening protects against, why bluing exists, and how trace-by-trace whitening can erase the anomaly it was run to find.">
+<link rel="stylesheet" href="../assets/fonts.css">
+<link rel="stylesheet" href="../assets/style.css">
+</head>
+<body>
+
+<div class="wrap">
+  <header class="masthead">
+    <a class="brand" href="../index.html"><span class="dot"></span>How spectral attributes <b>actually</b> work</a>
+    <nav>
+      <a href="../index.html">All modules</a>
+      <a href="tuning.html">← Module 04</a>
+      <a href="#notes">Method &amp; references</a>
+    </nav>
+  </header>
+
+  <div class="mod-head">
+    <p class="eyebrow">Module 05 &nbsp;·&nbsp; Spectral attributes</p>
+    <h1>Is that a map of the geology, or of the source wavelet?</h1>
+    <p class="sub">Module 04 ended with every thickness estimate having a working range, and that range being a property of the wavelet rather than of the earth. Every reflection in a section is a copy of the same waveform, so the shape of that one waveform is present in every spectrum measured anywhere in the survey, and a map of peak frequency is partly a map of the source. Spectral balancing divides the wavelet back out. These five steps show what it corrects, what it changes about the wavelet the data carry, and one way of applying it that removes the target along with the wavelet.</p>
+  </div>
+
+  <div class="labhead">
+    <div class="labgrid">
+      <div>
+        <p class="cap">The average spectrum <span>&mdash; wavelet, reflectivity, and what is recorded</span></p>
+        <canvas id="cHead" aria-label="Average amplitude spectra of the reflectivity, the wavelet and the recorded data"></canvas>
+      </div>
+      <div>
+        <p class="cap">Set up the problem <span>&mdash; every step updates as you drag</span></p>
+        <div class="controls" id="winControls">
+          <div class="ctl-col">
+            <h2>The wavelet</h2>
+            <div class="ctl">
+              <label for="fd">Wavelet peak frequency <span class="val" id="fdV">28 Hz</span></label>
+              <input type="range" data-key="fd" id="fd" min="16" max="55" step="1" value="28">
+            </div>
+            <div class="ctl">
+              <label for="noise">Noise <span class="val" id="noiseV">4%</span></label>
+              <input type="range" data-key="noise" id="noise" min="0" max="25" step="1" value="4">
+            </div>
+          </div>
+          <div class="ctl-col">
+            <h2>The operator</h2>
+            <div class="ctl">
+              <label for="alpha">Prewhitening α <span class="val" id="alphaV">1.0%</span></label>
+              <input type="range" data-key="alpha" id="alpha" min="1" max="120" step="1" value="10">
+            </div>
+            <div class="ctl">
+              <label for="beta">Bluing β <span class="val" id="betaV">0.00</span></label>
+              <input type="range" data-key="beta" id="beta" min="0" max="80" step="2" value="0">
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <p class="tabhint">Work through the five steps in order, <b>then try the exercises</b>.
+    Method and references are there when you want them.</p>
+  <nav class="tabs" id="tabs" role="tablist" aria-label="Module steps">
+    <button role="tab" data-tab="p1" aria-selected="false">1 · The source in the answer</button>
+    <button role="tab" data-tab="p2" aria-selected="false">2 · The operator</button>
+    <button role="tab" data-tab="p3" aria-selected="false">3 · Prewhitening</button>
+    <button role="tab" data-tab="p4" aria-selected="false">4 · Bluing</button>
+    <button role="tab" data-tab="p5" aria-selected="false">5 · By trace</button>
+    <button role="tab" data-tab="pw" aria-selected="false">Why it matters</button>
+    <span class="gap"></span>
+    <button role="tab" data-tab="pe" aria-selected="false">Exercises</button>
+    <button role="tab" data-tab="pk" aria-selected="false">Key points</button>
+    <button role="tab" data-tab="pm" aria-selected="false">Method</button>
+  </nav>
+
+  <!-- =============================== STEP 1 =============================== -->
+  <section class="tabpane" id="p1" role="tabpanel" hidden>
+    <div class="plot-head" style="margin-bottom:14px">
+      <h3><span class="stepno">1</span>What an unbalanced peak frequency map contains</h3>
+      <span class="hint">Change the wavelet and watch the "geology" move</span>
+    </div>
+    <p class="qbox"><b>Why this step is here.</b> A peak frequency map shows a low-frequency zone over the reservoir. Is that the reservoir, or the wavelet?</p>
+    <p class="lede"><b>Why the source turns up in the answer at all.</b> Every reflection in a seismic
+      section is the same waveform, arriving at a different time with a different size. The rocks
+      decide the times and the sizes; the source, the recording system and the processing decide the
+      waveform, and that waveform is the same at every reflection in the survey. So whatever shape that
+      one waveform has in the frequency domain is present in every spectrum measured anywhere in the
+      volume, on top of whatever the rocks contributed. A peak frequency map made from those spectra
+      carries both, added together, with no label saying which part is which.</p>
+
+    <p class="lede">The test that settles it: change the wavelet peak frequency in the header without touching the earth model. The rocks are identical in every case. The estimated thickness changes.</p>
+
+    <div class="plot">
+      <div class="plot-head">
+        <h3>Estimated thickness, before balancing</h3>
+        <span class="hint">Gray: the truth. Crimson: what the unbalanced spectrum says</span>
+      </div>
+      <canvas id="c1" aria-label="Thickness estimated from unbalanced data against the truth"></canvas>
+    </div>
+    <div class="stats">
+      <div class="stat key"><span>Wavelet peak frequency</span><b id="s1f">—</b></div>
+      <div class="stat"><span>Estimate on a 30 ms bed</span><b id="s1e30">—</b></div>
+      <div class="stat"><span>Estimate on a 12 ms bed</span><b id="s1e12">—</b></div>
+      <div class="stat"><span>Mean error, 10&ndash;30 ms beds</span><b id="s1sat">—</b></div>
+    </div>
+    <div class="legend prose">
+      <span><b>The wavelet's own peak frequency pulls the measurement toward itself.</b> Wherever the bed's contribution to the spectrum is weak — too thick, too thin, or too noisy — the measured peak falls back to the wavelet's peak, and a thickness derived from it is a restatement of the source. The zones where that happens are exactly the zones outside the working range module 04 measured, so the two findings are the same finding seen from opposite ends.</span>
+    </div>
+  </section>
+
+  <!-- =============================== STEP 2 =============================== -->
+  <section class="tabpane" id="p2" role="tabpanel" hidden>
+    <div class="plot-head" style="margin-bottom:14px">
+      <h3><span class="stepno">2</span>The balancing operator</h3>
+      <span class="hint">Divide the wavelet back out</span>
+    </div>
+    <p class="qbox"><b>Why this step is here.</b> If the recorded spectrum is the earth times the wavelet, and only the product was recorded, how can the wavelet be separated out?</p>
+    <p class="lede"><b>What an operator is.</b> The word sounds like a piece of mathematics and it is a
+      list of numbers. There is one number for each frequency, and applying the operator means
+      multiplying the amplitude at that frequency by the number beside it. The operator that balances
+      data is a list that is large at the frequencies the wavelet made weak and small at the
+      frequencies the wavelet made strong, so that after the multiplication every frequency in the band
+      comes out at about the same amplitude. A gain curve does the same thing to a trace against time;
+      this one works against frequency instead.</p>
+
+    <p class="lede">The panels below show the average spectrum, the operator built from it, and the result of applying it. The operator is not simply one over the average, for the reason step 3 takes up.</p>
+    <p class="lede">One consequence is worth stating first. A tuned bed has maxima at 1/(2T), 3/(2T), 5/(2T) and so on, all the same height. On unbalanced data the wavelet suppresses the higher ones, so only the first is visible. Balancing restores them, and a spectrum that previously showed one peak now shows several. That is the correct answer and it looks like new structure appearing.</p>
+
+    <div class="sec-row">
+      <div class="panel-col">
+        <p class="sublabel"><b>Average spectrum and operator</b> <span class="note">teal: data, crimson: operator</span></p>
+        <canvas id="c2a" aria-label="The average spectrum and the balancing operator built from it"></canvas>
+      </div>
+      <div class="panel-col">
+        <p class="sublabel"><b>Before and after</b> <span class="note">the same average, balanced</span></p>
+        <canvas id="c2b" aria-label="The average spectrum before and after balancing"></canvas>
+      </div>
+    </div>
+    <p class="lede"><b>The same wedge through three different sources.</b> Nothing in the rock changes
+      between the columns below. The top row is one wedge recorded with a 20, a 30 and a 45 Hz wavelet.
+      The bottom row is those same three after balancing. All six panels are drawn on one amplitude
+      scale, because scaling each to its own peak would make balancing appear to do nothing.</p>
+
+    <div class="plot">
+      <div class="plot-head">
+        <h3>One wedge, three sources, before and after balancing</h3>
+        <span class="hint">Thickest bed at the left, pinching out to the right</span>
+      </div>
+      <canvas id="c2c" aria-label="One wedge of thin beds recorded with three different wavelets, shown before and after spectral balancing"></canvas>
+    </div>
+    <div class="stats">
+      <div class="stat key"><span>Thinnest measurable, as recorded</span><b id="s2rawset">—</b></div>
+      <div class="stat"><span>The same, after balancing</span><b id="s2balset">—</b></div>
+      <div class="stat"><span>Spread across the three, recorded</span><b id="s2spreadr">—</b></div>
+      <div class="stat"><span>Spread across the three, balanced</span><b id="s2spreadb">—</b></div>
+    </div>
+
+    <div class="legend prose">
+      <span><b>Reading the six panels.</b> The top row is three pictures of one geology, and they
+      disagree about where the wedge stops being two separable events: with the noise slider at zero
+      they give 17.7, 11.1 and 6.6 ms. That disagreement is the source, not the rock. After balancing
+      the three read 12.6, 7.6 and 4.5 ms, so every one of them resolves a thinner bed than it did,
+      because flattening the spectrum shortens the wavelet the data are carrying.
+
+      The three do not become the same, and that is the limit worth carrying forward. Balancing
+      reshapes the spectrum within the band that was recorded. It cannot supply frequencies that were
+      never recorded: a 20 Hz source returns very little above 40 Hz, and no list of multipliers puts
+      energy where there is none. The spread across the three narrows from 11.1 ms to 8.1 ms rather
+      than closing. Balancing makes a spectral measurement comparable in kind between surveys; it does
+      not make two surveys equal in resolution.</span>
+    </div>
+
+    <div class="stats">
+      <div class="stat key"><span>Flatness before</span><b id="s2b4">—</b></div>
+      <div class="stat"><span>Flatness after</span><b id="s2after">—</b></div>
+      <div class="stat"><span>Estimate on a 12 ms bed now</span><b id="s2e12">—</b></div>
+      <div class="stat"><span>Mean error, 10&ndash;30 ms beds</span><b id="s2range">—</b></div>
+    </div>
+    <div class="legend prose">
+      <span><b>Balancing makes module 04's arithmetic usable.</b> Flattening the spectrum adds no information: the notches and the tuning peak were present in the recorded data, weighted by the wavelet. What balancing removes is that weighting. The measurement that follows is of the bed rather than of the source.</span>
+    </div>
+  </section>
+
+  <!-- =============================== STEP 3 =============================== -->
+  <section class="tabpane" id="p3" role="tabpanel" hidden>
+    <div class="plot-head" style="margin-bottom:14px">
+      <h3><span class="stepno">3</span>Prewhitening</h3>
+      <span class="hint">Take α to its smallest and watch the edges</span>
+    </div>
+    <p class="qbox"><b>Why this step is here.</b> Dividing by the average spectrum works where the spectrum has energy. What happens at the edges of the band, where it has almost none?</p>
+    <p class="lede">The operator is therefore not 1/<i>A</i> but closer to 1/(<i>A</i> + α), where α is a small fraction of the spectrum's peak. That α is <b>prewhitening</b>, and it sets how hard the balancing pushes at the edges of the band.</p>
+
+    <div class="sec-row">
+      <div class="panel-col">
+        <p class="sublabel"><b>The balanced spectrum</b> <span class="note">fixed axes</span></p>
+        <canvas id="c3a" aria-label="The balanced average spectrum at the chosen prewhitening"></canvas>
+      </div>
+      <div class="panel-col">
+        <p class="sublabel"><b>A balanced trace</b> <span class="note">signal, and what got amplified</span></p>
+        <canvas id="c3b" aria-label="A trace after balancing at the chosen prewhitening"></canvas>
+      </div>
+    </div>
+    <p class="lede" style="margin-top:22px">The same two states shown as seismic. The wedge model is
+      the one from module 04: a bed that thins from 50 ms at the left edge to zero at the right, between
+      a positive reflection coefficient at its top and a negative one at its base. On the left is the
+      recorded section, on the right the same section after balancing at the chosen α. Both use the same
+      amplitude scale, so a change in brightness between them is a real change.</p>
+    <div class="sec-row">
+      <div class="panel-col">
+        <p class="sublabel"><b>Recorded section</b> <span class="note">the wedge as acquired</span></p>
+        <canvas id="c3c" aria-label="The wedge model as a seismic section before balancing"></canvas>
+      </div>
+      <div class="panel-col">
+        <p class="sublabel"><b>After balancing</b> <span class="note">same amplitude scale</span></p>
+        <canvas id="c3d" aria-label="The same wedge section after spectral balancing"></canvas>
+      </div>
+    </div>
+    <div class="stats">
+      <div class="stat key"><span>Prewhitening α</span><b id="s3a">—</b></div>
+      <div class="stat"><span>Largest operator gain</span><b id="s3g">—</b></div>
+      <div class="stat"><span>Flatness in band</span><b id="s3flat">—</b></div>
+      <div class="stat"><span>Noise amplification</span><b id="s3noise">—</b></div>
+      <div class="stat"><span>Events on the section</span><b id="s3ev">—</b></div>
+    </div>
+    <div class="legend prose">
+      <span><b>Balancing at a small α adds events to the section.</b> One trace a quarter of the way
+      along the wedge crosses 6 separate events on the recorded section. After balancing at α = 0.1% it
+      crosses 10. The extra four are the sidelobes of the sharpened wavelet, and on the section they
+      appear above and below each real reflector as events of the same character. At α = 4% the same
+      trace crosses 4 after balancing, fewer than the recorded section, because the gentler operator has
+      not sharpened the wavelet enough to separate the top and base of the thinning bed. Neither count
+      matches the two reflection coefficients the model contains.</span>
+    </div>
+    <div class="legend prose">
+      <span><b>Raising α flattens the spectrum less and applies less gain.</b> At α = 0.1% the operator's largest gain is 32.8× and the
+      balanced spectrum's flatness is 0.005 — very flat, and every bit of that 32.8× is applied where the
+      recorded spectrum was near zero, which is to say to noise. At α = 12% the largest gain is 6.6× and
+      the flatness is 0.231: quieter, and less corrected. Neither end is right, which is why it is a
+      parameter and not a constant.
+      A note for anyone comparing these numbers with the AASPI documentation: it gives this value as 1% in
+      one program and 2% in another, and the interface text suggests 4% would be more conservative. Those
+      are three different numbers for the same symbol in the same equation, so do not read too much into
+      any particular default.</span>
+    </div>
+  </section>
+
+  <!-- =============================== STEP 4 =============================== -->
+  <section class="tabpane" id="p4" role="tabpanel" hidden>
+    <div class="plot-head" style="margin-bottom:14px">
+      <h3><span class="stepno">4</span>Bluing, and why flat is not the target</h3>
+      <span class="hint">The earth is not white</span>
+    </div>
+    <p class="qbox"><b>Why this step is here.</b> Whitening assumes the earth's reflectivity spectrum is flat. Is it?</p>
+    <p class="lede"><b>Bluing</b> corrects for that: after whitening, the spectrum is tilted back up by <i>f</i><sup>β</sup>. Raising β from zero tilts the balanced spectrum, and changes the wavelet alongside it.</p>
+
+    <div class="sec-row">
+      <div class="panel-col">
+        <p class="sublabel"><b>Balanced spectrum</b> <span class="note">with the bluing tilt applied</span></p>
+        <canvas id="c4a" aria-label="The balanced spectrum with bluing"></canvas>
+      </div>
+      <div class="panel-col">
+        <p class="sublabel"><b>The resulting wavelet</b> <span class="note">what the data now carry</span></p>
+        <canvas id="c4b" aria-label="The effective wavelet after balancing and bluing"></canvas>
+      </div>
+    </div>
+    <div class="stats">
+      <div class="stat key"><span>Bluing β</span><b id="s4b">—</b></div>
+      <div class="stat"><span>Spectrum tilt, 50 Hz / 20 Hz</span><b id="s4tilt">—</b></div>
+      <div class="stat"><span>Effective peak frequency</span><b id="s4pk">—</b></div>
+      <div class="stat"><span>Wavelet sidelobe</span><b id="s4side">—</b></div>
+    </div>
+
+    <p class="lede">The two panels above are the spectrum and the wavelet. The three below are the same
+      wedge of thin beds put through those wavelets, so that the change can be read where an
+      interpretation is actually made. Every panel is drawn on one amplitude scale, and the horizontal
+      axis is bed thickness, thickest on the left and pinching out on the right.</p>
+
+    <p class="lede"><b>What each panel is.</b> The first is the wedge as recorded, carrying the source
+      wavelet. The second is the same wedge after whitening, with &beta; held at zero. The third is the
+      same wedge after balancing with the bluing exponent on the header slider. The readouts beneath
+      give the thinnest bed on each panel whose thickness the section still reports correctly: above that
+      thickness the time between the peak at the top of the bed and the trough at its base equals the
+      true thickness, and below it that spacing stops changing while the bed goes on thinning.</p>
+
+    <div class="tri-row">
+      <div class="panel-col">
+        <p class="sublabel"><b>As recorded</b> <span class="note">the source wavelet</span></p>
+        <canvas id="c4c" aria-label="The wedge of thin beds as recorded"></canvas>
+      </div>
+      <div class="panel-col">
+        <p class="sublabel"><b>Whitened</b> <span class="note">flat spectrum, &beta; = 0</span></p>
+        <canvas id="c4d" aria-label="The same wedge after whitening to a flat spectrum"></canvas>
+      </div>
+      <div class="panel-col">
+        <p class="sublabel"><b>Blued</b> <span class="note">at the &beta; on the slider</span></p>
+        <canvas id="c4e" aria-label="The same wedge after balancing with bluing"></canvas>
+      </div>
+    </div>
+    <div class="stats">
+      <div class="stat key"><span>Thinnest bed still measurable</span><b id="s4sepA">—</b></div>
+      <div class="stat"><span>After whitening</span><b id="s4sepB">—</b></div>
+      <div class="stat"><span>After bluing</span><b id="s4sepC">—</b></div>
+      <div class="stat"><span>Events on one trace, recorded &rarr; blued</span><b id="s4ev">—</b></div>
+    </div>
+
+    <div class="legend prose">
+      <span><b>Balancing moves the thickness at which a bed stops being measurable.</b> On the default
+      28 Hz wedge the recorded section reports the correct thickness down to 12.1 ms and no further.
+      After whitening the same wedge reports it down to 7.6 ms, so about 5 ms of section that carried no
+      usable thickness before now does. Nothing was added to the model. Bluing at &beta; = 0.8 takes the
+      effective peak frequency from 31.4 Hz to 64.3 Hz and the wavelet sidelobe from 0.074 to 0.146,
+      while the thinnest measurable bed stays at 7.6 ms: past a point the extra tilt is adding
+      oscillation rather than resolution. The event count on the third panel rises from 6 to 14 at the
+      default 4% noise; taking the noise slider to zero returns it to 6, which identifies those extra
+      events as amplified noise rather than as sidelobes.</span>
+    </div>
+
+    <p class="lede"><b>What this changes for stratigraphy.</b> A pinch-out, an onlap, and a package of
+      stacked thin sands are all read from where reflections separate and where they merge. That
+      thickness belongs to the wavelet the data are carrying, and balancing replaces the wavelet.
+      Two volumes over the same ground, one balanced and one not, will therefore place the same
+      pinch-out at different points, and the geology has not moved between them. A bed count made on a
+      balanced volume and a bed count made on the delivered stack are two different numbers, and the
+      difference is not an error in either.</p>
+
+    <p class="lede">This is also why spectral work is not only a channel-mapping technique. Thickness
+      is what these panels measure, and thickness is the quantity a stratigrapher is usually after,
+      whether it is held in a channel fill, a shoreface parasequence, a carbonate buildup or a
+      progradational wedge. The channel in module 00 is the easiest case to draw, not the only one the
+      argument applies to.</p>
+
+    <div class="legend prose">
+      <span><b>Every step of this changes the wavelet being interpreted.</b> Balancing is not an adjustment to a display. It convolves the data with a new wavelet, and every amplitude, every tuning thickness and every apparent bed thickness measured afterwards belongs to that new wavelet rather than to the recorded one.</span>
+    </div>
+  </section>
+
+  <!-- =============================== STEP 5 =============================== -->
+  <section class="tabpane" id="p5" role="tabpanel" hidden>
+    <div class="plot-head" style="margin-bottom:14px">
+      <h3><span class="stepno">5</span>Balancing each trace on its own</h3>
+      <span class="hint">Watch the target disappear</span>
+    </div>
+    <p class="qbox"><b>Why this step is here.</b> Every trace has its own spectrum. Why not give every trace its own balancing operator?</p>
+    <p class="lede">It also removes the measurement. A tuned bed's whole signature is a notch — a hole in that trace's spectrum. Whitening that trace on its own is, by definition, filling the hole in.</p>
+
+    <div class="seg" id="segMode" role="group" aria-label="Balancing mode" style="margin-bottom:14px">
+      <button type="button" data-m="survey">Survey average</button>
+      <button type="button" data-m="trace">By trace</button>
+    </div>
+    <div class="sec-row">
+      <div class="panel-col">
+        <p class="sublabel"><b>One trace's spectrum, balanced</b> <span class="note">is the notch still there?</span></p>
+        <canvas id="c5a" aria-label="A single trace spectrum after balancing in the chosen mode"></canvas>
+      </div>
+      <div class="panel-col">
+        <p class="sublabel"><b>Thickness estimate</b> <span class="note">gray: truth</span></p>
+        <canvas id="c5b" aria-label="Thickness estimated after balancing in the chosen mode"></canvas>
+      </div>
+    </div>
+    <div class="stats">
+      <div class="stat key"><span>Mode</span><b id="s5m">—</b></div>
+      <div class="stat"><span>Notch depth retained</span><b id="s5notch">—</b></div>
+      <div class="stat"><span>Notch estimate, 20 ms bed</span><b id="s5e20">—</b></div>
+      <div class="stat"><span>Traces with a usable notch</span><b id="s5err">—</b></div>
+    </div>
+    <div class="legend prose">
+      <span><b>Trace-by-trace whitening removes the geology along with the wavelet.</b> The survey-average
+      operator leaves 82% of the notch depth intact and a notch-based thickness estimate works on 97% of
+      the traces. Give every trace its own operator and the notch retains 13% of its depth, the estimate on
+      the 20 ms bed cannot be made at all, and the number of usable traces falls to 1%. The operator cannot
+      tell a dip caused by the source from a dip caused by a 20 ms bed, because on one trace they look
+      identical. The result is a smooth, flat, professional-looking spectrum with the measurement gone
+      out of it. This is why <span class="k">spec_cwt</span> and <span class="k">spec_cmp</span>
+      compute one operator from a survey average, and why the AASPI documentation warns against the
+      trace-by-trace program for exactly this reason. The averaging is not a computational shortcut. It
+      is what protects the signal.</span>
+    </div>
+  </section>
+
+  <!-- ============================ WHY IT MATTERS =========================== -->
+  <section class="tabpane" id="pw" role="tabpanel" hidden>
+    <div class="plot-head" style="margin-bottom:14px">
+      <h3>Why it matters</h3>
+      <span class="hint">Where this shows up in real work</span>
+    </div>
+    <p class="lede">Balancing is the step between running a spectral decomposition and being able to interpret the result. Skipping it does not produce an obviously broken answer; it produces a plausible one that is partly about the source.</p>
+    <ul class="lede" style="padding-left:20px">
+      <li><b>Before any thickness estimate.</b> Module 04's arithmetic assumes the measured peak is the
+        bed's. On unbalanced data it is largely the wavelet's, and the resulting map is smooth, plausible
+        and wrong.</li>
+      <li><b>Before comparing two surveys, or two parts of one.</b> Different vintages have different
+        source signatures, and an unbalanced peak frequency map will show the survey boundary as a
+        geological feature.</li>
+      <li><b>Before comparing shallow with deep.</b> The wavelet is not the same at 1 s and 3 s, so an
+        unbalanced attribute has a depth trend built into it that has nothing to do with rocks.</li>
+      <li><b>When a volume arrives described as "whitened".</b> Ask what α was, whether any bluing was
+        applied, and whether it was done trace by trace. All three change what the volume means, and the
+        third can have removed the target.</li>
+      <li><b>When a balanced section suddenly has more reflectors.</b> Step 4 is the reason to suspect the
+        new ones are sidelobes.</li>
+    </ul>
+    <p class="lede"><b>What balancing is blamed and credited for.</b> The first error is believing it adds resolution. It removes a bias and adds nothing. The second is applying it without deciding what the reflectivity spectrum is assumed to be, since a fully whitened volume has been corrected for a wavelet that was partly the earth.</p>
+    <div class="legend prose">
+      <span>An attribute that changes when the acquisition or the processing changes, and the earth does not, is measuring the acquisition. Step 1 is that test, run on a model where the answer is known.</span>
+    </div>
+  </section>
+
+  <!-- ============================== EXERCISES ============================= -->
+  <section class="tabpane" id="pe" role="tabpanel" hidden>
+    <div class="tryit" style="max-width:none">
+      <h3>Exercises</h3>
+      <ol>
+        <li><b>Change the source and watch the geology move.</b>
+          <em class="point">Why: if an attribute moves when the source changes and the rocks do not, the attribute is measuring the source.</em>
+           In step 1, take the wavelet peak
+          frequency from 16 Hz to 55 Hz, reading the estimate on a 12 ms bed each time.
+          <em class="predict">Before changing anything: the earth model does not change at all. Should the estimated thickness change? Decide first, then find out.</em>
+          <details class="reveal"><summary>Hint</summary><span class="ans">The bed never changes and the
+            estimate does: 25.8 ms at 16 Hz, 16.1 at 28, 12.1 at 40, 10.5 at 55, for a bed that is 12 ms
+            throughout. It follows the wavelet, because wherever the bed's own peak is weak the measured
+            peak reverts to the source's. That is the diagnostic: an attribute that
+            moves when the acquisition changes is reporting the acquisition. Now do the same thing in
+            step 2, with balancing switched on, and the estimate stops following the wavelet: it settles
+            between 18 and 20 ms across the whole range of sources. Read that carefully, because it is
+            not the same as being right. The bed is 12 ms thick, which is below the working range module
+            04 measured for these wavelets, so the estimate is still several milliseconds out. What
+            balancing has removed is the part of the error that came from the source. The part that comes
+            from the bed sitting outside the band remains, and no operator applied to the spectrum will
+            reach it. Nothing about the earth was different in either case; the difference is entirely
+            whether the wavelet was divided out first.</span></details></li>
+        <li><b>Measure how much balancing is worth.</b>
+          <em class="point">Why: this is the size of the correction, measured against a model where the true answer is known.</em>
+           Compare the mean error in step 1 with the
+          same readout in step 2, at each wavelet frequency.
+          <details class="reveal"><summary>Hint</summary><span class="ans">50% down to 19% at 16 Hz,
+            42% down to 27% at 55 Hz, and 16% down to 14% at 28 Hz. Balancing helps most where the wavelet
+            was worst, and barely at all where it was already reasonable. So the answer to "do I need to
+            do this?" depends on how far the wavelet is from flat, and the flatness readout in step 2
+            reports that before the decomposition is run. It also never becomes perfect. The recorded
+            bandwidth still sets hard limits at both ends, and no operator recovers a notch that was
+            never recorded. What balancing removes is the <em>bias</em> toward the wavelet's own tuning
+            thickness, not the bandwidth limit.</span></details></li>
+        <li><b>Measure what a small α does to the sidelobes.</b>
+          <em class="point">Why: prewhitening trades flatness against gain applied to noise, and neither end of the slider is the right answer.</em>
+           In step 3, take the prewhitening from its largest value down
+          to its smallest, watching the operator gain and the noise readout.
+          <details class="reveal"><summary>Hint</summary><span class="ans">The operator's maximum gain
+            climbs from 6.6× at α = 12% to 32.8× at α = 0.1%, while the flatness improves from 0.231 to
+            0.005. α is what stops the division blowing up where the spectrum is near zero. All that gain is applied at the edges of the band, where there was no signal
+            recorded — so what it amplifies is noise, and the noise readout climbs with it. The balanced
+            spectrum does get flatter and wider, which looks like an improvement, and it is useful being
+            clear about why it is not: a flat spectrum built from amplified noise contains no more
+            information about the earth than the recorded one, but it looks like it
+            does.</span></details></li>
+        <li><b>Watch the wavelet change as β rises.</b>
+          <em class="point">Why: balancing convolves the data with a new wavelet, so every amplitude measured afterwards belongs to that wavelet.</em>
+           In step 4, take β from 0 to its maximum and watch
+          the effective wavelet.
+          <details class="reveal"><summary>Hint</summary><span class="ans">The effective peak frequency
+            climbs from 31.4 Hz to 64.3 Hz and the sidelobe doubles from 0.074 to 0.146, exactly as module
+            01's step 3 said would happen when a spectrum is widened at its high end. The practical consequence is that a balanced section will have
+            events on it that the unbalanced section did not, sitting symmetrically above and below the
+            strong reflectors. They are not thin beds. Anyone interpreting a heavily balanced volume for
+            thin-bed work needs to know the sidelobe level of the wavelet they created, which is why it is
+            worth looking at the wavelet rather than only at the spectrum.</span></details></li>
+        <li><b>Remove the target by whitening it.</b>
+          <em class="point">Why: trace-by-trace whitening fills in the notch that carries the thickness measurement.</em>
+           In step 5, switch from survey average to trace by trace and
+          compare the notch depth and the thickness estimate.
+          <details class="reveal"><summary>Hint</summary><span class="ans">The notch keeps 82% of its
+            depth on the survey-average operator and 13% trace by trace, and the number of traces where a
+            thickness can still be read from a notch falls from 97% to 1%. The reason: a survey-average operator asks "what shape is common to every trace here?", and a
+            bed that varies laterally is not common to every trace, so it survives. A trace-by-trace
+            operator asks "what shape does this trace have?", and the answer includes the notch, so the
+            notch is removed. The two are not different accuracies of the same thing — they are different
+            questions, and only one of them protects what the survey was run to
+            measure.</span></details></li>
+              <li><b>Give one frequency difference between two surveys three explanations.</b>
+          <em class="point">Why: a frequency difference between surveys has several possible causes, and the acquisition is usually the first to check.</em>
+           Two vintages
+          over the same field give different peak frequency maps at the same horizon. Use steps 1 and 5
+          to list what could be responsible.
+          <details class="reveal"><summary>Hint</summary><span class="ans">Step 1 is the first
+            and most likely: different source wavelets, so the two peak frequency maps are partly maps
+            of two different sources, and neither is a map of the rock. Step 5 gives the second: if one
+            vintage was balanced trace by trace and the other was not, the balanced one may have had the
+            notch — the thing carrying the thickness information — whitened away. A third is the
+            processing sequence in general, since deconvolution, filtering and migration all change the
+            spectrum. Only after those three have been ruled out does a real geological difference, such
+            as fluid change or compaction between surveys, become the leading explanation. The order
+            matters: the acquisition and processing causes are common and can be checked against the data already in hand, and the geological one is rare and cannot be confirmed without further information.</span></details></li>
+</ol>
+    </div>
+  </section>
+
+  <!-- ============================= KEY POINTS ============================= -->
+  <section class="tabpane" id="pk" role="tabpanel" hidden>
+    <div class="takeaway">
+      <h3>Key points</h3>
+      <ul>
+        <li><b>An unbalanced peak frequency map is substantially a map of the source wavelet.</b> Where
+          the bed's contribution is weak, the measured peak falls back on the wavelet's peak — the same
+          value everywhere, which is why the resulting map looks smooth and plausible.</li>
+        <li><b>Balancing divides out an average spectrum,</b> computed over many traces so that the
+          reflectivity's own variation averages away and the wavelet is what remains.</li>
+        <li><b>It removes a bias rather than adding information.</b> The notches and the tuning peak were
+          always in the data; balancing stops the wavelet from drowning them.</li>
+        <li><b>Prewhitening α stops the division blowing up</b> where there is no signal. Small α gives a
+          flatter, wider spectrum and amplified noise at the band edges; there is no correct value, and
+          the AASPI documentation quotes three different ones.</li>
+        <li><b>Bluing β exists because reflectivity is generally not white.</b> Well-log studies find
+          more high frequency than a flat spectrum, so fully whitened data are over-corrected in a known
+          direction.</li>
+        <li><b>Trace-by-trace whitening can erase the target.</b> A tuned bed's signature is a notch in
+          that trace's spectrum, and whitening that trace alone is an instruction to fill it in.</li>
+      </ul>
+    </div>
+    <div class="takeaway" style="margin-top:18px">
+      <h3>Words introduced here</h3>
+      <dl class="terms">
+        <dt>spectral balancing</dt>
+        <dd>Dividing the recorded spectrum by an estimate of the wavelet's spectrum, so that what remains
+          is mostly the earth's reflectivity.</dd>
+        <dt>whitening</dt>
+        <dd>Balancing carried to a flat spectrum. Assumes the reflectivity spectrum is itself flat.</dd>
+        <dt>the balancing operator</dt>
+        <dd>The gain curve that does it, built from the average spectrum over many traces.</dd>
+        <dt>prewhitening, α</dt>
+        <dd>A small constant added to the average spectrum before dividing, so the operator does not
+          divide by something close to zero at the edges of the band.</dd>
+        <dt>bluing, β</dt>
+        <dd>Tilting the balanced spectrum back up by <i>f</i><sup>β</sup>, because well-log reflectivity
+          spectra rise with frequency rather than being flat.</dd>
+        <dt>flatness</dt>
+        <dd>How close a spectrum is to level, measured here as its standard deviation divided by its
+          mean over a fixed band.</dd>
+        <dt>survey-average operator</dt>
+        <dd>One operator for all traces. Preserves the notch that carries the thickness measurement.</dd>
+        <dt>trace-by-trace whitening</dt>
+        <dd>A separate operator for each trace. Fills the notch in, and removes the measurement with
+          it.</dd>
+      </dl>
+    </div>
+
+  </section>
+
+  <!-- =============================== METHOD =============================== -->
+  <section class="tabpane" id="pm" role="tabpanel" hidden>
+    <div class="plot-head" style="margin-bottom:14px">
+      <h3 id="notes">Method</h3>
+      <span class="hint">What is computed, and what is left out</span>
+    </div>
+    <p class="lede"><b>The model</b> is the wedge from module 04 — reflection coefficients of +0.1 and
+      &minus;0.1 with a linearly thinning separation — convolved with a zero-phase Ricker, plus
+      band-limited noise. Reflection times are analytic rather than rounded to the sample grid.</p>
+    <p class="lede"><b>The operator</b> follows the form used by AASPI's spectral programs: the power
+      spectrum is averaged over all the traces, and each spectrum is then multiplied by the square root of
+      the peak average power divided by the sum of the square root of the average power and α times that
+      same peak. Bluing multiplies the result by (<i>f</i>/<i>f</i><sub>max</sub>)<sup>β</sup>. Both are
+      the same functions the library uses elsewhere in this set, so the arithmetic here is the arithmetic
+      that was verified against known answers rather than a re-implementation.</p>
+    <p class="lede"><b>The flatness numbers</b> are the standard deviation of the spectrum divided by its
+      mean, measured over a fixed band rather than the whole axis — outside the recorded band a spectrum
+      is not supposed to be flat, and including that region makes every operator look bad. Working range
+      is measured exactly as in module 04: the thickest and thinnest beds for which the estimate is within
+      20% of the truth.</p>
+    <p class="lede"><b>Simplifications, stated plainly.</b> The balancing here is applied to spectra, not
+      by filtering the traces and re-transforming, which is what production code does; the difference does
+      not matter for what is being shown but it means the "balanced trace" in step 3 is reconstructed
+      rather than genuinely re-processed. Balancing is also stationary — one operator for the whole
+      record — where real spectral balancing is time-variant, applied in overlapping windows down the
+      trace, precisely because the wavelet changes with depth. That time variation is a large part of why
+      balancing matters and it is not shown here. The wavelet is zero phase throughout, so nothing here
+      addresses phase, and no attempt is made to correct one.</p>
+    <p class="lede"><b>Where this departs from production software.</b> AASPI computes its average
+      spectrum over a running window in time as well as over traces, so the operator adapts with depth.
+      Its <span class="k">spectral_balance</span> program does offer the trace-by-trace mode shown in step
+      5, and the documentation warns against it in the same terms used here. The reflectivity in this
+      model is a single wedge rather than a full series, so the "average spectrum" is much closer to the
+      wavelet than a real survey average would be, and the balancing consequently looks cleaner here than
+      it will on real data.</p>
+    <details class="reveal">
+      <summary>References</summary>
+      <ul class="lede" style="padding-left:20px">
+        <li>Walden, A. T., and J. W. J. Hosken, 1985, An investigation of the spectral properties of
+          primary reflection coefficients: <em>Geophysical Prospecting</em>, <b>33</b>,
+          400&ndash;435.</li>
+        <li>Yilmaz, Ö., 2001, <em>Seismic Data Analysis</em>: SEG Investigations in Geophysics 10.</li>
+        <li>AASPI, <em>Spectral Attributes: Programs spec_cwt and spec_cmp</em>, University of Oklahoma —
+          for the balancing operator, the prewhitening constant and the warning about trace-by-trace
+          balancing.</li>
+      </ul>
+    </details>
+  </section>
+
+  <section class="nextup" id="nextup" hidden>
+    <p class="eyebrow">Next up</p>
+    <h3>06 · Peak frequency, peak magnitude, and the maps they make</h3>
+    <p>With the wavelet dealt with, a spectrum at every sample can finally become a map. Which statistic
+      of that spectrum is mapped, and where the numbers stop meaning anything.</p>
+    <a class="btn ghost" href="attributes.html">Module 06 →</a>
+  </section>
+
+  <div class="pager" id="pager" hidden>
+    <a class="btn ghost" href="tuning.html">← Module 04: tuning and the thin bed</a>
+    <a class="btn ghost" href="../index.html">All modules</a>
+    <a class="btn ghost" href="attributes.html">Module 06: peak frequency and peak magnitude →</a>
+  </div>
+
+  <footer>
+    <div class="foot-grid">
+      <p>Built for teaching by Dr. Heather Bedle and Dr. April Moreno-Ward, University of Oklahoma, with
+        the <a href="https://www.ou.edu/mcee/labs/aaspi">AASPI</a> consortium.</p>
+      <p class="lic">To cite: H. Bedle and A. Moreno-Ward, 2026, <i>How Spectral Attributes Actually
+        Work: A Set of Browser-Based Interactive Modules</i>: SSRN working paper, University of Oklahoma.
+        <span class="k">SSRN: [article link to follow]</span></p>
+      <p class="lic">Licensed <a href="https://creativecommons.org/licenses/by-sa/4.0/">CC BY-SA 4.0</a>.
+        Free to use, adapt and share, including in teaching, provided the source is credited and any
+        adaptation is released under the same license. If you use it in a course or a talk, a credit line
+        and a link back are all that is asked.</p>
+      <p class="lic">Nothing you do in this module leaves your browser. The only thing recorded is that
+        the page was opened, so that the university can see these are being used &mdash; no cookie, no
+        account, nothing about you.</p>
+    </div>
+  </footer>
+</div>
+
+<script src="../assets/count.js"></script>
+<script src="../assets/popout.js"></script>
+<script src="../assets/panelout.js"></script>
+<script src="../assets/glossary.js"></script>
+<script src="../assets/seismic.js"></script>
+<script src="../assets/spectral.js"></script>
+<script>
+(function () {
+  'use strict';
+
+  if (typeof SEIS === 'undefined' || typeof SPEC === 'undefined') {
+    const missing = [];
+    if (typeof SEIS === 'undefined') missing.push('assets/seismic.js');
+    if (typeof SPEC === 'undefined') missing.push('assets/spectral.js');
+    const el = document.createElement('div');
+    el.setAttribute('style', 'background:#841617;color:#fff;padding:14px 18px;margin:16px 0;' +
+      'font:13px/1.6 ui-monospace,Menlo,monospace');
+    el.textContent = 'This module could not load ' + missing.join(' and ') +
+      '. It expects them one directory up, at ../assets/, and file names are ' +
+      'case-sensitive on GitHub Pages.';
+    const w = document.querySelector('.wrap');
+    (w || document.body).insertBefore(el, w ? w.firstChild : null);
+    return;
+  }
+
+  const $ = (id) => document.getElementById(id);
+  const clamp = (v, a, b) => Math.max(a, Math.min(b, v));
+  const visible = (id) => { const el = $(id); return el && !el.hidden; };
+  const CRIM = '#841617', TEAL = '#0B7285', SLATE = '#5C6670';
+
+  const DT = 0.0005, NT = 600, NX = 100;
+  const T0 = 0.100, RTOP = 0.1, RBOT = -0.1;
+  const TMAX = 50;                     // thickest bed, ms
+  const FMAX = 140;
+  const FREQS = [];
+  for (let f = 1; f <= FMAX; f += 1) FREQS.push(f);
+  const BAND = [8, 70];                // where flatness is judged
+
+  const DEF = { fd: 28, noise: 4, alpha: 10, beta: 0, mode: 'survey', tab: 'p1' };
+  let S = SEIS.readState(DEF);
+  if (S.mode !== 'survey' && S.mode !== 'trace') S.mode = 'survey';
+
+  const CAN_LINK = location.protocol !== 'file:';
+  const saveState = () => {
+    if (!CAN_LINK) return;
+    try { SEIS.writeState(S, DEF); } catch (e) { /* nothing shareable */ }
+  };
+
+  const alphaOf = () => S.alpha / 1000;      // slider 1..120 -> 0.001..0.12
+  const betaOf = () => S.beta / 100;
+
+  /* =====================================================================
+     THE MODEL
+     ===================================================================== */
+  let MODEL = null, MKEY = '';
+  function model() {
+    const key = [S.fd, S.noise].join('|');
+    if (MODEL && MKEY === key) return MODEL;
+    MODEL = buildModel(S.fd);
+    MKEY = key;
+    return MODEL;
+  }
+
+  /* The same wedge through a wavelet of any peak frequency. Step 2 needs three
+     of them at once to show that the rock does not change when the source
+     does. */
+  function buildModel(fd) {
+    const wav = SEIS.makeWavelet({ type: 'ricker', f: fd });
+    const rnd = SEIS.mulberry32(90210);
+    const traces = [], thick = new Float64Array(NX);
+    for (let ix = 0; ix < NX; ix++) {
+      const T = (1 - ix / (NX - 1)) * (TMAX / 1000);
+      thick[ix] = T;
+      const tr = new Float64Array(NT);
+      for (let i = 0; i < NT; i++) {
+        const t = i * DT;
+        tr[i] = RTOP * wav.fn(t - T0) + RBOT * wav.fn(t - (T0 + T));
+      }
+      if (S.noise > 0) {
+        const raw = new Float64Array(NT);
+        for (let i = 0; i < NT; i++) raw[i] = rnd() * 2 - 1;
+        const sm = new Float64Array(NT);
+        for (let i = 1; i < NT - 1; i++) sm[i] = (raw[i - 1] + raw[i] + raw[i + 1]) / 3;
+        let rms = 0;
+        for (let i = 0; i < NT; i++) rms += sm[i] * sm[i];
+        rms = Math.sqrt(rms / NT) || 1;
+        const amp = (S.noise / 100) * Math.abs(RTOP);
+        for (let i = 0; i < NT; i++) tr[i] += (amp / rms) * sm[i];
+      }
+      traces.push(tr);
+    }
+    return { traces, thick };
+  }
+
+  /* The balanced version of the whole section, in time rather than in the
+     spectral domain. Each trace is transformed, its magnitude multiplied by the
+     same operator used everywhere else in this module, and transformed back.
+     Phase is left alone, so nothing moves; only the amplitude of each frequency
+     changes. This is what the balancing does to the image an interpreter looks
+     at, which the spectral plots alone do not show. */
+  function balancedSection(op, traces) {
+    const md = traces || model().traces;
+    const n = 1024;                       // >= NT, power of two for the FFT
+    const out = [];
+    for (let ix = 0; ix < NX; ix++) {
+      const re = new Float64Array(n), im = new Float64Array(n);
+      re.set(md[ix].subarray(0, Math.min(NT, n)));
+      SEIS.fft(re, im, false);
+      for (let k = 0; k <= n / 2; k++) {
+        const f = k / (n * DT);
+        // the operator is tabulated on FREQS (1 Hz spacing); interpolate
+        let g;
+        if (f <= FREQS[0]) g = op[0];
+        else if (f >= FREQS[FREQS.length - 1]) g = op[FREQS.length - 1];
+        else {
+          const j = Math.floor(f - FREQS[0]);
+          const t = (f - FREQS[j]) / (FREQS[j + 1] - FREQS[j]);
+          g = op[j] * (1 - t) + op[j + 1] * t;
+        }
+        re[k] *= g; im[k] *= g;
+        if (k > 0 && k < n / 2) {         // keep the spectrum conjugate-symmetric
+          re[n - k] *= g; im[n - k] *= g;
+        }
+      }
+      SEIS.fft(re, im, true);
+      out.push(re.slice(0, NT));
+    }
+    return out;
+  }
+
+  /* How many separate events a vertical trace crosses, counted as sign changes
+     that clear a threshold. It is the quantity a student is really asking about
+     when they ask whether balancing "added reflectors". */
+  function eventCount(traces, i0, i1) {
+    let peak = 0;
+    for (let ix = 0; ix < NX; ix++) {
+      for (let i = i0; i < i1; i++) peak = Math.max(peak, Math.abs(traces[ix][i]));
+    }
+    const thr = 0.15 * (peak || 1);
+    const tr = traces[Math.round(NX * 0.25)];   // a quarter of the way along
+    let n = 0, was = 0;
+    for (let i = i0; i < i1; i++) {
+      const v = tr[i];
+      if (Math.abs(v) < thr) continue;
+      const sgn = v > 0 ? 1 : -1;
+      if (sgn !== was) { n++; was = sgn; }
+    }
+    return n;
+  }
+
+  function winIdx() {
+    const pad = 1.6 / S.fd;
+    return [Math.max(0, Math.round((T0 - pad) / DT)),
+            Math.min(NT, Math.round((T0 + TMAX / 1000 + pad) / DT))];
+  }
+
+  function spectrumOf(tr) {
+    const [a, b] = winIdx();
+    const n = b - a;
+    const w = new Float64Array(n);
+    let wsum = 0;
+    for (let k = 0; k < n; k++) { w[k] = 0.5 * (1 - Math.cos(2 * Math.PI * k / (n - 1))); wsum += w[k]; }
+    const norm = wsum > 0 ? 2 / wsum : 0;
+    const out = new Float64Array(FREQS.length);
+    for (let j = 0; j < FREQS.length; j++) {
+      const f = FREQS[j];
+      let re = 0, im = 0;
+      for (let k = 0; k < n; k++) {
+        const t = (a + k) * DT;
+        const v = tr[a + k] * w[k];
+        const ang = 2 * Math.PI * f * t;
+        re += v * Math.cos(ang); im -= v * Math.sin(ang);
+      }
+      out[j] = Math.hypot(re, im) * norm;
+    }
+    return out;
+  }
+
+  /* Every trace's spectrum, and the survey average of them. Cached: almost
+     every step needs both. */
+  let SPECS = null, SKEY = '';
+  function specs() {
+    const key = [S.fd, S.noise].join('|');
+    if (SPECS && SKEY === key) return SPECS;
+    SPECS = specsOf(model().traces);
+    SKEY = key;
+    return SPECS;
+  }
+
+  function specsOf(traces) {
+    const all = [], avg = new Float64Array(FREQS.length);
+    for (let ix = 0; ix < NX; ix++) {
+      const sp = spectrumOf(traces[ix]);
+      all.push(sp);
+      for (let j = 0; j < FREQS.length; j++) avg[j] += sp[j] / NX;
+    }
+    return { all, avg };
+  }
+
+  /* A cosine taper that is 1 where the average spectrum has real energy and 0
+     where it does not. Without it the operator happily multiplies the empty top
+     of the band by fifty, the peak-frequency search finds that amplified noise,
+     and balancing appears to make the estimate dramatically worse. Production
+     code applies Ormsby corners for exactly this reason. */
+  function bandMask(avg) {
+    let pk = 0;
+    for (const v of avg) pk = Math.max(pk, v);
+    const thr = 0.03 * pk;
+    let lo = 0, hi = FREQS.length - 1;
+    for (let j = 0; j < FREQS.length; j++) if (avg[j] >= thr) { lo = j; break; }
+    for (let j = FREQS.length - 1; j >= 0; j--) if (avg[j] >= thr) { hi = j; break; }
+    const roll = Math.max(4, Math.round(0.15 * (hi - lo)));
+    const m = new Float64Array(FREQS.length);
+    for (let j = 0; j < FREQS.length; j++) {
+      if (j < lo - roll || j > hi + roll) m[j] = 0;
+      else if (j < lo) m[j] = 0.5 * (1 - Math.cos(Math.PI * (j - (lo - roll)) / roll));
+      else if (j > hi) m[j] = 0.5 * (1 - Math.cos(Math.PI * ((hi + roll) - j) / roll));
+      else m[j] = 1;
+    }
+    return m;
+  }
+
+  function operatorAt(avg, beta) {
+    const op = SPEC.balanceOperator(avg, FREQS, { alpha: alphaOf(), beta: beta });
+    const mask = bandMask(avg);
+    const out = new Float64Array(FREQS.length);
+    for (let j = 0; j < FREQS.length; j++) out[j] = op[j] * mask[j];
+    return out;
+  }
+  function operatorFrom(avg) { return operatorAt(avg, betaOf()); }
+
+  /* The thinnest bed on a section whose top and base are still two separate
+     events of opposite polarity. Below that thickness the wedge shows one
+     composite event, and the thickness cannot be read from the picture. The
+     traces run from thick to thin, so the scan runs from the thin end back. */
+  /* The thinnest bed whose thickness can still be measured off the section.
+
+     Above tuning, the time between the peak at the top of the bed and the
+     trough at its base equals the true thickness. Below tuning that spacing
+     stops shrinking: the top and base have merged into one composite waveform
+     whose shape no longer follows the bed. The thickness at which the two part
+     company is a property of the wavelet the data are carrying, which is
+     exactly what balancing and bluing change.
+
+     The scan runs from the thin end upward and requires three consecutive
+     thicknesses to agree, so that one noisy trace does not decide the answer.  */
+  function thinnestMeasurable(traces, i0, i1, clip, thick) {
+    const md = { thick: thick || model().thick };
+    const thr = 0.20 * (clip || 1);
+    let run = 0, first = null;
+    for (let ix = NX - 1; ix >= 0; ix--) {
+      const tr = traces[ix];
+      let iP = -1, iN = -1, vP = 0, vN = 0;
+      for (let i = i0; i < i1; i++) {
+        const v = tr[i];
+        if (v > vP) { vP = v; iP = i; }
+        if (v < vN) { vN = v; iN = i; }
+      }
+      const tru = md.thick[ix] * 1000;
+      const ok = iP >= 0 && iN >= 0 && vP >= thr && -vN >= thr &&
+                 Math.abs(Math.abs(iN - iP) * DT * 1000 - tru) <= 1.5;
+      if (ok) {
+        if (run === 0) first = tru;
+        if (++run >= 3) return first;
+      } else {
+        run = 0; first = null;
+      }
+    }
+    return null;
+  }
+
+
+  /* The lowest genuinely deep notch, as in module 04: scan upward and take the
+     first local minimum well below both flanking maxima. */
+  function firstNotch(mag) {
+    let gmax = 0;
+    for (const v of mag) gmax = Math.max(gmax, v);
+    if (gmax <= 0) return null;
+    for (let k = 2; k < mag.length - 2; k++) {
+      if (!(mag[k] < mag[k - 1] && mag[k] <= mag[k + 1])) continue;
+      let lo = mag[k], hi = mag[k];
+      for (let j = k - 1; j >= 0; j--) { if (mag[j] < mag[j + 1]) break; lo = mag[j]; }
+      for (let j = k + 1; j < mag.length; j++) { if (mag[j] < mag[j - 1]) break; hi = mag[j]; }
+      const flank = Math.min(lo, hi);
+      if (flank < 0.12 * gmax) continue;
+      if (mag[k] < 0.35 * flank) return FREQS[k];
+    }
+    return null;
+  }
+
+  /* Peak frequency, taking the LOWEST strong maximum rather than the global one.
+
+     This matters more after balancing than before it, and the reason is worth
+     understanding. A tuned bed's comb has maxima at 1/(2T), 3/(2T), 5/(2T) and
+     so on, all of the same height. On unbalanced data the wavelet's envelope
+     picks one of them out — usually the one nearest the wavelet's own peak — so
+     the global maximum is unambiguous. Whitening removes that envelope, which
+     is exactly what it was asked to do, and the lobes become equal. The global
+     maximum then hops between lobes as the bed thins and the thickness estimate
+     jumps by a factor of three.
+
+     So a balanced peak-frequency estimate needs a rule for which lobe to take,
+     and taking the lowest is the one that inverts to the right thickness. This
+     is why every spectral program asks for a frequency search range: it is not
+     a display convenience, it is what stops this. */
+  function peakFreqOf(mag) {
+    let g = 0;
+    for (const v of mag) g = Math.max(g, v);
+    if (g <= 0) return FREQS[0];
+    for (let k = 1; k < mag.length - 1; k++) {
+      if (mag[k] >= mag[k - 1] && mag[k] > mag[k + 1] && mag[k] > 0.7 * g) {
+        const y0 = mag[k - 1], y1 = mag[k], y2 = mag[k + 1];
+        const den = y0 - 2 * y1 + y2;
+        return Math.abs(den) > 1e-16 ? FREQS[k] + 0.5 * (y0 - y2) / den : FREQS[k];
+      }
+    }
+    let j = 0;
+    for (let k = 1; k < mag.length; k++) if (mag[k] > mag[j]) j = k;
+    return FREQS[j];
+  }
+
+  /* Thickness estimates down the wedge, in one of three states. */
+  function estimates(mode) {
+    const sp = specs();
+    const out = [];
+    const op = mode === 'survey' ? operatorFrom(sp.avg) : null;
+    for (let ix = 0; ix < NX; ix++) {
+      let mag = sp.all[ix];
+      if (mode === 'survey') mag = SPEC.applyBalance(mag, op);
+      else if (mode === 'trace') mag = SPEC.applyBalance(mag, operatorFrom(sp.all[ix]));
+      const f = peakFreqOf(mag);
+      out.push(f > 0 ? 1000 / (2 * f) : NaN);
+    }
+    return out;
+  }
+
+  function workingRange(est, thick) {
+    let thin = NaN, thick0 = NaN;
+    for (let k = NX - 1; k >= 0; k--) {
+      const t = thick[k] * 1000;
+      if (t <= 0) continue;
+      if (isFinite(est[k]) && Math.abs(est[k] - t) / t < 0.2) { thin = t; break; }
+    }
+    for (let k = 0; k < NX; k++) {
+      const t = thick[k] * 1000;
+      if (t <= 0) continue;
+      if (isFinite(est[k]) && Math.abs(est[k] - t) / t < 0.2) { thick0 = t; break; }
+    }
+    return { thin, thick: thick0 };
+  }
+
+  /* Mean absolute error of a thickness estimate, over the band of thicknesses
+     the method is supposed to cover. Measured over the whole wedge instead, it
+     is dominated by the thick end, where 1/(2T) sits below the recorded band
+     and no amount of balancing can help — which buries the effect being shown. */
+  function meanError(est, thick, lo, hi) {
+    let e = 0, n = 0;
+    for (let k = 0; k < NX; k++) {
+      const t = thick[k] * 1000;
+      if (t < lo || t > hi || !isFinite(est[k])) continue;
+      e += Math.abs(est[k] - t) / t; n++;
+    }
+    return n ? 100 * e / n : NaN;
+  }
+
+  function flatness(mag) {
+    let s = 0, n = 0;
+    for (let j = 0; j < FREQS.length; j++) {
+      if (FREQS[j] < BAND[0] || FREQS[j] > BAND[1]) continue;
+      s += mag[j]; n++;
+    }
+    const mean = n ? s / n : 0;
+    if (mean <= 0) return 0;
+    let v = 0;
+    for (let j = 0; j < FREQS.length; j++) {
+      if (FREQS[j] < BAND[0] || FREQS[j] > BAND[1]) continue;
+      v += (mag[j] - mean) * (mag[j] - mean);
+    }
+    return Math.sqrt(v / n) / mean;
+  }
+
+  // the trace index whose bed is closest to a given thickness
+  function ixFor(ms) {
+    const m = model();
+    let best = 0;
+    for (let ix = 0; ix < NX; ix++) {
+      if (Math.abs(m.thick[ix] * 1000 - ms) < Math.abs(m.thick[best] * 1000 - ms)) best = ix;
+    }
+    return best;
+  }
+
+  /* =====================================================================
+     DRAWING
+     ===================================================================== */
+  const M = { l: 56, r: 16, t: 16, b: 34 };
+  function boxOf(w, h) { return { x: M.l, y: M.t, w: w - M.l - M.r, h: h - M.t - M.b }; }
+  function contentWidth(el) {
+    const p = el.parentElement || el;
+    const cs = getComputedStyle(p);
+    return Math.max(240, p.clientWidth - parseFloat(cs.paddingLeft) - parseFloat(cs.paddingRight));
+  }
+  /* An estimate outside the plotted range is not a reading. series() clamps to
+     the axis, which would draw a wild value as though it were exactly 0 or
+     exactly TMAX and produce the flat-topped spikes that used to reach the
+     frame. Gapping the line says "no answer here", which is the truth. */
+  function onScale(ys, lo, hi) {
+    return ys.map((v) => (isFinite(v) && v >= lo && v <= hi ? v : NaN));
+  }
+  function series(ctx, rect, xs, ys, x0, x1, y0, y1, color, width, dash) {
+    ctx.save();
+    ctx.beginPath();
+    ctx.lineWidth = width || 1.7;
+    ctx.strokeStyle = color;
+    if (dash) ctx.setLineDash(dash);
+    let started = false;
+    for (let i = 0; i < xs.length; i++) {
+      if (!isFinite(ys[i]) || xs[i] < x0 || xs[i] > x1) { started = false; continue; }
+      const X = rect.x + ((xs[i] - x0) / (x1 - x0)) * rect.w;
+      const Y = rect.y + rect.h - ((clamp(ys[i], y0, y1) - y0) / (y1 - y0)) * rect.h;
+      if (!started) { ctx.moveTo(X, Y); started = true; } else ctx.lineTo(X, Y);
+    }
+    ctx.stroke();
+    ctx.restore();
+  }
+  function specPlot(ctx, rect, curves, top, ylabel) {
+    SEIS.frame(ctx, rect);
+    for (const c of curves) {
+      series(ctx, rect, FREQS, c.y, 0, FMAX, 0, top, c.color, c.width || 1.8, c.dash);
+    }
+    SEIS.axisBottom(ctx, rect, 0, FMAX, 'frequency (Hz)', (v) => v.toFixed(0), { ticks: 7 });
+    SEIS.axisLeft(ctx, rect, 0, top, ylabel || 'relative amplitude', (v) => v.toFixed(1), { ticks: 5 });
+  }
+  function estPlot(ctx, rect, est, thick) {
+    const xs = [];
+    for (let ix = 0; ix < NX; ix++) xs.push(thick[ix] * 1000);
+    SEIS.frame(ctx, rect);
+    series(ctx, rect, xs, xs, 0, TMAX, 0, TMAX, 'rgba(92,102,112,0.65)', 2.4, [5, 4]);
+    series(ctx, rect, xs, onScale(est, 0, TMAX), 0, TMAX, 0, TMAX, CRIM, 2);
+    SEIS.axisBottom(ctx, rect, 0, TMAX, 'true thickness (ms)', (v) => v.toFixed(0), { ticks: 6 });
+    SEIS.axisLeft(ctx, rect, 0, TMAX, 'estimated (ms)', (v) => v.toFixed(0), { ticks: 5 });
+  }
+  const norm = (a) => {
+    let mx = 0;
+    for (const v of a) mx = Math.max(mx, v);
+    return Array.from(a, (v) => v / (mx || 1));
+  };
+
+  /* ------------------------------------------------------------- header */
+  function drawHeader() {
+    const el = $('cHead');
+    if (!el) return;
+    const w = contentWidth(el), h = 210;
+    const ctx = SEIS.fitCanvas(el, w, h);
+    ctx.clearRect(0, 0, w, h);
+    const rect = boxOf(w, h);
+    const sp = specs();
+    const wav = SEIS.makeWavelet({ type: 'ricker', f: S.fd });
+    const wsp = SEIS.spectrum(wav, DT, FREQS.length, FMAX).map((p) => p.a);
+    specPlot(ctx, rect, [
+      { y: norm(wsp), color: 'rgba(92,102,112,0.75)', width: 2.4, dash: [5, 4] },
+      { y: norm(sp.avg), color: TEAL, width: 2 },
+    ], 1.1, 'relative');
+    SEIS.tag(ctx, rect.x + 8, rect.y + 6, 'gray: the wavelet', SLATE);
+    SEIS.tag(ctx, rect.x + 8, rect.y + 24, 'teal: what is recorded', TEAL);
+  }
+
+  /* ------------------------------------------------------------- step 1 */
+  function drawStep1() {
+    const el = $('c1');
+    if (!el) return;
+    const w = contentWidth(el), h = 320;
+    const ctx = SEIS.fitCanvas(el, w, h);
+    ctx.clearRect(0, 0, w, h);
+    const m = model();
+    const est = estimates('raw');
+    estPlot(ctx, boxOf(w, h), est, m.thick);
+
+    $('s1f').textContent = S.fd.toFixed(0) + ' Hz';
+    $('s1e30').textContent = est[ixFor(30)].toFixed(1) + ' ms';
+    $('s1e12').textContent = est[ixFor(12)].toFixed(1) + ' ms';
+    $('s1sat').textContent = meanError(est, m.thick, 10, 30).toFixed(0) + '%';
+  }
+
+  /* ------------------------------------------------------------- step 2 */
+  /* Three sources over one wedge, recorded and balanced. Cached, because six
+     hundred transforms is more than a slider drag should ask for. */
+  const DEMO_FD = [20, 30, 45];
+  let DEMO = null, DKEY = '';
+  function threeSourceDemo() {
+    const key = [S.noise, S.alpha].join('|');
+    if (DEMO && DKEY === key) return DEMO;
+    const cols = [];
+    for (const fd of DEMO_FD) {
+      const md = buildModel(fd);
+      const sp = specsOf(md.traces);
+      /* beta held at zero: this panel is about balancing, and bluing is
+         step 4's subject */
+      const bal = balancedSection(operatorAt(sp.avg, 0), md.traces);
+      cols.push({ fd: fd, raw: md.traces, bal: bal, thick: md.thick });
+    }
+    DEMO = cols;
+    DKEY = key;
+    return DEMO;
+  }
+
+  function drawThreeSource() {
+    const el = $('c2c');
+    if (!el) return;
+    const cols = threeSourceDemo();
+    const [i0, i1] = winIdx();
+    const w = contentWidth(el);
+    const gap = 16, labW = 74;
+    const panW = (w - labW - 2 * gap - M.r) / 3;
+    const panH = 150;
+    const h = M.t + 18 + panH + 26 + 18 + panH + 40;
+    const ctx = SEIS.fitCanvas(el, w, h);
+    ctx.clearRect(0, 0, w, h);
+
+    /* One amplitude scale for all six panels. Scaled panel by panel, balancing
+       would appear to change nothing, because each picture would be stretched
+       to fill its own box. */
+    let clip = 0;
+    for (const c of cols) {
+      for (const set of [c.raw, c.bal]) {
+        for (let ix = 0; ix < NX; ix++) {
+          for (let i = i0; i < i1; i++) clip = Math.max(clip, Math.abs(set[ix][i]));
+        }
+      }
+    }
+    clip = clip || 1;
+
+    const rawT = [], balT = [];
+    ctx.save();
+    ctx.font = '10px "IBM Plex Mono", monospace';
+    for (let k = 0; k < cols.length; k++) {
+      const c = cols[k];
+      const x = labW + k * (panW + gap);
+      ctx.fillStyle = CRIM;
+      ctx.textAlign = 'center'; ctx.textBaseline = 'top';
+      ctx.fillText(c.fd + ' Hz wavelet', x + panW / 2, M.t);
+      const rows = [
+        { y: M.t + 18, set: c.raw },
+        { y: M.t + 18 + panH + 26 + 18, set: c.bal },
+      ];
+      for (const r of rows) {
+        const rect = { x: x, y: r.y, w: panW, h: panH };
+        SEIS.drawSectionPanel(ctx, r.set, rect, { i0: i0, i1: i1, clip: clip });
+        SEIS.frame(ctx, rect);
+      }
+      rawT.push(thinnestMeasurable(c.raw, i0, i1, clip, c.thick));
+      balT.push(thinnestMeasurable(c.bal, i0, i1, clip, c.thick));
+    }
+    ctx.fillStyle = SLATE;
+    ctx.textAlign = 'right'; ctx.textBaseline = 'middle';
+    ctx.fillText('as recorded', labW - 12, M.t + 18 + panH / 2);
+    ctx.fillText('balanced', labW - 12, M.t + 18 + panH + 26 + 18 + panH / 2);
+    ctx.textAlign = 'left'; ctx.textBaseline = 'top';
+    /* wrapped inside the three panels it sits beneath, rather than running
+       off the right edge of the canvas in a narrow window */
+    SEIS.captionLine(ctx, 'bed thickness: ' + TMAX +
+      ' ms at the left, pinching out at the right',
+      labW, h - 26, w - labW - M.r, { lineHeight: 12 });
+    ctx.restore();
+
+    const fmt = (v) => (v === null ? 'none' : v.toFixed(1) + ' ms');
+    const spread = (a) => {
+      const ok = a.filter((v) => v !== null);
+      return ok.length < 2 ? 'not measurable' : (Math.max(...ok) - Math.min(...ok)).toFixed(1) + ' ms';
+    };
+    $('s2rawset').textContent = rawT.map(fmt).join(' / ');
+    $('s2balset').textContent = balT.map(fmt).join(' / ');
+    $('s2spreadr').textContent = spread(rawT);
+    $('s2spreadb').textContent = spread(balT);
+  }
+
+  function drawStep2() {
+    const a = $('c2a'), b = $('c2b');
+    if (!a || !b) return;
+    drawThreeSource();
+    const sp = specs(), m = model();
+    const op = operatorFrom(sp.avg);
+    const bal = SPEC.applyBalance(sp.avg, op);
+    const h = 260;
+
+    const wA = contentWidth(a);
+    const cA = SEIS.fitCanvas(a, wA, h);
+    cA.clearRect(0, 0, wA, h);
+    specPlot(cA, boxOf(wA, h), [
+      { y: norm(sp.avg), color: TEAL, width: 2 },
+      { y: norm(op), color: CRIM, width: 1.8, dash: [4, 3] },
+    ], 1.1, 'relative');
+
+    const wB = contentWidth(b);
+    const cB = SEIS.fitCanvas(b, wB, h);
+    cB.clearRect(0, 0, wB, h);
+    specPlot(cB, boxOf(wB, h), [
+      { y: norm(sp.avg), color: 'rgba(92,102,112,0.7)', width: 2, dash: [5, 4] },
+      { y: norm(bal), color: CRIM, width: 2 },
+    ], 1.1, 'relative');
+
+    const est = estimates('survey');
+    $('s2b4').textContent = flatness(sp.avg).toFixed(3);
+    $('s2after').textContent = flatness(bal).toFixed(3);
+    $('s2e12').textContent = est[ixFor(12)].toFixed(1) + ' ms';
+    $('s2range').textContent = meanError(est, m.thick, 10, 30).toFixed(0) + '%';
+  }
+
+  /* ------------------------------------------------------------- step 3 */
+  function drawStep3() {
+    const a = $('c3a'), b = $('c3b');
+    if (!a || !b) return;
+    const sp = specs();
+    const op = operatorFrom(sp.avg);
+    const bal = SPEC.applyBalance(sp.avg, op);
+    const h = 260;
+
+    const wA = contentWidth(a);
+    const cA = SEIS.fitCanvas(a, wA, h);
+    cA.clearRect(0, 0, wA, h);
+    specPlot(cA, boxOf(wA, h), [{ y: norm(bal), color: CRIM, width: 2 }], 1.1, 'relative');
+
+    // the balanced version of one trace, back in time
+    const ix = ixFor(20);
+    const raw = sp.all[ix];
+    const balTr = SPEC.applyBalance(raw, op);
+    const wB = contentWidth(b);
+    const cB = SEIS.fitCanvas(b, wB, h);
+    cB.clearRect(0, 0, wB, h);
+    specPlot(cB, boxOf(wB, h), [
+      { y: norm(raw), color: 'rgba(92,102,112,0.7)', width: 2, dash: [5, 4] },
+      { y: norm(balTr), color: TEAL, width: 2 },
+    ], 1.1, 'relative');
+
+    let gmax = 0;
+    for (const v of op) gmax = Math.max(gmax, v);
+    // how much the operator lifts the part of the band with no signal in it
+    let inb = 0, outb = 0, nin = 0, nout = 0;
+    for (let j = 0; j < FREQS.length; j++) {
+      if (FREQS[j] >= BAND[0] && FREQS[j] <= BAND[1]) { inb += op[j]; nin++; }
+      else if (FREQS[j] > BAND[1]) { outb += op[j]; nout++; }
+    }
+    $('s3a').textContent = (100 * alphaOf()).toFixed(1) + '%';
+    $('s3g').textContent = gmax.toFixed(1) + '×';
+    $('s3flat').textContent = flatness(bal).toFixed(3);
+    $('s3noise').textContent = nin && nout
+      ? ((outb / nout) / (inb / nin)).toFixed(2) + '×' : '—';
+
+    /* the same two states as seismic sections, on a shared amplitude scale */
+    const secA = $('c3c'), secB = $('c3d');
+    if (secA && secB) {
+      const md = model();
+      const balSec = balancedSection(op);
+      const [i0, i1] = winIdx();
+      const hs = 250;
+      const wS = contentWidth(secA);
+      const ctxA = SEIS.fitCanvas(secA, wS, hs);
+      ctxA.clearRect(0, 0, wS, hs);
+      const clip = SEIS.drawSectionPanel(ctxA, md.traces, boxOf(wS, hs), {
+        i0, i1, dt: DT, xlabel: 'bed thickness (ms)', xmin: TMAX, xmax: 0,
+      });
+      const wT = contentWidth(secB);
+      const ctxB = SEIS.fitCanvas(secB, wT, hs);
+      ctxB.clearRect(0, 0, wT, hs);
+      SEIS.drawSectionPanel(ctxB, balSec, boxOf(wT, hs), {
+        i0, i1, dt: DT, clip, xlabel: 'bed thickness (ms)', xmin: TMAX, xmax: 0,
+      });
+      $('s3ev').textContent = eventCount(md.traces, i0, i1) + ' → ' +
+        eventCount(balSec, i0, i1);
+    }
+  }
+
+  /* ------------------------------------------------------------- step 4 */
+  function drawStep4() {
+    const a = $('c4a'), b = $('c4b');
+    if (!a || !b) return;
+    const sp = specs();
+    const bal = SPEC.applyBalance(sp.avg, operatorFrom(sp.avg));
+    const h = 260;
+
+    const wA = contentWidth(a);
+    const cA = SEIS.fitCanvas(a, wA, h);
+    cA.clearRect(0, 0, wA, h);
+    specPlot(cA, boxOf(wA, h), [{ y: norm(bal), color: CRIM, width: 2 }], 1.1, 'relative');
+
+    /* The wavelet the balanced data now carry: take the balanced average
+       spectrum back to time as a zero-phase wavelet. */
+    const n = 512;
+    const re = new Float64Array(n), im = new Float64Array(n);
+    for (let j = 0; j < FREQS.length; j++) {
+      const k = Math.round(FREQS[j] * n * DT);
+      if (k > 0 && k < n / 2) { re[k] = bal[j]; re[n - k] = bal[j]; }
+    }
+    SPEC.analytic;                       // (kept explicit: we only need the FFT below)
+    const rr = Float64Array.from(re), ii = Float64Array.from(im);
+    SEIS.fft(rr, ii, true);
+    const wv = new Float64Array(n);
+    for (let i = 0; i < n; i++) wv[i] = rr[(i + n / 2) % n];
+    let mx = 0;
+    for (const v of wv) mx = Math.max(mx, Math.abs(v));
+    mx = mx || 1;
+
+    const wB = contentWidth(b);
+    const cB = SEIS.fitCanvas(b, wB, h);
+    cB.clearRect(0, 0, wB, h);
+    const rB = boxOf(wB, h);
+    const xs = [], ys = [];
+    for (let i = 0; i < n; i++) { xs.push((i - n / 2) * DT * 1000); ys.push(wv[i] / mx); }
+    SEIS.frame(cB, rB);
+    const Y0 = rB.y + rB.h / 2;
+    SEIS.dashedLine(cB, rB.x, Y0, rB.x + rB.w, Y0, 'rgba(92,102,112,0.45)', [3, 3], 1);
+    series(cB, rB, xs, ys, -60, 60, -1.1, 1.1, CRIM, 2);
+    SEIS.axisBottom(cB, rB, -60, 60, 'time (ms)', (v) => v.toFixed(0), { ticks: 6 });
+    SEIS.axisLeft(cB, rB, -1.1, 1.1, 'amplitude', (v) => v.toFixed(1), { ticks: 5 });
+
+    // sidelobe: the largest positive bump after the first trough
+    const c0 = n / 2;
+    let seen = false, side = 0;
+    for (let i = c0 + 1; i < n - 1; i++) {
+      const v = wv[i] / mx;
+      if (v < wv[i - 1] / mx && v < wv[i + 1] / mx) seen = true;
+      if (seen && v > 0) side = Math.max(side, v);
+    }
+    const j20 = FREQS.indexOf(20), j50 = FREQS.indexOf(50);
+    $('s4b').textContent = betaOf().toFixed(2);
+    $('s4tilt').textContent = (bal[j50] / (bal[j20] || 1)).toFixed(2) + '×';
+    $('s4pk').textContent = peakFreqOf(bal).toFixed(1) + ' Hz';
+    $('s4side').textContent = side.toFixed(3);
+
+    /* The same wedge through three wavelets. The spectrum and the wavelet above
+       say what balancing does arithmetically; these panels say what it does to
+       the picture a bed is picked on. */
+    const cs = [$('c4c'), $('c4d'), $('c4e')];
+    if (cs[0] && cs[1] && cs[2]) {
+      const md = model();
+      const secW = balancedSection(operatorAt(sp.avg, 0));
+      const secB = balancedSection(operatorAt(sp.avg, betaOf()));
+      const [i0, i1] = winIdx();
+      const hs = 260;
+      const sets = [md.traces, secW, secB];
+      let clip = 0;
+      const ctxs = [];
+      for (let k = 0; k < 3; k++) {
+        const wS = contentWidth(cs[k]);
+        const cx = SEIS.fitCanvas(cs[k], wS, hs);
+        cx.clearRect(0, 0, wS, hs);
+        ctxs.push({ cx, rect: boxOf(wS, hs) });
+      }
+      /* One amplitude scale across all three, or the panels cannot be compared:
+         balancing changes the amplitude as well as the shape. */
+      for (const set of sets) {
+        for (let ix = 0; ix < NX; ix++) {
+          for (let i = i0; i < i1; i++) clip = Math.max(clip, Math.abs(set[ix][i]));
+        }
+      }
+      for (let k = 0; k < 3; k++) {
+        SEIS.drawSectionPanel(ctxs[k].cx, sets[k], ctxs[k].rect, {
+          i0, i1, dt: DT, clip, xlabel: 'bed thickness (ms)', xmin: TMAX, xmax: 0,
+        });
+      }
+      const fmt = (v) => (v === null ? 'none in range' : v.toFixed(1) + ' ms');
+      $('s4sepA').textContent = fmt(thinnestMeasurable(md.traces, i0, i1, clip));
+      $('s4sepB').textContent = fmt(thinnestMeasurable(secW, i0, i1, clip));
+      $('s4sepC').textContent = fmt(thinnestMeasurable(secB, i0, i1, clip));
+      /* How many events a single trace a quarter of the way along the wedge
+         crosses, before and after. Two is a top and a base; more than two are
+         oscillations the balancing put there. */
+      $('s4ev').textContent = eventCount(md.traces, i0, i1) + ' → ' +
+        eventCount(secB, i0, i1);
+    }
+  }
+
+  /* ------------------------------------------------------------- step 5 */
+  function drawStep5() {
+    const a = $('c5a'), b = $('c5b');
+    if (!a || !b) return;
+    const sp = specs(), m = model();
+    const ix = ixFor(20);
+    const op = S.mode === 'survey' ? operatorFrom(sp.avg) : operatorFrom(sp.all[ix]);
+    const bal = SPEC.applyBalance(sp.all[ix], op);
+    const h = 260;
+
+    const wA = contentWidth(a);
+    const cA = SEIS.fitCanvas(a, wA, h);
+    cA.clearRect(0, 0, wA, h);
+    const rA = boxOf(wA, h);
+    specPlot(cA, rA, [
+      { y: norm(sp.all[ix]), color: 'rgba(92,102,112,0.7)', width: 2, dash: [5, 4] },
+      { y: norm(bal), color: TEAL, width: 2 },
+    ], 1.1, 'relative');
+    // where the notch should be, for a 20 ms bed
+    const T = m.thick[ix];
+    if (T > 0) {
+      const f = 1 / T;
+      const X = rA.x + (f / FMAX) * rA.w;
+      if (X < rA.x + rA.w) {
+        SEIS.dashedLine(cA, X, rA.y, X, rA.y + rA.h, CRIM, [4, 3], 1.3);
+        SEIS.tag(cA, X + 5, rA.y + 6, 'notch', CRIM);
+      }
+    }
+
+    /* Thickness from the NOTCH, not from the peak. The balancing operator is
+       monotonic in amplitude, so applying a trace's own operator to that trace
+       compresses its spectrum without moving the maximum — the peak-frequency
+       estimate survives trace-by-trace whitening almost untouched, which makes
+       it useless for showing what has been lost. The notch is what is lost. */
+    const sp2 = specs();
+    const est = [];
+    const opS = operatorFrom(sp2.avg);
+    for (let k = 0; k < NX; k++) {
+      const opk = S.mode === 'survey' ? opS : operatorFrom(sp2.all[k]);
+      const bk = SPEC.applyBalance(sp2.all[k], opk);
+      const fn = firstNotch(bk);
+      est.push(fn ? 1000 / fn : NaN);
+    }
+    const wB = contentWidth(b);
+    const cB = SEIS.fitCanvas(b, wB, h);
+    cB.clearRect(0, 0, wB, h);
+    estPlot(cB, boxOf(wB, h), est, m.thick);
+
+    /* Notch depth, measured directly: how far below the surrounding band does
+       the spectrum dip at the frequency the notch is supposed to be at. An
+       earlier version hunted for the flanking local maxima and walked outward
+       from them, which returned zero in every mode and told us nothing. */
+    const nb = norm(bal);
+    const fn = 1 / T;
+    let dip = Infinity;
+    for (let j = 0; j < FREQS.length; j++) {
+      if (Math.abs(FREQS[j] - fn) <= 6) dip = Math.min(dip, nb[j]);
+    }
+    let ref = 0, nref = 0;
+    for (let j = 0; j < FREQS.length; j++) {
+      if (FREQS[j] < BAND[0] || FREQS[j] > BAND[1]) continue;
+      if (Math.abs(FREQS[j] - fn) <= 6) continue;
+      ref += nb[j]; nref++;
+    }
+    ref = nref ? ref / nref : 1;
+    const depth = ref > 0 ? 1 - dip / ref : 0;
+
+    let usable = 0, tot = 0;
+    for (let k = 0; k < NX; k++) {
+      const t = m.thick[k] * 1000;
+      if (t < 14 || t > TMAX - 2) continue;
+      tot++;
+      if (isFinite(est[k]) && Math.abs(est[k] - t) / t < 0.25) usable++;
+    }
+    $('s5m').textContent = S.mode === 'survey' ? 'survey average' : 'trace by trace';
+    $('s5notch').textContent = (100 * clamp(depth, 0, 1)).toFixed(0) + '%';
+    $('s5e20').textContent = isFinite(est[ix]) ? est[ix].toFixed(1) + ' ms' : 'no notch';
+    $('s5err').textContent = tot ? Math.round(100 * usable / tot) + '%' : '—';
+  }
+
+  /* =====================================================================
+     PLUMBING
+     ===================================================================== */
+  function syncLabels() {
+    $('fdV').textContent = S.fd + ' Hz';
+    $('noiseV').textContent = S.noise === 0 ? 'none' : S.noise + '%';
+    $('alphaV').textContent = (100 * alphaOf()).toFixed(1) + '%';
+    $('betaV').textContent = betaOf().toFixed(2);
+    document.querySelectorAll('#segMode button').forEach((b) => {
+      b.setAttribute('aria-pressed', b.dataset.m === S.mode);
+      b.classList.toggle('on', b.dataset.m === S.mode);
+    });
+    ['fd', 'noise', 'alpha', 'beta'].forEach((k) => {
+      const el = $(k);
+      if (el && String(S[k]) !== el.value) el.value = S[k];
+    });
+  }
+
+  function drawAll() {
+    const lab = document.querySelector('.labhead');
+    if (lab && !lab.hidden) drawHeader();
+    if (visible('p1')) drawStep1();
+    if (visible('p2')) drawStep2();
+    if (visible('p3')) drawStep3();
+    if (visible('p4')) drawStep4();
+    if (visible('p5')) drawStep5();
+  }
+
+  const PANES = ['p1', 'p2', 'p3', 'p4', 'p5', 'pw', 'pe', 'pk', 'pm'];
+  const STEPNAMES = {
+    p1: 'The source in the answer', p2: 'The operator', p3: 'Prewhitening', p4: 'Bluing',
+    p5: 'By trace', pw: 'Why it matters', pe: 'Exercises', pk: 'Key points', pm: 'Method',
+  };
+
+  function buildStepNav() {
+    PANES.forEach((id, i) => {
+      const pane = $(id);
+      if (!pane || pane.querySelector('.stepnav')) return;
+      const prev = PANES[i - 1], next = PANES[i + 1];
+      const nav = document.createElement('div');
+      nav.className = 'stepnav';
+      const mk = (target, text, ghost) => {
+        const b = document.createElement('button');
+        b.type = 'button';
+        b.className = 'btn' + (ghost ? ' ghost' : '') + ' small';
+        b.textContent = text;
+        b.addEventListener('click', () => {
+          showTab(target);
+          const t = document.querySelector('.tabhint');
+          if (t && t.scrollIntoView) t.scrollIntoView({ behavior: 'smooth', block: 'start' });
+        });
+        return b;
+      };
+      nav.appendChild(prev ? mk(prev, '\u2190 ' + STEPNAMES[prev], true)
+                           : document.createElement('span'));
+      const where = document.createElement('span');
+      where.className = 'where';
+      where.textContent = i < 5 ? 'step ' + (i + 1) + ' of 5' : STEPNAMES[id];
+      nav.appendChild(where);
+      nav.appendChild(next ? mk(next, STEPNAMES[next] + ' \u2192')
+                           : document.createElement('span'));
+      pane.appendChild(nav);
+    });
+  }
+
+  function showTab(id) {
+    PANES.forEach((q) => { const el = $(q); if (el) el.hidden = q !== id; });
+    document.querySelectorAll('#tabs button').forEach((b) => {
+      b.setAttribute('aria-selected', b.dataset.tab === id);
+    });
+    const lab = document.querySelector('.labhead');
+    if (lab) lab.hidden = (id === 'pw' || id === 'pe' || id === 'pk' || id === 'pm');
+    /* The forward link lives on the pager. Show it once the reader has reached
+       the exercises, not only on the two reference tabs — a student who works
+       the exercises and stops used to have no way on to the next module. */
+    const done = (id === 'pe' || id === 'pk' || id === 'pm');
+    if ($('nextup')) $('nextup').hidden = !(id === 'pk' || id === 'pm');
+    if ($('pager')) $('pager').hidden = !done;
+    S.tab = id;
+    drawAll();
+    saveState();
+  }
+  document.querySelectorAll('#tabs button').forEach((b) => {
+    b.addEventListener('click', () => showTab(b.dataset.tab));
+  });
+
+  document.querySelectorAll('#segMode button').forEach((b) => {
+    b.addEventListener('click', () => {
+      S.mode = b.dataset.m;
+      syncLabels(); drawAll(); saveState();
+    });
+  });
+
+  document.addEventListener('input', (ev) => {
+    const t = ev.target;
+    if (!t || t.tagName !== 'INPUT') return;
+    const id = t.id;
+    if (!(id in DEF)) return;
+    S[id] = parseFloat(t.value);
+    syncLabels(); drawAll(); saveState();
+  });
+
+  let rt;
+  window.addEventListener('resize', () => { clearTimeout(rt); rt = setTimeout(drawAll, 140); });
+
+  buildStepNav();
+  syncLabels();
+  showTab(PANES.indexOf(S.tab) >= 0 ? S.tab : 'p1');
+})();
+</script>
+</body>
+</html>

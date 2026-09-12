@@ -1,0 +1,1673 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>One channel, imaged four different ways | How Spectral Attributes Actually Work</title>
+<meta name="description" content="A channel imaged conventionally and then frequency by frequency. What band seismic data carries, what bed thickness each frequency images best, and what three frequencies together show that one amplitude map does not.">
+<link rel="stylesheet" href="../assets/fonts.css">
+<link rel="stylesheet" href="../assets/style.css">
+</head>
+<body>
+
+<div class="wrap">
+  <header class="masthead">
+    <a class="brand" href="../index.html"><span class="dot"></span>How spectral attributes <b>actually</b> work</a>
+    <nav>
+      <a href="../index.html">All modules</a>
+      <a href="#notes">Method &amp; references</a>
+    </nav>
+  </header>
+
+  <div class="mod-head">
+    <p class="eyebrow">Module 00 &nbsp;·&nbsp; Start here</p>
+    <h1>One channel, imaged four different ways</h1>
+    <p class="sub">A seismic amplitude map responds most strongly to beds of one particular thickness, set by the wavelet. Parts of a channel thicker or thinner than that produce a weaker response. Selecting a different frequency changes which thickness responds most strongly, and so changes which part of the channel appears bright. This module builds a channel of known shape, images it with the full bandwidth, then images it one frequency at a time.</p>
+  </div>
+
+  <div class="labhead">
+    <div class="labgrid">
+      <div>
+        <p class="cap">The channel <span>&mdash; in map view and in section; the profile line can be dragged</span></p>
+        <div class="headpair">
+          <!-- Each canvas sits in its own cell. The modules size a canvas from
+               its parent element's width, so two canvases sharing one grid
+               container would each be given the width of the whole container
+               and would overlap. -->
+          <div><canvas id="cHead" aria-label="Thickness map of the modeled channel, with a draggable profile line"></canvas></div>
+          <div><canvas id="cHeadSec" aria-label="Seismic section along the profile line, with the top and base of the fill marked"></canvas></div>
+        </div>
+      </div>
+      <div>
+        <p class="cap">Build the channel <span>&mdash; every step updates as you drag</span></p>
+        <div class="controls" id="winControls">
+          <div class="ctl-col">
+            <h2>Start from a channel</h2>
+            <div class="seg" id="segPreset" role="group" aria-label="Channel shapes">
+              <button type="button" data-thick="52" data-wide="50" data-taper="20">Deep and narrow</button>
+              <button type="button" data-thick="34" data-wide="80" data-taper="50">Ordinary</button>
+              <button type="button" data-thick="16" data-wide="130" data-taper="20">Thin and broad</button>
+            </div>
+            <p class="hint-line" style="margin:6px 0 0">Three shapes worth comparing. Each sets the three
+              sliders below; all of them can then be moved.</p>
+          </div>
+          <div class="ctl-col">
+            <h2>The geology</h2>
+            <div class="ctl">
+              <label for="thick">Thalweg fill <span class="val" id="thickV">34 ms</span></label>
+              <input type="range" data-key="thick" id="thick" min="10" max="60" step="2" value="34">
+            </div>
+            <div class="ctl">
+              <label for="wide">Channel width <span class="val" id="wideV">medium</span></label>
+              <input type="range" data-key="wide" id="wide" min="40" max="140" step="5" value="80">
+            </div>
+            <div class="ctl">
+              <label for="taper">Downstream thinning <span class="val" id="taperV">50%</span></label>
+              <input type="range" data-key="taper" id="taper" min="0" max="80" step="5" value="50">
+            </div>
+          </div>
+          <div class="ctl-col">
+            <h2>The seismic</h2>
+            <div class="ctl">
+              <label for="fd">Wavelet peak frequency <span class="val" id="fdV">30 Hz</span></label>
+              <input type="range" data-key="fd" id="fd" min="15" max="55" step="1" value="30">
+            </div>
+            <div class="ctl">
+              <label for="fc">Look at this frequency <span class="val" id="fcV">30 Hz</span></label>
+              <input type="range" data-key="fc" id="fc" min="8" max="80" step="1" value="30">
+            </div>
+            <div class="ctl">
+              <label for="noise">Noise <span class="val" id="noiseV">none</span></label>
+              <input type="range" data-key="noise" id="noise" min="0" max="40" step="2" value="0">
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <p class="tabhint">Work through the five steps in order, <b>then try the exercises</b>.
+    Method and references are there when you want them.</p>
+  <nav class="tabs" id="tabs" role="tablist" aria-label="Module steps">
+    <button role="tab" data-tab="p1" aria-selected="false">1 · The band</button>
+    <button role="tab" data-tab="p2" aria-selected="false">2 · One map</button>
+    <button role="tab" data-tab="p3" aria-selected="false">3 · Many maps</button>
+    <button role="tab" data-tab="p4" aria-selected="false">4 · Cross-section</button>
+    <button role="tab" data-tab="p5" aria-selected="false">5 · The blend</button>
+    <button role="tab" data-tab="pw" aria-selected="false">Why it matters</button>
+    <span class="gap"></span>
+    <button role="tab" data-tab="pe" aria-selected="false">Exercises</button>
+    <button role="tab" data-tab="pk" aria-selected="false">Key points</button>
+    <button role="tab" data-tab="pm" aria-selected="false">Method</button>
+  </nav>
+
+  <!-- =============================== STEP 1 =============================== -->
+  <section class="tabpane" id="p1" role="tabpanel" hidden>
+    <div class="plot-head" style="margin-bottom:14px">
+      <h3><span class="stepno">1</span>The frequencies a survey records</h3>
+      <span class="hint">A narrow band, and the bed thicknesses that go with it</span>
+    </div>
+
+    <p class="qbox"><b>Why this step is here.</b> A target sand is expected to be about 10 m thick. Can the existing survey resolve a bed of that thickness?</p>
+
+    <p class="lede">Seismic data occupy a narrow band of frequencies. A good marine dataset might carry
+      useful energy from roughly 8 to 80 Hz, and older land data often less. Nothing below the low end was
+      ever recorded, and the high end is absorbed by the earth on the way down and back.</p>
+    <p class="lede">The panel shows the amplitude spectrum of the source wavelet. The shaded region is its <b>bandwidth</b>: the range of frequencies over which the wavelet carries at least half its peak amplitude. The scale beneath converts each frequency to the bed thickness that frequency responds to most strongly, which is 1/(2<i>f</i>) in two-way time. Module 04 derives that relation. Changing the wavelet peak frequency shifts the whole scale.</p>
+
+    <div class="plot">
+      <div class="plot-head">
+        <h3>The recorded band, and the thicknesses it favors</h3>
+        <span class="hint">Teal: the wavelet. Below: the thickness each frequency images best</span>
+      </div>
+      <canvas id="c1" aria-label="The wavelet spectrum with a thickness scale beneath it"></canvas>
+    </div>
+    <div class="ctl-row" style="display:flex;flex-wrap:wrap;gap:18px;margin:12px 0 0">
+      <div class="ctl" style="flex:1 1 220px;min-width:200px">
+        <label for="fd1">Wavelet peak frequency <span class="val" id="fd1V">30 Hz</span></label>
+        <input type="range" data-key="fd" id="fd1" min="15" max="55" step="1" value="30">
+      </div>
+      <div class="ctl" style="flex:1 1 220px;min-width:200px">
+        <label for="vel">Interval velocity <span class="val" id="velV">2500 m/s</span></label>
+        <input type="range" data-key="vel" id="vel" min="1800" max="5000" step="50" value="2500">
+      </div>
+    </div>
+    <p class="hint-line">The frequency slider moves the spectrum and both scales under it. The velocity
+      slider converts the milliseconds the seismic measures into meters of rock, and velocity rises with
+      depth and with lithification.</p>
+    <div class="stats">
+      <div class="stat key"><span>Wavelet bandwidth</span><b id="s1band">—</b></div>
+      <div class="stat"><span>Thicknesses favored</span><b id="s1thick">—</b></div>
+      <div class="stat"><span>In meters of rock</span><b id="s1m">—</b></div>
+      <div class="stat"><span>Best-imaged thickness</span><b id="s1best">—</b></div>
+    </div>
+    <div class="legend prose">
+      <span><b>The recorded band sets the range of bed thicknesses a survey can respond to.</b> A 30 Hz Ricker carries useful amplitude between about 14 and 49 Hz. Those frequencies correspond to beds of 10.2 to 35.0 ms two-way time, or 13 to 44 m of rock at 2500 m/s. Setting the wavelet to 45 Hz shifts the range to 8.5 to 29.0 m. Beds outside the range still produce reflections, but less of the wavelet's energy lies at the frequency that suits them, so they appear weaker on a map. Separating the band into individual frequencies is how those beds are recovered.</span>
+    </div>
+  </section>
+
+  <!-- =============================== STEP 2 =============================== -->
+  <section class="tabpane" id="p2" role="tabpanel" hidden>
+    <div class="plot-head" style="margin-bottom:14px">
+      <h3><span class="stepno">2</span>The channel on a full-bandwidth amplitude map</h3>
+      <span class="hint">What a conventional extraction produces</span>
+    </div>
+
+    <p class="qbox"><b>Why this step is here.</b> An amplitude map shows a bright ribbon running along a channel. Does that ribbon mark where the sand is thickest?</p>
+
+    <p class="lede">The model is a sinuous channel cut into shale and filled with sand. The fill is thickest along the thalweg, the channel axis, and thins toward both margins and downstream. All three of those are thickness variations, which is why a channel is used here: the geology is itself a thickness map, and the header panel shows the true one.</p>
+
+    <p class="lede"><b>What the model contains.</b> A seismic reflection comes from a contrast in
+      <b>acoustic impedance</b> — a rock's density multiplied by the velocity of sound in it. Sand and
+      shale usually differ in both, so the top and the base of the sand are two contrasts of opposite
+      sign. Each sends back a copy of the source wavelet, and the recorded trace is the sum of those two
+      copies. The <b>reflection coefficient</b> is the fraction of the arriving amplitude that returns;
+      here it is ±0.1, a strong but ordinary sand-in-shale contrast. Everything in these modules follows
+      from what happens when the two copies overlap.</p>
+
+    <p class="lede"><b>Thickness is quoted in milliseconds</b> because that is what the seismic measures.
+      Seismic time is <b>two-way time</b>: the wave travels down through the fill and back up, so a bed
+      delays the second reflection by twice its thickness divided by its velocity. A 24 ms fill at
+      2500 m/s is about 30 m of rock, not 60 m. Converting to meters needs a velocity, which is a separate
+      measurement.</p>
+
+    <p class="lede"><b>The amplitude on this map is a statement about thickness.</b> Every trace in the
+      model comes from the same two rocks. The reflection coefficient is +0.1 at the top of the fill and
+      −0.1 at its base, at every point on the map, and nothing about the lithology or the pore fluid
+      varies anywhere in it. The only quantity that changes from trace to trace is the separation in time
+      between the two reflections. That separation alone produces every bright and dark patch on the
+      amplitude panel. Interference between a top and a base at a particular spacing is called
+      <b>tuning</b>, and the amplitude it produces is a <b>tuning amplitude</b>.</p>
+
+    <p class="lede">Amplitude measured on real data is not that pure. It carries the size of the
+      impedance contrast at the two boundaries as well, and that contrast does depend on lithology,
+      porosity and pore fluid. The two contributions arrive added together as one number, so a bright
+      amplitude is ambiguous by construction: it is consistent with a thickness at tuning, with a large
+      contrast, and with both. Reading an amplitude as a fluid effect means accounting first for the
+      thickness effect that the geometry produces on its own. Separating the two is what the rest of
+      this set is about.</p>
+
+    <p class="lede">The section in the header is cut along the profile line drawn on the map beside it,
+      and can be moved by dragging that line. It shows the same fill as a body with a top and a base
+      rather than as a color, which is where the thickness that produces the amplitude can be seen
+      directly.</p>
+
+    <div class="sec-row">
+      <div class="panel-col">
+        <p class="sublabel"><b>The truth</b> <span class="note">fill thickness in ms</span></p>
+        <canvas id="c2a" aria-label="True thickness map of the channel"></canvas>
+      </div>
+      <div class="panel-col">
+        <p class="sublabel"><b>Full-bandwidth amplitude</b> <span class="note">what you would map</span></p>
+        <canvas id="c2b" aria-label="Full bandwidth amplitude extraction over the channel"></canvas>
+      </div>
+    </div>
+    <div class="stats">
+      <div class="stat key"><span>Brightest where fill is</span><b id="s2bright">—</b></div>
+      <div class="stat"><span>Thalweg fill</span><b id="s2thal">—</b></div>
+      <div class="stat"><span>Margin fill</span><b id="s2marg">—</b></div>
+      <div class="stat"><span>Amplitude, thalweg vs margin</span><b id="s2ratio">—</b></div>
+    </div>
+    <div class="legend prose">
+      <span><b>The brightest part of the amplitude map marks a particular fill thickness rather than the thickest fill.</b> The thalweg holds 25.4 ms of fill. With a 30 Hz wavelet the strongest response comes from fill 13.0 ms thick, which lies out on the flanks. At 18 Hz the strongest response comes from 21.7 ms of fill, closer to the axis; at 45 Hz it comes from 8.7 ms, near the margins. The channel model is identical in all three cases. A bright ribbon can therefore mark the thalweg, a margin, or a downstream reach that has thinned into the responding thickness, and the amplitude map alone does not distinguish them.</span>
+    </div>
+  </section>
+
+  <!-- =============================== STEP 3 =============================== -->
+  <section class="tabpane" id="p3" role="tabpanel" hidden>
+    <div class="plot-head" style="margin-bottom:14px">
+      <h3><span class="stepno">3</span>The same channel at three frequencies</h3>
+      <span class="hint">Move the frequency slider and watch the bright part travel</span>
+    </div>
+
+    <p class="qbox"><b>Why this step is here.</b> Two interpreters map the same channel from the same survey and produce different outlines, both working carefully. What accounts for the difference?</p>
+
+    <p class="lede">Each map below is the amplitude of one narrow frequency component, taken over the same
+      interval, from the same data. No new data were acquired and no processing improved anything. The
+      only difference between the three is which part of the spectrum was used.</p>
+    <p class="lede">Changing the frequency in the header moves the brightest part of the channel from the thalweg toward the margins.</p>
+
+    <p class="lede">The crimson marks on the header map show where the fill is at the thickness the
+      chosen frequency responds to, and the ticks beneath the header section show the same positions on
+      the profile. As the frequency rises those marks migrate outward from the axis toward the margins,
+      and the bright ribbon on the corresponding map migrates with them. The channel underneath is
+      unchanged throughout. This is the observation Partyka, Gridley and Lopez set out in 1999, and the
+      reason a channel appears to change shape between one iso-frequency map and the next.</p>
+
+    <div class="plot">
+      <div class="plot-head">
+        <h3>Iso-frequency amplitude maps</h3>
+        <span class="hint">Low, your chosen frequency, and high</span>
+      </div>
+      <canvas id="c3" aria-label="Three iso-frequency amplitude maps of the same channel"></canvas>
+    </div>
+    <div class="stats">
+      <div class="stat key"><span>Chosen frequency</span><b id="s3f">—</b></div>
+      <div class="stat"><span>Fill thickness it images</span><b id="s3t">—</b></div>
+      <div class="stat"><span>Brightest fill thickness found</span><b id="s3found">—</b></div>
+      <div class="stat"><span>Channel area lit up</span><b id="s3area">—</b></div>
+    </div>
+    <div class="legend prose">
+      <span><b>Each frequency component is strongest over a different fill thickness.</b> At 25 Hz the strongest response comes from fill 19.2 ms thick, at 40 Hz from 12.8 ms, and at 60 Hz from 8.7 ms. Those measurements fall within a few percent of 1/(2<i>f</i>), which predicts 20.0, 12.5 and 8.3 ms. The low-frequency map is brightest over the thalweg and the upstream reach; the high-frequency map is brightest over the margins and the thinned downstream end. Each is a correct image of a different part of the channel, and the three together describe a geometry that no single map contains. Partyka, Gridley and Lopez set out this argument in 1999.</span>
+    </div>
+    <div class="legend prose">
+      <span><b>A component tuned to a thickness that is not present reports the thickest fill available.</b> At 15 Hz, 1/(2<i>f</i>) predicts 33.3 ms, but the strongest response measured is at 27.6 ms. No fill on this channel is 33.3 ms thick, so the component responds most strongly to the thickest fill that exists, and the output gives no indication that this has happened. Raising the thalweg fill in the header brings the 15 Hz measurement toward 33.3 ms once fill of that thickness is present. The same effect returns in module 07, where it limits what the colors in a blend can mean.</span>
+    </div>
+  </section>
+
+  <!-- =============================== STEP 4 =============================== -->
+  <section class="tabpane" id="p4" role="tabpanel" hidden>
+    <div class="plot-head" style="margin-bottom:14px">
+      <h3><span class="stepno">4</span>A section across the channel</h3>
+      <span class="hint">Where each frequency puts its bright spot</span>
+    </div>
+
+    <p class="qbox"><b>Why this step is here.</b> A high-frequency map shows two bright lines running side by side with a dark gap between them. What produces that pattern?</p>
+
+    <p class="lede">A profile across the channel shows the mechanism directly. The upper panel is the true fill thickness: greatest at the axis, thinning to zero at both margins. The lower panel is the amplitude of three frequency components measured along the same profile.</p>
+    <p class="lede">Each component reaches its maximum where the fill thickness equals the thickness that component responds to, so each maximum falls at a different distance from the axis. The high-frequency component reaches a maximum twice, once on each margin.</p>
+
+    <p class="lede">The top panel is the seismic itself: a section cut across the
+      channel, with the true top and base of the fill marked on it. Depth in meters runs
+      down the right-hand side against two-way time on the left, and the two scales are not
+      proportional to each other.</p>
+
+    <div class="plot">
+      <div class="plot-head">
+        <h3>The section across the channel</h3>
+        <span class="hint">Dashed teal: the true top and base of the fill</span>
+      </div>
+      <canvas id="c4s" aria-label="Seismic section across the channel with the true fill marked"></canvas>
+    </div>
+    <div class="stats">
+      <div class="stat key"><span>Fill at the axis</span><b id="s4sthal">&mdash;</b></div>
+      <div class="stat"><span>In meters of rock</span><b id="s4sm">&mdash;</b></div>
+      <div class="stat"><span>Separate top and base?</span><b id="s4ssep">&mdash;</b></div>
+      <div class="stat"><span>At the fill's own velocity</span><b id="s4sn">&mdash;</b></div>
+    </div>
+    <p class="legend prose"><span><b>Above the tuning thickness the top and base are two
+      events; below it they are one.</b> The dashed lines are where the fill actually is,
+      so the part of the profile where the section shows a single composite event can be
+      read straight off the picture. The metres scale on the right is the same section
+      measured in rock rather than in time. The two readouts beneath convert the fill at
+      the axis twice, once at the velocity on the step 1 slider and once at the velocity
+      of the sand itself, and they do not agree.</span></p>
+
+    <div class="plot">
+      <div class="plot-head">
+        <h3>Fill thickness and component amplitude, across the channel</h3>
+        <span class="hint">Drag the profile line on the header map, or use the slider</span>
+      </div>
+      <canvas id="c4" aria-label="Cross-channel profile of thickness and three frequency components"></canvas>
+    </div>
+    <div class="ctl" style="max-width:460px;margin:12px 0 0">
+      <label for="iy">Profile position <span class="val" id="iyV">midway</span> &mdash; or drag the line on the map above</label>
+      <input type="range" id="iy" min="10" max="110" step="1" value="60">
+    </div>
+    <div class="stats">
+      <div class="stat key"><span>Thalweg fill here</span><b id="s4thal">—</b></div>
+      <div class="stat"><span>Low component peaks at</span><b id="s4lo">—</b></div>
+      <div class="stat"><span>High component peaks at</span><b id="s4hi">—</b></div>
+      <div class="stat"><span>Channel half-width here</span><b id="s4w">—</b></div>
+    </div>
+    <div class="legend prose">
+      <span><b>A single channel produces two bright lines on a high-frequency map.</b> On the midway profile the low-frequency component is strongest where the fill is 25.4 ms thick, at the axis. The high-frequency component is strongest where the fill is 9.4 ms thick, which occurs on both flanks. In map view the result is two bright lines separated by a dark gap. The gap lies over the thalweg and is dark because the fill there is too thick to respond at that frequency. A low-frequency map of the same interval is bright across the gap, which is the test that distinguishes this case from two separate channels.</span>
+    </div>
+  </section>
+
+  <!-- =============================== STEP 5 =============================== -->
+  <section class="tabpane" id="p5" role="tabpanel" hidden>
+    <div class="plot-head" style="margin-bottom:14px">
+      <h3><span class="stepno">5</span>Three frequencies displayed together</h3>
+      <span class="hint">The blend everyone has seen</span>
+    </div>
+
+    <p class="qbox"><b>Why this step is here.</b> Spectral decomposition results are usually shown as a channel in red, green and blue. What quantity does each color represent?</p>
+
+    <p class="lede">Examining fifty iso-frequency maps individually is impractical, so the standard display combines three of them: a low frequency in red, a middle frequency in green, and a high frequency in blue. Fill that responds at the low frequency appears red, fill that responds at the high frequency appears blue, and fill that responds at two of them appears in the corresponding mixture.</p>
+    <p class="lede">The three maps are stacked rather than summed. Each layer is transparent where its frequency has little amplitude and opaque where it has a lot. Stacking means a layer can conceal one beneath it, and that the stacking order affects the result; module 07 examines both. For this module the point is that the color represents three maps at once, and that a single color bar cannot describe it.</p>
+
+    <p class="lede">The three maps that go into the blend are shown first, each on its own, each drawn
+      in the color it will contribute. They are three iso-frequency maps of the kind step 3 produced, and
+      each is bright over a different part of the channel.</p>
+    <div class="tri-row">
+      <div class="panel-col">
+        <p class="sublabel"><b>Red channel</b> <span class="note" id="lblR">low frequency</span></p>
+        <canvas id="c5r" aria-label="The low-frequency map that becomes the red channel"></canvas>
+      </div>
+      <div class="panel-col">
+        <p class="sublabel"><b>Green channel</b> <span class="note" id="lblG">middle frequency</span></p>
+        <canvas id="c5g" aria-label="The middle-frequency map that becomes the green channel"></canvas>
+      </div>
+      <div class="panel-col">
+        <p class="sublabel"><b>Blue channel</b> <span class="note" id="lblB">high frequency</span></p>
+        <canvas id="c5bl" aria-label="The high-frequency map that becomes the blue channel"></canvas>
+      </div>
+    </div>
+    <p class="lede" style="margin-top:20px">Displaying the three together paints each map over the one
+      before it, in the order red, green, blue. A location bright on one map only takes that map's
+      color. A location bright on two or three takes a mixture weighted toward whichever of them is
+      painted last, because each layer is partly opaque where it is strong and covers part of what
+      lies beneath. So the parts of the channel that respond at more than one frequency come back in
+      the blues and greens rather than in yellow, cyan or white: the blue layer is on top here, and
+      what it covers does not reach the screen at full strength. Module 07 puts the stacking order and
+      the opacity on sliders, and describes the other convention in use, which writes the three maps
+      straight into the display's red, green and blue channels and does produce white where all three
+      are strong.</p>
+    <div class="sec-row">
+      <div class="panel-col">
+        <p class="sublabel"><b>The three combined</b> <span class="note">red, green and blue at once</span></p>
+        <canvas id="c5a" aria-label="RGB blend of the three frequency maps above"></canvas>
+      </div>
+      <div class="panel-col">
+        <p class="sublabel"><b>The truth, again</b> <span class="note">for comparison</span></p>
+        <canvas id="c5b" aria-label="True thickness map for comparison with the blend"></canvas>
+      </div>
+    </div>
+    <div class="stats">
+      <div class="stat key"><span>Red / green / blue</span><b id="s5f">—</b></div>
+      <div class="stat"><span>Thicknesses those image</span><b id="s5t">—</b></div>
+      <div class="stat"><span>Channel area lit up</span><b id="s5area">—</b></div>
+      <div class="stat"><span>Full-bandwidth map lit up</span><b id="s5full">—</b></div>
+    </div>
+    <div class="legend prose">
+      <span><b>Each color in the blend names which of the three frequencies responded.</b> Red marks
+      fill that responds at the low frequency and not the other two, so it traces the thalweg and the
+      upstream reach. Blue marks fill that responds only at the high frequency, along the margins and the
+      thinned downstream end. Yellow and cyan mark fill in the overlap between two of them. The three
+      panels above are the same three maps that produce those colors, and comparing a color on the blend
+      with the panel it came from is the way to read one.</span>
+    </div>
+    <div class="legend prose">
+      <span><b>Noise degrades the blend more than it degrades the full-bandwidth map.</b> On clean data the
+      blend covers 87% of the channel against 73% for the amplitude map. At 10% noise that is 79% against
+      58%, at 20% it is 59% against 49%, and at 40% the order reverses: 21% against 35%. Each
+      iso-frequency component uses a narrow slice of the band, so it carries a small share of the signal
+      energy while the noise it competes with is spread across the whole spectrum. The full-bandwidth map
+      sums across the band and holds up longer. The advantage a blend has on clean data is real and it is
+      not unconditional.</span>
+    </div>
+    <div class="legend prose">
+      <span><b>The blend exceeds the brightness threshold over more of the channel than the amplitude map does.</b> On the default channel the blend covers 87% against 73% for the full-bandwidth map. With no downstream thinning the difference is larger, 89% against 52%, because three responding thicknesses span more of the fill thicknesses present than one does. At 80% downstream thinning the difference falls to 83% against 70%: most of the fill is then thinner than even the high-frequency component responds to, so no choice of frequency reaches it. In that case the limit is the recorded band rather than the display. The blend does not give a calibrated thickness. Red indicates thicker fill than blue, and converting that to meters requires the arithmetic in module 04 and the wavelet correction in module 05.</span>
+    </div>
+  </section>
+
+  <!-- ============================ WHY IT MATTERS =========================== -->
+  <section class="tabpane" id="pw" role="tabpanel" hidden>
+    <div class="plot-head" style="margin-bottom:14px">
+      <h3>Why it matters</h3>
+      <span class="hint">What the module is for</span>
+    </div>
+    <p class="lede">This module covers one relationship: bed thickness against frequency. The rest of the set covers how to measure it properly.</p>
+    <ul class="lede" style="padding-left:20px">
+      <li><b>Mapping a channel or a sand body.</b> The outline from an amplitude map is a contour of one
+        thickness rather than the edge of the sand. Several frequencies give several contours, and the
+        shape of the body emerges from the set.</li>
+      <li><b>Separating thickness from lithology.</b> A bright spot that moves as the frequency changes is
+        a thickness effect. One that stays put across the band is more likely to be a contrast in rock
+        properties.</li>
+      <li><b>Structural work as well as stratigraphic.</b> A fault that thins a bed, a small flexure, and
+        differential compaction over a buried body all change thickness laterally, and all appear on
+        frequency maps that one amplitude map treats as a single uniform response.</li>
+      <li><b>Judging what a survey can do before the study is designed.</b> The recorded band sets the
+        thickness range available to work in, and step 1 is where to check it.</li>
+    </ul>
+    <p class="lede"><b>Three ways this goes wrong.</b> The commonest is reading brightness on an
+      iso-frequency map as sand quality or net-to-gross. It is an interference effect, and a thicker,
+      poorer sand can be brighter than a thinner, better one. The second is comparing two frequencies
+      without dealing with the wavelet first, since the data do not carry the same energy at 20 Hz and at
+      60 Hz; that comparison is partly a comparison of the source, which is module 05's subject. The third
+      is assuming a channel bright at 40 Hz is 1/(2 × 40) thick. The relation holds for a clean
+      two-reflector bed and degrades for anything with internal structure, which module 04 works
+      through.</p>
+    <div class="legend prose">
+      <span>Selecting a frequency selects a bed thickness to be sensitive to. A single-frequency map is therefore sensitive to a single thickness.</span>
+    </div>
+  </section>
+
+  <!-- ============================== EXERCISES ============================= -->
+  <section class="tabpane" id="pe" role="tabpanel" hidden>
+    <div class="tryit" style="max-width:none">
+      <h3>Exercises</h3>
+      <ol>
+        <li><b>Measure the thickness range a survey can resolve.</b>
+          <em class="point">Why: a survey resolves a particular range of bed thicknesses. A target
+            either falls within that range or it does not.</em>
+          In step 1, set the wavelet peak to 20 Hz, then to 45 Hz, reading the thickness scale each time.
+          <em class="predict">Before dragging it: raising the frequency makes the wavelet shorter. Does
+            that suit thicker beds or thinner ones?</em>
+          <details class="reveal"><summary>Hint</summary><span class="ans">At 20 Hz the usable band is
+            about 10 to 33 Hz, suiting beds of 15.2 to 52.5 ms — 19 to 66 m of rock at 2500 m/s. At 45 Hz
+            the band is 22 to 74 Hz and the range becomes 6.8 to 23.2 ms, or 8.5 to 29 m. The band slides
+            and the thickness range slides with it. At the low setting the survey suits thick beds and is
+            nearly blind to thin ones; at the high setting the reverse. If the target sits outside the
+            range, the answer is different acquisition rather than more processing.</span></details></li>
+
+        <li><b>Change the wavelet and watch the bright ribbon move.</b>
+          <em class="point">Why: two vintages of seismic over one field can locate the reservoir
+            differently for this reason alone.</em>
+          In step 2, change only the wavelet's peak frequency and watch which part of the channel is
+          brightest.
+          <details class="reveal"><summary>Hint</summary><span class="ans">The channel does not move and
+            the bright part does: brightest at 21.7 ms of fill with an 18 Hz wavelet, 13.0 ms at 30 Hz and
+            8.7 ms at 45 Hz, against a thalweg holding 25.4 ms throughout. At the low setting the axis is
+            bright and the margins dark; at the high setting the margins light up and the axis dulls. The
+            map is reporting where the fill thickness matches the wavelet, which is a fact about the
+            survey as much as about the sand.</span></details></li>
+
+        <li><b>Track the responding thickness across the band.</b>
+          <em class="point">Why: the most informative single frequency differs for every channel, which
+            is why several are examined.</em>
+          In step 3, take the frequency slider from 8 Hz to 80 Hz slowly, watching the
+          brightest-thickness readout and the area readout.
+          <details class="reveal"><summary>Hint</summary><span class="ans">The brightest fill runs 27.6,
+            19.2, 12.8 and 8.7 ms as the frequency goes 15, 25, 40 and 60 Hz, against a prediction of
+            33.3, 20.0, 12.5 and 8.3. The lit zone walks from the thalweg outward as the frequency rises,
+            and off the channel entirely once 1/(2f) falls below the thinnest fill present. The area
+            readout peaks in the middle of the band rather than at either end, and that peak is the single
+            frequency showing the most of this particular channel.</span></details></li>
+
+        <li><b>Account for a channel that appears as two features.</b>
+          <em class="point">Why: a dark axis between two bright lines is a thickness effect, and it
+            has been interpreted as levees and as twin channels.</em>
+          In step 4, set the frequency high and look at the cross-channel profile, then compare with a low
+          frequency.
+          <details class="reveal"><summary>Hint</summary><span class="ans">On the midway profile the low
+            component peaks on 25.4 ms of fill and the high one on 9.4 ms. The high component therefore
+            peaks twice, once on each margin where the fill has thinned into its tuning range, and is
+            quiet over the thalweg where the fill is too thick for it. In map view that reads as two
+            parallel bright lines with a dark gap, and the gap is the thickest part of the channel. The
+            check is a low-frequency map of the same interval, where the gap fills in.</span></details></li>
+
+        <li><b>Measure how much the blend adds, and at what point it stops adding.</b>
+          <em class="point">Why: blending helps when the target's thickness range overlaps the recorded
+            band, and cannot help when it does not.</em>
+          In step 5, compare the two area readouts at 0%, 50% and 80% downstream thinning.
+          <details class="reveal"><summary>Hint</summary><span class="ans">The blend lights 87% of the
+            channel against 73% for the amplitude map on the default settings, and 89% against 52% with no
+            downstream thinning. Three tuning thicknesses cover more of the fill thicknesses present than
+            one does. Take the thinning to 80% and the gap narrows to 83% against 70%, because by then
+            most of the fill is thinner than even the high component can tune. No display choice recovers
+            a target the survey did not record.</span></details></li>
+      </ol>
+    </div>
+  </section>
+
+  <!-- ============================= KEY POINTS ============================= -->
+  <section class="tabpane" id="pk" role="tabpanel" hidden>
+    <div class="takeaway">
+      <h3>If you remember nothing else</h3>
+      <ul>
+        <li><b>Seismic occupies a narrow band, and each frequency in it responds most strongly to one bed
+          thickness.</b>
+          A frequency <i>f</i> is tuned to a bed 1/(2<i>f</i>) thick, so the recorded band sets the
+          thickness range a survey can work in.</li>
+        <li><b>A full-bandwidth amplitude map contours one bed thickness</b> rather than outlining a
+          geological body. The bright part of a channel is where the fill is closest to the wavelet's
+          tuning thickness.</li>
+        <li><b>Different frequencies image different parts of the same feature.</b> Low frequencies respond
+          to thick fill and high frequencies to thin fill. Both maps are correct.</li>
+        <li><b>A high-frequency map can show one channel as two bright lines</b> with a dark axis, because
+          the fill at the thalweg is too thick to respond at that frequency.</li>
+        <li><b>Blending three frequencies covers more of a body than any single map:</b> 87% against 73% on
+          this channel, provided the body's thickness range overlaps the recorded band.</li>
+        <li><b>Brightness on a frequency map measures interference rather than rock quality.</b> Converting
+          it to a thickness requires the arithmetic in module 04 and the wavelet correction in module
+          05.</li>
+      </ul>
+    </div>
+
+    <div class="takeaway" style="margin-top:18px">
+      <h3>Words introduced here</h3>
+      <dl class="terms">
+        <dt>acoustic impedance</dt>
+        <dd>Density times velocity. A contrast in it across a boundary is what produces a reflection.</dd>
+        <dt>reflection coefficient</dt>
+        <dd>The fraction of the arriving wave amplitude that returns from a boundary. Positive when
+          impedance increases downward, negative when it decreases.</dd>
+        <dt>two-way time</dt>
+        <dd>The time for a wave to travel down to a boundary and back. Seismic sections are plotted in
+          it, so a 24 ms bed at 2500 m/s is about 30 m of rock.</dd>
+        <dt>thalweg</dt>
+        <dd>The deepest line along a channel; here, the axis where the fill is thickest.</dd>
+        <dt>amplitude spectrum</dt>
+    <dd>How much of each frequency a wavelet or a trace contains, plotted
+      against frequency. Module 01 builds one from scratch.</dd>
+    <dt>peak frequency</dt>
+    <dd>The frequency at which the amplitude spectrum is highest.</dd>
+    <dt>magnitude</dt>
+    <dd>How much energy sits at one frequency at one place in the trace. The
+      maps on this page are maps of magnitude, one frequency at a time.</dd>
+    <dt>tuning</dt>
+    <dd>The interference between the top and base reflections of a bed, once
+      they are close enough in time to overlap. Module 04 works through it.</dd>
+    <dt>bandwidth</dt>
+        <dd>The width of the spectrum. Here, the range over which the wavelet carries at least half its
+          peak amplitude. Module 01 measures it.</dd>
+        <dt>tuning thickness</dt>
+        <dd>The bed thickness a given frequency responds to most strongly, 1/(2<i>f</i>) in two-way time.
+          Module 04 derives it and distinguishes it from a second quantity with the same name.</dd>
+        <dt>iso-frequency map</dt>
+        <dd>A map made from one narrow frequency component of the data rather than from the full
+          bandwidth.</dd>
+        <dt>spectral component, or voice</dt>
+        <dd>The part of the data at one narrow frequency. Module 03 opens one up.</dd>
+        <dt>RGB blend</dt>
+        <dd>Three iso-frequency maps displayed together as red, green and blue. Module 07 takes one
+          apart.</dd>
+      </dl>
+    </div>
+  </section>
+
+  <!-- =============================== METHOD =============================== -->
+  <section class="tabpane" id="pm" role="tabpanel" hidden>
+    <div class="plot-head" style="margin-bottom:14px">
+      <h3 id="notes">Method</h3>
+      <span class="hint">What is computed, and what is left out</span>
+    </div>
+    <p class="lede"><b>The channel</b> is a sinuous axis across a 140 by 120 grid, with fill thickness
+      falling from the thalweg to the margins on a cosine profile and thinning downstream by the fraction
+      set on the slider. At every grid point the fill is a pair of reflection coefficients, +0.1 at the
+      top and &minus;0.1 at the base, separated by the local thickness, convolved with a zero-phase
+      Ricker. Reflection times are analytic rather than rounded to the sample grid.</p>
+    <p class="lede"><b>The three channel presets</b> set the thalweg fill, width and downstream thinning
+      sliders and nothing else. They are three shapes worth comparing rather than three named
+      depositional settings.</p>
+    <p class="lede"><b>The iso-frequency maps</b> are computed, not drawn. At every grid point the
+      synthetic trace is windowed over the channel interval and transformed directly at the requested
+      frequency, and the magnitude of that one complex number becomes the map value. A full transform at
+      every point and every frequency would be sixteen thousand transforms per redraw; taking one
+      frequency at a time is the same arithmetic with the unused frequencies left out.</p>
+    <p class="lede"><b>The area readouts</b> count grid points where the map exceeds 70% of its own
+      maximum and the true fill exceeds 2 ms, as a percentage of all points where fill exists. The same
+      threshold and denominator are used for the blend and for the full-bandwidth map, so the two numbers
+      can be compared with each other. They should not be compared with anything outside this
+      module.</p>
+    <p class="lede"><b>Simplifications, stated plainly.</b> There is no noise, no dip, no compaction and
+      no lateral velocity variation, so the channel sits flat and the extraction window is the same
+      everywhere. The fill has a single uniform impedance, which makes the model a clean two-reflector bed
+      at every point; real channel fill is layered, and internal reflections put structure in the spectrum
+      that this model cannot produce. The wavelet is zero phase and the same everywhere. No spectral
+      balancing is applied, so the energy available at 20 Hz and at 60 Hz is not the same, and these maps
+      carry that bias deliberately — removing it is module 05.</p>
+    <p class="lede"><b>Where this departs from production software.</b> A real workflow decomposes a whole
+      volume, then extracts along an interpreted horizon or within a stratal slab, and the extraction
+      geometry is usually what decides whether the result is any good. Here the interval is known exactly
+      because the model made it. Real blends are also usually built from balanced volumes and often use
+      hue and lightness rather than three color channels, which module 07 covers.</p>
+    <details class="reveal">
+      <summary>References</summary>
+      <ul class="lede" style="padding-left:20px">
+        <li>Partyka, G., J. Gridley, and J. Lopez, 1999, Interpretational applications of spectral
+          decomposition in reservoir characterization: <em>The Leading Edge</em>, <b>18</b>,
+          353&ndash;360.</li>
+        <li>Widess, M. B., 1973, How thin is a thin bed?: <em>Geophysics</em>, <b>38</b>,
+          1176&ndash;1180.</li>
+        <li>Marfurt, K. J., and R. L. Kirlin, 2001, Narrow-band spectral analysis and thin-bed tuning:
+          <em>Geophysics</em>, <b>66</b>, 1274&ndash;1283.</li>
+        <li>Chopra, S., and K. J. Marfurt, 2007, <em>Seismic Attributes for Prospect Identification and
+          Reservoir Characterization</em>: SEG Geophysical Development Series 11.</li>
+        <li>AASPI, <em>Spectral Attributes: Program spec_cwt</em>, University of Oklahoma.</li>
+      </ul>
+    </details>
+  </section>
+
+  <section class="nextup" id="nextup" hidden>
+    <p class="eyebrow">Next up</p>
+    <h3>01 · What a seismic wavelet is made of</h3>
+    <p>The channel maps here all rest on one idea: a trace carries a range of frequencies, and each of
+      them responds to a different thickness. Module 01 takes that range apart.</p>
+    <a class="btn ghost" href="spectrum.html">Module 01 →</a>
+  </section>
+
+  <div class="pager" id="pager" hidden>
+    <a class="btn ghost" href="../index.html">All modules</a>
+    <a class="btn ghost" href="spectrum.html">Module 01: what a wavelet is made of →</a>
+  </div>
+
+  <footer>
+    <div class="foot-grid">
+      <p>Built for teaching by Dr. Heather Bedle and Dr. April Moreno-Ward, University of Oklahoma, with
+        the <a href="https://www.ou.edu/mcee/labs/aaspi">AASPI</a> consortium.</p>
+      <p class="lic">To cite: H. Bedle and A. Moreno-Ward, 2026, <i>How Spectral Attributes Actually
+        Work: A Set of Browser-Based Interactive Modules</i>: SSRN working paper, University of Oklahoma.
+        <span class="k">SSRN: [article link to follow]</span></p>
+      <p class="lic">Licensed <a href="https://creativecommons.org/licenses/by-sa/4.0/">CC BY-SA 4.0</a>.
+        Free to use, adapt and share, including in teaching, provided the source is credited and any
+        adaptation is released under the same license. If you use it in a course or a talk, a credit line
+        and a link back are all that is asked.</p>
+      <p class="lic">Nothing you do in this module leaves your browser. The only thing recorded is that
+        the page was opened, so that the university can see these are being used &mdash; no cookie, no
+        account, nothing about you.</p>
+    </div>
+  </footer>
+</div>
+
+<script src="../assets/count.js"></script>
+<script src="../assets/popout.js"></script>
+<script src="../assets/panelout.js"></script>
+<script src="../assets/glossary.js"></script>
+<script src="../assets/seismic.js"></script>
+<script src="../assets/spectral.js"></script>
+<script src="../assets/volume.js"></script>
+<script src="../assets/volpanels.js"></script>
+<script>
+(function () {
+  'use strict';
+
+  if (typeof SEIS === 'undefined' || typeof SPEC === 'undefined') {
+    const missing = [];
+    if (typeof SEIS === 'undefined') missing.push('assets/seismic.js');
+    if (typeof SPEC === 'undefined') missing.push('assets/spectral.js');
+    const el = document.createElement('div');
+    el.setAttribute('style', 'background:#841617;color:#fff;padding:14px 18px;margin:16px 0;' +
+      'font:13px/1.6 ui-monospace,Menlo,monospace');
+    el.textContent = 'This page could not load ' + missing.join(' and ') +
+      '. It expects them one directory up, at ../assets/, and file names are ' +
+      'case-sensitive on GitHub Pages.';
+    const w = document.querySelector('.wrap');
+    (w || document.body).insertBefore(el, w ? w.firstChild : null);
+    return;
+  }
+
+  const $ = (id) => document.getElementById(id);
+  const clamp = (v, a, b) => Math.max(a, Math.min(b, v));
+  const visible = (id) => { const el = $(id); return el && !el.hidden; };
+  const CRIM = '#841617', TEAL = '#0B7285', SLATE = '#5C6670';
+
+  const NXG = 140, NYG = 120;          // map grid
+  const DT = 0.001;
+  const T0 = 0.100;                    // top of the fill, flat
+  const RTOP = 0.1, RBOT = -0.1;
+  /* Interval velocity, driven by the slider in step 1. It converts two-way
+     milliseconds into meters of rock and touches nothing else in the module:
+     every seismic panel here is in time, as recorded. */
+  const FMAX = 100;
+
+  const DEF = { thick: 34, wide: 80, taper: 50, fd: 30, fc: 30, iy: 60, vel: 2500,
+                noise: 0, tab: 'p1' };
+  let S = SEIS.readState(DEF);
+
+  const CAN_LINK = location.protocol !== 'file:';
+  const saveState = () => {
+    if (!CAN_LINK) return;
+    try { SEIS.writeState(S, DEF); } catch (e) { /* nothing shareable */ }
+  };
+
+  /* =====================================================================
+     THE CHANNEL
+
+     Fill thickness at every grid point: a sinuous axis, a cosine cross
+     section that thins to zero at the margins, and a downstream taper.
+     The geology in this module IS a thickness map, which is what makes a
+     channel the right subject for the argument.
+     ===================================================================== */
+  let THICK = null, TKEY = '';
+  function thickness() {
+    const key = [S.thick, S.wide, S.taper].join('|');
+    if (THICK && TKEY === key) return THICK;
+    const g = new Float64Array(NXG * NYG);
+    const halfW = S.wide / 2;
+    for (let iy = 0; iy < NYG; iy++) {
+      // the axis wanders across the grid; iy runs downstream
+      const axis = NXG / 2 + 26 * Math.sin(2 * Math.PI * iy / 95) + 12 * Math.sin(2 * Math.PI * iy / 41);
+      const down = 1 - (S.taper / 100) * (iy / (NYG - 1));
+      for (let ix = 0; ix < NXG; ix++) {
+        const d = Math.abs(ix - axis) / halfW;
+        g[iy * NXG + ix] = d >= 1 ? 0
+          : (S.thick / 1000) * down * 0.5 * (1 + Math.cos(Math.PI * d));
+      }
+    }
+    THICK = g;
+    TKEY = key;
+    return THICK;
+  }
+
+  /* The synthetic trace at one grid point, over the extraction window only —
+     there is no reason to build the whole record when the fill is all that is
+     in it. */
+  const WPAD = 0.060;
+  const IW0 = Math.round((T0 - WPAD) / DT);
+  const IW1 = Math.round((T0 + 0.090) / DT);
+  const NW = IW1 - IW0;
+  const HANN = new Float64Array(NW);
+  (function () {
+    for (let k = 0; k < NW; k++) HANN[k] = 0.5 * (1 - Math.cos(2 * Math.PI * k / (NW - 1)));
+  })();
+
+  /* Band-limited noise for one grid point. The seed depends on the point, so the
+     noise field is different from trace to trace rather than a single pattern
+     repeated across the map, and it is reproducible: the same slider setting
+     always gives the same map. Amplitude is a percentage of the top reflection
+     coefficient, so it is comparable with the signal the model contains. */
+  function noiseAt(idx) {
+    if (S.noise <= 0) return null;
+    const rnd = SEIS.mulberry32((idx * 2654435761) >>> 0);
+    const raw = new Float64Array(NW), sm = new Float64Array(NW);
+    for (let k = 0; k < NW; k++) raw[k] = rnd() * 2 - 1;
+    for (let k = 1; k < NW - 1; k++) sm[k] = (raw[k - 1] + raw[k] + raw[k + 1]) / 3;
+    let rms = 0;
+    for (let k = 0; k < NW; k++) rms += sm[k] * sm[k];
+    rms = Math.sqrt(rms / NW) || 1;
+    const amp = (S.noise / 100) * Math.abs(RTOP) / rms;
+    for (let k = 0; k < NW; k++) sm[k] *= amp;
+    return sm;
+  }
+
+  function traceAt(T, wav, idx) {
+    const tr = new Float64Array(NW);
+    const nz = idx === undefined ? null : noiseAt(idx);
+    for (let k = 0; k < NW; k++) {
+      const t = (IW0 + k) * DT;
+      tr[k] = RTOP * wav.fn(t - T0) + RBOT * wav.fn(t - (T0 + T));
+      if (nz) tr[k] += nz[k];
+    }
+    return tr;
+  }
+
+  /* Amplitude of one frequency component at one grid point: window the trace
+     and transform it at that frequency. One complex number per point. */
+  function compAt(T, wav, f, idx) {
+    if (T <= 0 && S.noise <= 0) return 0;
+    const nz = idx === undefined ? null : noiseAt(idx);
+    let re = 0, im = 0, wsum = 0;
+    for (let k = 0; k < NW; k++) {
+      const t = (IW0 + k) * DT;
+      let sig = T > 0 ? RTOP * wav.fn(t - T0) + RBOT * wav.fn(t - (T0 + T)) : 0;
+      if (nz) sig += nz[k];
+      const v = sig * HANN[k];
+      const a = 2 * Math.PI * f * t;
+      re += v * Math.cos(a); im -= v * Math.sin(a);
+      wsum += HANN[k];
+    }
+    return Math.hypot(re, im) * (wsum > 0 ? 2 / wsum : 0);
+  }
+
+  function peakAmpAt(T, wav, idx) {
+    if (T <= 0 && S.noise <= 0) return 0;
+    const tr = traceAt(T, wav, idx);
+    let mx = 0;
+    for (let k = 0; k < NW; k++) mx = Math.max(mx, Math.abs(tr[k]));
+    return mx;
+  }
+
+  /* Maps are cached by everything that can change them. Sixteen thousand
+     points is cheap once and expensive on every slider tick. */
+  const MAPS = {};
+  function isoMap(f) {
+    const key = ['iso', f, S.thick, S.wide, S.taper, S.fd, S.noise].join('|');
+    if (MAPS[key]) return MAPS[key];
+    const g = thickness();
+    const wav = SEIS.makeWavelet({ type: 'ricker', f: S.fd });
+    const out = new Float64Array(NXG * NYG);
+    for (let i = 0; i < out.length; i++) out[i] = compAt(g[i], wav, f, i);
+    for (const k of Object.keys(MAPS)) if (k.startsWith('iso') && Object.keys(MAPS).length > 12) delete MAPS[k];
+    MAPS[key] = out;
+    return out;
+  }
+  function fullMap() {
+    const key = ['full', S.thick, S.wide, S.taper, S.fd, S.noise].join('|');
+    if (MAPS[key]) return MAPS[key];
+    const g = thickness();
+    const wav = SEIS.makeWavelet({ type: 'ricker', f: S.fd });
+    const out = new Float64Array(NXG * NYG);
+    for (let i = 0; i < out.length; i++) out[i] = peakAmpAt(g[i], wav, i);
+    MAPS[key] = out;
+    return out;
+  }
+
+  const maxOf = (a) => { let m = 0; for (const v of a) m = Math.max(m, v); return m; };
+
+  /* Fraction of the channel lit above 40% of a map's own maximum. */
+  function litFraction(map) {
+    const g = thickness();
+    const mx = maxOf(map) || 1;
+    let lit = 0, tot = 0;
+    for (let i = 0; i < g.length; i++) {
+      if (g[i] < 0.002) continue;
+      tot++;
+      if (map[i] > 0.7 * mx) lit++;
+    }
+    return tot ? 100 * lit / tot : 0;
+  }
+
+  /* The fill thickness at which a map is brightest. */
+  function brightestThickness(map) {
+    const g = thickness();
+    let best = 0, bt = 0;
+    for (let i = 0; i < map.length; i++) {
+      if (g[i] > 0 && map[i] > best) { best = map[i]; bt = g[i]; }
+    }
+    return bt * 1000;
+  }
+
+  /* =====================================================================
+     DRAWING
+     ===================================================================== */
+  const M = { l: 46, r: 14, t: 14, b: 32 };
+  function contentWidth(el) {
+    const p = el.parentElement || el;
+    const cs = getComputedStyle(p);
+    return Math.max(240, p.clientWidth - parseFloat(cs.paddingLeft) - parseFloat(cs.paddingRight));
+  }
+  function drawField(ctx, rect, get, nx, ny, cmap) {
+    const off = document.createElement('canvas');
+    off.width = nx; off.height = ny;
+    const octx = off.getContext('2d');
+    const img = octx.createImageData(nx, ny);
+    for (let iy = 0; iy < ny; iy++) {
+      for (let ix = 0; ix < nx; ix++) {
+        const c = cmap(get(ix, iy));
+        const o = (iy * nx + ix) * 4;
+        img.data[o] = c[0]; img.data[o + 1] = c[1]; img.data[o + 2] = c[2]; img.data[o + 3] = 255;
+      }
+    }
+    octx.putImageData(img, 0, 0);
+    ctx.save();
+    ctx.imageSmoothingEnabled = true;
+    ctx.drawImage(off, rect.x, rect.y, rect.w, rect.h);
+    ctx.restore();
+    SEIS.frame(ctx, rect);
+  }
+  /* The three layer colors and the ink they sit on. These match module 07
+     exactly, and so does the compositing: a blend shown here and the same blend
+     shown there must be the same picture, or the student meets two different
+     things under one name. Module 07 explains the model; this module only has
+     to not contradict it. */
+  const LAYER = [[229, 57, 53], [67, 160, 71], [30, 136, 229]];
+  const INK = [16, 19, 21];
+  /* Module 07's default layer opacity. At 100% the top layer covers the others
+     wherever it has any strength, which on this channel is nearly everywhere. */
+  const LAYER_ALPHA = 0.7;
+  function drawRGB(ctx, rect, r, g, b, nx, ny) {
+    const off = document.createElement('canvas');
+    off.width = nx; off.height = ny;
+    const octx = off.getContext('2d');
+    const img = octx.createImageData(nx, ny);
+    const mr = maxOf(r) || 1, mg = maxOf(g) || 1, mb = maxOf(b) || 1;
+    const buf = LAYER.map((c) => ({ value: 0, color: c, opacity: LAYER_ALPHA }));
+    for (let i = 0; i < nx * ny; i++) {
+      buf[0].value = clamp(r[i] / mr, 0, 1);
+      buf[1].value = clamp(g[i] / mg, 0, 1);
+      buf[2].value = clamp(b[i] / mb, 0, 1);
+      const c = SPEC.overlayPixel(buf, INK);
+      img.data[i * 4] = c[0];
+      img.data[i * 4 + 1] = c[1];
+      img.data[i * 4 + 2] = c[2];
+      img.data[i * 4 + 3] = 255;
+    }
+    octx.putImageData(img, 0, 0);
+    ctx.save();
+    ctx.imageSmoothingEnabled = true;
+    ctx.drawImage(off, rect.x, rect.y, rect.w, rect.h);
+    ctx.restore();
+    SEIS.frame(ctx, rect);
+  }
+  function seqBar(ctx, rect, cmap, lo, hi, label) {
+    const n = Math.max(2, Math.round(rect.w));
+    for (let i = 0; i < n; i++) {
+      const c = cmap(i / (n - 1));
+      ctx.fillStyle = 'rgb(' + c[0] + ',' + c[1] + ',' + c[2] + ')';
+      ctx.fillRect(rect.x + i * (rect.w / n), rect.y, rect.w / n + 1, rect.h);
+    }
+    ctx.save();
+    ctx.strokeStyle = 'rgba(22,25,28,.45)'; ctx.lineWidth = 1;
+    ctx.strokeRect(rect.x + 0.5, rect.y + 0.5, rect.w, rect.h);
+    ctx.font = '9.5px "IBM Plex Mono", monospace';
+    ctx.fillStyle = SLATE; ctx.textBaseline = 'top';
+    ctx.textAlign = 'left'; ctx.fillText(lo, rect.x, rect.y + rect.h + 4);
+    ctx.textAlign = 'right'; ctx.fillText(hi, rect.x + rect.w, rect.y + rect.h + 4);
+    ctx.textAlign = 'center'; ctx.fillText(label, rect.x + rect.w / 2, rect.y + rect.h + 4);
+    ctx.restore();
+  }
+  /* A square-ish map box: the grid has equal spacing both ways, so it must not
+     be drawn into a stretched rectangle or every width read off it is wrong. */
+  /* Canvas height that lets a map fill the width it has been given. The map is
+     aspect-locked to the grid, so the height follows from the width; passing a
+     fixed height instead left the map floating in the middle of a much wider
+     panel with empty space either side. maxH caps it so a very wide panel does
+     not produce an absurdly tall canvas. */
+  function mapHeight(w, maxH) {
+    const availW = w - M.l - M.r;
+    const h = availW * (NYG / NXG) + M.t + M.b + 36;
+    return Math.round(Math.min(h, maxH || 460));
+  }
+
+  function mapBox(w, h) {
+    const availW = w - M.l - M.r, availH = h - M.t - M.b - 36;
+    const aspect = NYG / NXG;
+    let bw = availW, bh = bw * aspect;
+    if (bh > availH) { bh = availH; bw = bh / aspect; }
+    return { x: M.l + (availW - bw) / 2, y: M.t, w: bw, h: bh };
+  }
+  function drawMap(el, map, cmap, label, maxH) {
+    const w = contentWidth(el);
+    const h = mapHeight(w, maxH);
+    const ctx = SEIS.fitCanvas(el, w, h);
+    ctx.clearRect(0, 0, w, h);
+    const rect = mapBox(w, h);
+    const mx = maxOf(map) || 1;
+    drawField(ctx, rect, (ix, iy) => map[iy * NXG + ix] / mx, NXG, NYG, cmap);
+    SEIS.axisBottom(ctx, rect, 0, NXG, 'crossline', (v) => v.toFixed(0), { ticks: 5 });
+    SEIS.axisLeft(ctx, rect, 0, NYG, 'inline', (v) => v.toFixed(0), { ticks: 4, down: true });
+    /* clear of the axis label beneath the map, which the two share at narrow
+       widths */
+    seqBar(ctx, { x: rect.x, y: rect.y + rect.h + 36, w: Math.min(180, rect.w), h: 8 },
+      cmap, '0', 'max', label);
+    return { ctx, rect };
+  }
+  function series(ctx, rect, xs, ys, x0, x1, y0, y1, color, width, dash) {
+    ctx.save();
+    ctx.beginPath();
+    ctx.lineWidth = width || 1.8;
+    ctx.strokeStyle = color;
+    if (dash) ctx.setLineDash(dash);
+    let started = false;
+    for (let i = 0; i < xs.length; i++) {
+      if (!isFinite(ys[i]) || xs[i] < x0 || xs[i] > x1) { started = false; continue; }
+      const X = rect.x + ((xs[i] - x0) / (x1 - x0)) * rect.w;
+      const Y = rect.y + rect.h - ((clamp(ys[i], y0, y1) - y0) / (y1 - y0)) * rect.h;
+      if (!started) { ctx.moveTo(X, Y); started = true; } else ctx.lineTo(X, Y);
+    }
+    ctx.stroke();
+    ctx.restore();
+  }
+
+  const LOW = () => Math.max(8, Math.round(S.fc * 0.55));
+  const HIGH = () => Math.min(90, Math.round(S.fc * 1.8));
+
+  /* ------------------------------------------------------------- header */
+
+  /* The two-way time through fill that responds most strongly at frequency f.
+     Everything the module says about where a channel is bright reduces to
+     comparing this number against the fill thickness at each point. */
+  const tuneMs = (f) => 1000 / (2 * f);
+
+  /* The map box last drawn in the header, kept so that a press on the canvas
+     can be turned back into a position on the channel. */
+  let HEADRECT = null;
+
+  function drawHeader() {
+    const el = $('cHead');
+    if (!el) return;
+    const { ctx, rect } = drawMap(el, thickness(), SEIS.SEQMAPS.cividis, 'fill thickness', 300);
+    HEADRECT = rect;
+
+    /* Where the current frequency is tuning, drawn on the map itself. Every
+       point whose fill is within half a millisecond of the responding
+       thickness is marked, so the bright ribbon each step describes can be
+       seen as a contour of constant thickness rather than taken on trust. */
+    const g = thickness();
+    const Tt = tuneMs(S.fc) / 1000;
+    ctx.save();
+    ctx.fillStyle = 'rgba(132,22,23,0.9)';
+    /* The line of constant thickness, found by scanning each row for the two
+       places where the fill crosses the responding thickness. Testing every
+       cell against a tolerance instead produced a band of speckle whose width
+       depended on how fast the channel was thinning there. */
+    for (let iy = 0; iy < NYG; iy++) {
+      let prev = g[iy * NXG] - Tt;
+      for (let ix = 1; ix < NXG; ix++) {
+        const cur = g[iy * NXG + ix] - Tt;
+        if (g[iy * NXG + ix] > 0.0005 && ((prev < 0) !== (cur < 0))) {
+          const f = prev / (prev - cur);
+          ctx.beginPath();
+          ctx.arc(rect.x + ((ix - 1 + f) / NXG) * rect.w,
+                  rect.y + ((iy + 0.5) / NYG) * rect.h, 1.3, 0, 6.284);
+          ctx.fill();
+        }
+        prev = cur;
+      }
+    }
+    ctx.restore();
+
+    /* The profile line. It used to appear only while step 4 was open; the
+       section beside this map is drawn along it, so it is now always shown
+       and can be dragged straight on the map. */
+    const y = rect.y + (S.iy / NYG) * rect.h;
+    ctx.save();
+    ctx.strokeStyle = CRIM; ctx.lineWidth = 1.6;
+    ctx.beginPath(); ctx.moveTo(rect.x, y); ctx.lineTo(rect.x + rect.w, y); ctx.stroke();
+    ctx.fillStyle = CRIM;
+    ctx.beginPath(); ctx.moveTo(rect.x - 5, y - 4);
+    ctx.lineTo(rect.x - 5, y + 4); ctx.lineTo(rect.x, y); ctx.closePath(); ctx.fill();
+    ctx.font = '10px "IBM Plex Mono", monospace';
+    ctx.textAlign = 'right'; ctx.textBaseline = 'bottom';
+    /* at the right-hand end, where the channel and the contour are not */
+    ctx.fillText('profile \u2014 drag me', rect.x + rect.w - 3, y - 3);
+    ctx.restore();
+  }
+
+  /* The section along the profile line, in the header beside the map, so that
+     every step below is read against the shape and thickness of the body it
+     concerns rather than against a map alone. The crimson ticks beneath it
+     mark the traces where the fill is at the thickness the chosen frequency
+     responds to. */
+  /* Where along a profile the fill is thickest, as a fraction of the section
+     width. Used to place the horizon labels where the two are furthest apart. */
+  function thickestAlong(vol, iy) {
+    let best = 0, at = 0.5;
+    for (let k = 0; k < vol.nx; k++) {
+      const T = vol.truth.channel[k * vol.ny + iy];
+      if (T > best) { best = T; at = k / (vol.nx - 1); }
+    }
+    return clamp(at, 0.1, 0.9);
+  }
+
+  function drawHeaderSection() {
+    const el = $('cHeadSec');
+    if (!el) return;
+    const w = contentWidth(el), h = 246;
+    const ctx = SEIS.fitCanvas(el, w, h);
+    ctx.clearRect(0, 0, w, h);
+    /* The bottom margin carries the time-axis ticks, the axis label, and the
+       tuning caption beneath it, which wraps to a second line in a narrow
+       window and so is given the room for one. */
+    const rect = { x: 40, y: 10, w: w - 40 - 14, h: h - 10 - 90 };
+
+    const vol = channelVolume();
+    const iy = clamp(Math.round((S.iy / (NYG - 1)) * (vol.ny - 1)), 0, vol.ny - 1);
+    const panel = VOL.crossline(vol, iy);
+    const geom = VOLP.drawSection(ctx, rect, panel, {
+      tTop: SEC_T0, tBase: SEC_T1, xlabel: 'across the channel'
+    });
+    const top = (k) => vol.horizons.channel[k * vol.ny + iy];
+    const base = (k) => top(k) + vol.truth.channel[k * vol.ny + iy];
+    /* Both labels are written at the thickest point on the profile. Written at
+       the last trace they landed on top of one another, because the fill
+       pinches out there and the two horizons meet. */
+    /* The two labels are written on opposite sides of the thickest point as
+       well as above and below their own horizons. Placed at the same position
+       they sat one on top of the other wherever the fill was thin. */
+    const at = thickestAlong(vol, iy);
+    VOLP.markHorizon(ctx, rect, geom, vol.dt, vol.t0, top, vol.nx,
+      'top of fill', TEAL, undefined, { at: clamp(at - 0.20, 0.08, 0.9), dy: -17 });
+    VOLP.markHorizon(ctx, rect, geom, vol.dt, vol.t0, base, vol.nx,
+      'base of fill', TEAL, undefined, { at: clamp(at + 0.20, 0.1, 0.92), dy: 17 });
+
+    /* Where this profile is at tuning thickness for the chosen frequency. */
+    const Tt = tuneMs(S.fc) / 1000;
+    ctx.save();
+    ctx.strokeStyle = CRIM; ctx.lineWidth = 2;
+    let marked = 0;
+    /* Drawn inside the bottom of the panel rather than below it: outside, they
+       landed among the axis tick numbers. */
+    for (let k = 0; k < vol.nx; k++) {
+      const T = vol.truth.channel[k * vol.ny + iy];
+      if (T <= 0.0005 || Math.abs(T - Tt) > 0.0009) continue;
+      const X = rect.x + ((k + 0.5) / vol.nx) * rect.w;
+      ctx.beginPath();
+      ctx.moveTo(X, rect.y + rect.h - 9);
+      ctx.lineTo(X, rect.y + rect.h);
+      ctx.stroke();
+      marked++;
+    }
+    ctx.font = '9.5px "IBM Plex Mono", monospace';
+    ctx.fillStyle = CRIM;
+    ctx.textAlign = 'left'; ctx.textBaseline = 'top';
+    /* on its own line, clear of the axis label above it, and wrapped: the
+       caption is longer than this panel is wide on a narrow window, and it
+       was running off the right edge. */
+    SEIS.captionLine(ctx, marked
+      ? 'crimson ticks: fill at ' + tuneMs(S.fc).toFixed(1) + ' ms, the thickness ' + S.fc + ' Hz responds to'
+      : 'no fill on this profile at the ' + tuneMs(S.fc).toFixed(1) + ' ms that ' + S.fc + ' Hz responds to',
+      rect.x, rect.y + rect.h + 46, rect.w, { lineHeight: 11.5 });
+    ctx.restore();
+  }
+
+  /* Dragging the profile line. The press is converted to a position on the
+     grid from the map box the header last drew, so it stays correct at any
+     canvas size and works from the controls window as well. */
+  function pickProfile(ev) {
+    const el = $('cHead');
+    if (!el || !HEADRECT) return;
+    const r = el.getBoundingClientRect();
+    if (!r.height) return;
+    const y = (ev.clientY - r.top) * (el.clientHeight / r.height);
+    const f = (y - HEADRECT.y) / HEADRECT.h;
+    const iy = clamp(Math.round(f * (NYG - 1)), 0, NYG - 1);
+    if (iy === S.iy) return;
+    S.iy = iy;
+    const sl = $('iy');
+    if (sl) sl.value = String(iy);
+    syncLabels(); drawAll(); saveState();
+  }
+  (function () {
+    const el = $('cHead');
+    if (!el) return;
+    el.style.cursor = 'ns-resize';
+    el.style.touchAction = 'none';
+    let down = false;
+    el.addEventListener('pointerdown', (ev) => { down = true; pickProfile(ev); });
+    el.addEventListener('pointermove', (ev) => { if (down || ev.buttons === 1) pickProfile(ev); });
+    el.addEventListener('pointerup', () => { down = false; });
+    el.addEventListener('pointerleave', () => { down = false; });
+    el.addEventListener('mousedown', (ev) => { down = true; pickProfile(ev); });
+    el.addEventListener('mousemove', (ev) => { if (ev.buttons === 1) pickProfile(ev); });
+    el.addEventListener('mouseup', () => { down = false; });
+  })();
+
+  /* ------------------------------------------------------------- step 1 */
+  /* The bed the wavelet images best, drawn as a block of rock against a fixed
+     depth scale. Both sliders on this step move it: raising the peak frequency
+     makes the best-imaged bed thinner in time, and raising the interval
+     velocity makes the same number of milliseconds more meters of rock. The
+     meter axis is held at 0-90 m whatever the sliders do, because a block that
+     grows against a ruler that grows with it shows nothing. */
+  const BED_MMAX = 90;
+
+  function drawBedBlock(ctx, box, fPeak) {
+    const ms = 1000 / (2 * fPeak);
+    const meters = ms / 1000 * S.vel / 2;
+    const plot = { x: box.x + 34, y: box.y + 18, w: box.w - 44, h: box.h - 44 };
+    SEIS.frame(ctx, plot);
+    SEIS.axisLeft(ctx, plot, 0, BED_MMAX, 'meters of rock', (v) => v.toFixed(0), { ticks: 4 });
+
+    // the block itself, hanging from the top of the box
+    const frac = clamp(meters / BED_MMAX, 0, 1);
+    const hpx = frac * plot.h;
+    ctx.save();
+    ctx.fillStyle = 'rgba(11,114,133,0.22)';
+    ctx.fillRect(plot.x + 1, plot.y + 1, plot.w - 2, hpx);
+    ctx.strokeStyle = TEAL; ctx.lineWidth = 1.6;
+    ctx.beginPath();
+    ctx.moveTo(plot.x, plot.y + 1); ctx.lineTo(plot.x + plot.w, plot.y + 1);
+    ctx.moveTo(plot.x, plot.y + hpx); ctx.lineTo(plot.x + plot.w, plot.y + hpx);
+    ctx.stroke();
+
+    // both numbers on the block, so the two units sit on one object
+    ctx.font = '10px "IBM Plex Mono", monospace';
+    ctx.textAlign = 'center';
+    ctx.fillStyle = TEAL;
+    if (hpx > 26) {
+      ctx.textBaseline = 'middle';
+      ctx.fillText(ms.toFixed(1) + ' ms', plot.x + plot.w / 2, plot.y + hpx / 2 - 7);
+      ctx.fillText(meters.toFixed(0) + ' m', plot.x + plot.w / 2, plot.y + hpx / 2 + 7);
+    } else {
+      ctx.textBaseline = 'top';
+      ctx.fillText(ms.toFixed(1) + ' ms = ' + meters.toFixed(0) + ' m',
+        plot.x + plot.w / 2, plot.y + hpx + 4);
+    }
+    ctx.textBaseline = 'top';
+    ctx.textAlign = 'left';
+    ctx.fillStyle = SLATE;
+    SEIS.captionLine(ctx, 'the bed ' + fPeak.toFixed(0) + ' Hz images best',
+      plot.x, plot.y + plot.h + 20, plot.w, { lineHeight: 11.5,
+        font: '10px "IBM Plex Mono", monospace' });
+    ctx.restore();
+  }
+
+  function drawStep1() {
+    const el = $('c1');
+    if (!el) return;
+    /* Side by side where there is room for it, and stacked below 620 px, which
+       is a phone held upright and the popped-out panel window. */
+    const w = contentWidth(el);
+    const side = w >= 620;
+    const bedW = side ? Math.min(190, Math.round(w * 0.28)) : w;
+    const bedH = side ? 0 : 210;
+    const h = mapHeight(w, 460) + bedH;
+    const ctx = SEIS.fitCanvas(el, w, h);
+    ctx.clearRect(0, 0, w, h);
+    const specW = side ? w - bedW - 18 : w;
+    const rect = { x: M.l + 12, y: M.t,
+                   w: specW - M.l - M.r - 24, h: h - bedH - M.t - M.b - 74 };
+    const wav = SEIS.makeWavelet({ type: 'ricker', f: S.fd });
+    const pts = SEIS.spectrum(wav, 0.0005, 400, FMAX);
+    SEIS.frame(ctx, rect);
+    ctx.save();
+    ctx.beginPath();
+    ctx.moveTo(rect.x, rect.y + rect.h);
+    for (const p of pts) {
+      ctx.lineTo(rect.x + (p.f / FMAX) * rect.w, rect.y + rect.h - p.a * rect.h);
+    }
+    ctx.lineTo(rect.x + rect.w, rect.y + rect.h);
+    ctx.closePath();
+    ctx.fillStyle = 'rgba(11,114,133,0.16)';
+    ctx.fill();
+    ctx.restore();
+    series(ctx, rect, pts.map((p) => p.f), pts.map((p) => p.a), 0, FMAX, 0, 1.05, TEAL, 2);
+    SEIS.axisBottom(ctx, rect, 0, FMAX, 'frequency (Hz)', (v) => v.toFixed(0), { ticks: 6 });
+    SEIS.axisLeft(ctx, rect, 0, 1.05, 'relative amplitude', (v) => v.toFixed(1), { ticks: 4 });
+
+    // the half-amplitude band, and the thickness scale that follows from it
+    let lo = pts[0].f, hi = pts[pts.length - 1].f, jp = 0;
+    for (let j = 1; j < pts.length; j++) if (pts[j].a > pts[jp].a) jp = j;
+    for (let j = jp; j > 0; j--) if (pts[j].a < 0.5) { lo = pts[j].f; break; }
+    for (let j = jp; j < pts.length - 1; j++) if (pts[j].a < 0.5) { hi = pts[j].f; break; }
+    const Xl = rect.x + (lo / FMAX) * rect.w, Xh = rect.x + (hi / FMAX) * rect.w;
+    ctx.save();
+    ctx.fillStyle = 'rgba(132,22,23,0.10)';
+    ctx.fillRect(Xl, rect.y, Xh - Xl, rect.h);
+    ctx.restore();
+
+    /* The frequency axis read twice more, as two axes of its own rather than
+       as rows of bare numbers. The first is the bed thickness each frequency
+       responds to most strongly, in the two-way milliseconds the seismic
+       measures. The second is that thickness in meters of rock at the interval
+       velocity on the slider, which is the row the velocity moves. */
+    const marks = [10, 20, 30, 40, 60, 80].filter((f) => f <= FMAX)
+      .map((f) => ({ f: f, x: rect.x + (f / FMAX) * rect.w, ms: 1000 / (2 * f) }));
+    const rowA = rect.y + rect.h + 34;
+    const afterA = SEIS.scaleAxis(ctx, rect, rowA,
+      marks.map((m) => ({ x: m.x, text: m.ms.toFixed(0) })),
+      { color: SLATE, label: 'bed thickness imaged best (ms two-way time)' });
+    SEIS.scaleAxis(ctx, rect, afterA + 6,
+      marks.map((m) => ({ x: m.x, text: (m.ms / 1000 * S.vel / 2).toFixed(0) })),
+      { color: CRIM, label: 'the same thickness in meters of rock, at ' + S.vel + ' m/s' });
+
+    const bedBox = side
+      ? { x: specW + 4, y: M.t, w: bedW - 12, h: rect.h + 74 }
+      : { x: M.l + 12, y: h - bedH + 6, w: w - M.l - M.r - 24, h: bedH - 24 };
+    drawBedBlock(ctx, bedBox, pts[jp].f);
+
+    $('s1band').textContent = lo.toFixed(0) + '\u2013' + hi.toFixed(0) + ' Hz';
+    const tThin = 1000 / (2 * hi), tThick = 1000 / (2 * lo);
+    $('s1thick').textContent = tThin.toFixed(1) + '\u2013' + tThick.toFixed(1) + ' ms';
+    $('s1m').textContent = (tThin / 1000 * S.vel / 2).toFixed(1) + '\u2013' +
+      (tThick / 1000 * S.vel / 2).toFixed(1) + ' m';
+    $('s1best').textContent = (1000 / (2 * pts[jp].f)).toFixed(1) + ' ms';
+  }
+
+  /* ------------------------------------------------------------- step 2 */
+  function drawStep2() {
+    const a = $('c2a'), b = $('c2b');
+    if (!a || !b) return;
+    drawMap(a, thickness(), SEIS.SEQMAPS.cividis, 'fill thickness', 420);
+    const fm = fullMap();
+    drawMap(b, fm, SEIS.SEQMAPS.viridis, 'peak amplitude', 420);
+
+    const g = thickness();
+    // thalweg and margin, measured on the profile through the middle
+    const iy = Math.round(NYG / 2);
+    let thal = 0;
+    for (let ix = 0; ix < NXG; ix++) thal = Math.max(thal, g[iy * NXG + ix]);
+    // the margin: the thinnest non-zero fill on this line
+    let marg = Infinity;
+    for (let ix = 0; ix < NXG; ix++) {
+      const v = g[iy * NXG + ix];
+      if (v > 0.001) marg = Math.min(marg, v);
+    }
+    if (!isFinite(marg)) marg = 0;
+    let aThal = 0, aMarg = 0;
+    for (let ix = 0; ix < NXG; ix++) {
+      const v = g[iy * NXG + ix];
+      if (Math.abs(v - thal) < 0.0008) aThal = Math.max(aThal, fm[iy * NXG + ix]);
+      if (v > 0.001 && Math.abs(v - marg) < 0.0015) aMarg = Math.max(aMarg, fm[iy * NXG + ix]);
+    }
+    $('s2bright').textContent = brightestThickness(fm).toFixed(1) + ' ms';
+    $('s2thal').textContent = (thal * 1000).toFixed(1) + ' ms';
+    $('s2marg').textContent = (marg * 1000).toFixed(1) + ' ms';
+    $('s2ratio').textContent = aMarg > 0 ? (aThal / aMarg).toFixed(2) + '\u00d7' : '—';
+  }
+
+  /* ------------------------------------------------------------- step 3 */
+  function drawStep3() {
+    const el = $('c3');
+    if (!el) return;
+    const w = contentWidth(el), h = 330;
+    const ctx = SEIS.fitCanvas(el, w, h);
+    ctx.clearRect(0, 0, w, h);
+    const fs = [LOW(), S.fc, HIGH()];
+    const gap = 16;
+    const bw = (w - M.l - M.r - 2 * gap) / 3;
+    const bh = Math.min(h - M.t - M.b - 22, bw * NYG / NXG);
+    fs.forEach((f, k) => {
+      const rect = { x: M.l + k * (bw + gap), y: M.t, w: bw, h: bh };
+      const map = isoMap(f);
+      const mx = maxOf(map) || 1;
+      drawField(ctx, rect, (ix, iy) => map[iy * NXG + ix] / mx, NXG, NYG, SEIS.SEQMAPS.viridis);
+      SEIS.tag(ctx, rect.x + 6, rect.y + 6, f.toFixed(0) + ' Hz', k === 1 ? CRIM : SLATE);
+      SEIS.axisBottom(ctx, rect, 0, NXG, k === 1 ? 'crossline' : '', (v) => v.toFixed(0), { ticks: 3 });
+      if (k === 0) SEIS.axisLeft(ctx, rect, 0, NYG, 'inline', (v) => v.toFixed(0), { ticks: 4, down: true });
+    });
+    seqBar(ctx, { x: M.l, y: M.t + bh + 22, w: Math.min(180, bw), h: 8 },
+      SEIS.SEQMAPS.viridis, '0', 'max', 'component amplitude');
+
+    const mid = isoMap(S.fc);
+    $('s3f').textContent = S.fc.toFixed(0) + ' Hz';
+    $('s3t').textContent = (1000 / (2 * S.fc)).toFixed(1) + ' ms';
+    $('s3found').textContent = brightestThickness(mid).toFixed(1) + ' ms';
+    $('s3area').textContent = litFraction(mid).toFixed(0) + '%';
+  }
+
+  /* ------------------------------------------------------------- step 4 */
+  /* The seismic across the channel, from the shared synthetic volume. The
+     volume is built to the header sliders and is small and shallow — only the
+     channel level is needed here — so it rebuilds fast enough to sit under a
+     slider. Everything else in this module works on maps; this is the one
+     panel that shows what the maps were extracted from. */
+  /* The window every section in this module is drawn over. The record has to
+     reach past the base of the thickest fill the sliders allow — 60 ms below
+     a channel top at 130 ms, plus the tail of the wavelet — or the base of
+     the channel is cut off by the bottom of the panel rather than by the
+     geology. */
+  const SEC_T0 = 0.092, SEC_T1 = 0.232;
+
+  function channelVolume() {
+    return VOL.shared({
+      nx: 140, ny: 26, nt: 200,
+      dt: 0.001, t0: 0.060,
+      f: S.fd, noise: S.noise,
+      background: false, structure: false, fault: false,
+      gas: false, wedge: false, secondChannel: false,
+      attenuation: false, dispersion: false,
+      channelRock: 'porousSand',
+      tChannel: 0.130,
+      channelFill: S.thick,
+      channelWidth: Math.round(0.44 * S.wide),
+      thinDownstream: S.taper / 100
+    });
+  }
+
+  function drawStep4Section() {
+    const el = $('c4s');
+    if (!el) return;
+    const w = contentWidth(el), h = 330;
+    const ctx = SEIS.fitCanvas(el, w, h);
+    ctx.clearRect(0, 0, w, h);
+    /* The right-hand margin carries the depth axis and its rotated label, so
+       it is wider than the left. */
+    const rect = { x: 54, y: 14, w: w - 54 - 68, h: h - 52 };
+
+    const vol = channelVolume();
+    const iy = clamp(Math.round((S.iy / (NYG - 1)) * (vol.ny - 1)), 0, vol.ny - 1);
+    const panel = VOL.crossline(vol, iy);
+    const geom = VOLP.drawSection(ctx, rect, panel, {
+      tTop: SEC_T0, tBase: SEC_T1, velocity: S.vel, xlabel: 'trace across the channel'
+    });
+
+    const top = (k) => vol.horizons.channel[k * vol.ny + iy];
+    const base = (k) => top(k) + vol.truth.channel[k * vol.ny + iy];
+    const at4 = thickestAlong(vol, iy);
+    VOLP.markHorizon(ctx, rect, geom, vol.dt, vol.t0, top, vol.nx,
+      'top of fill', TEAL, undefined, { at: at4, dy: -16 });
+    VOLP.markHorizon(ctx, rect, geom, vol.dt, vol.t0, base, vol.nx,
+      'erosional base', TEAL, undefined, { at: at4, dy: 15 });
+
+    /* readouts, measured off the model rather than quoted */
+    let thal = 0, n = 0;
+    for (let k = 0; k < vol.nx; k++) {
+      const T = vol.truth.channel[k * vol.ny + iy];
+      if (T > thal) thal = T;
+      if (T > 0.001) n++;
+    }
+    /* two events or one: the amplitude tuning thickness of this wavelet */
+    const tune = 1000 / (2.6 * S.fd);
+    $('s4sthal').textContent = (thal * 1000).toFixed(1) + ' ms';
+    /* Two conversions of one thickness. The left-hand one uses the velocity on
+       the step 1 slider, which is what the rest of the module uses and what the
+       depth axis on this panel is drawn with. The right-hand one uses the
+       velocity of the channel fill itself. They are not the same number, and
+       which one is meant is a question worth asking of any thickness quoted in
+       metres. */
+    $('s4sm').textContent = (thal * S.vel / 2).toFixed(0) + ' m at ' + S.vel + ' m/s';
+    $('s4ssep').textContent = thal * 1000 > tune
+      ? 'yes, above ' + tune.toFixed(1) + ' ms' : 'no, one event below ' + tune.toFixed(1) + ' ms';
+    $('s4sn').textContent = VOL.thicknessInMetres(thal * 1000, 'porousSand').toFixed(0)
+      + ' m at ' + VOL.ROCKS.porousSand.v + ' m/s';
+  }
+
+  function drawStep4() {
+    const el = $('c4');
+    if (!el) return;
+    const w = contentWidth(el), h = 380;
+    const ctx = SEIS.fitCanvas(el, w, h);
+    ctx.clearRect(0, 0, w, h);
+    const iy = clamp(Math.round(S.iy), 0, NYG - 1);
+    const g = thickness();
+    const fs = [LOW(), S.fc, HIGH()];
+    const cols = [TEAL, CRIM, '#5C6670'];
+
+    const paneH = (h - M.t - M.b - 40) / 2;
+    const r1 = { x: M.l, y: M.t, w: w - M.l - M.r, h: paneH };
+    const r2 = { x: M.l, y: M.t + paneH + 40, w: w - M.l - M.r, h: paneH };
+
+    const xs = [], th = [];
+    for (let ix = 0; ix < NXG; ix++) { xs.push(ix); th.push(g[iy * NXG + ix] * 1000); }
+    SEIS.frame(ctx, r1);
+    series(ctx, r1, xs, th, 0, NXG - 1, 0, 62, TEAL, 2.2);
+    SEIS.axisBottom(ctx, r1, 0, NXG - 1, '', (v) => v.toFixed(0), { ticks: 6 });
+    SEIS.axisLeft(ctx, r1, 0, 62, 'fill (ms)', (v) => v.toFixed(0), { ticks: 4 });
+
+    SEIS.frame(ctx, r2);
+    const peaks = [];
+    fs.forEach((f, k) => {
+      const map = isoMap(f);
+      const ys = [];
+      let mx = 0;
+      for (let ix = 0; ix < NXG; ix++) { const v = map[iy * NXG + ix]; ys.push(v); mx = Math.max(mx, v); }
+      mx = mx || 1;
+      series(ctx, r2, xs, ys.map((v) => v / mx), 0, NXG - 1, 0, 1.1, cols[k], k === 1 ? 2.2 : 1.8);
+      // where along the line this component peaks, and the fill thickness there
+      let bi = 0;
+      for (let ix = 0; ix < NXG; ix++) if (ys[ix] > ys[bi]) bi = ix;
+      peaks.push(g[iy * NXG + bi] * 1000);
+    });
+    SEIS.axisBottom(ctx, r2, 0, NXG - 1, 'crossline', (v) => v.toFixed(0), { ticks: 6 });
+    SEIS.axisLeft(ctx, r2, 0, 1.1, 'relative', (v) => v.toFixed(1), { ticks: 4 });
+    /* Three curves, so three tags — the middle one was missing, which left the
+       crimson curve unlabelled. Positions are stepped by measured text width
+       rather than by fixed offsets, so they cannot collide when a frequency
+       goes from two digits to three. */
+    ctx.save();
+    ctx.font = '10px "IBM Plex Mono", monospace';
+    let tx = r2.x + 6;
+    fs.forEach((f, k) => {
+      const txt = f.toFixed(0) + ' Hz';
+      SEIS.tag(ctx, tx, r2.y + 6, txt, cols[k]);
+      tx += ctx.measureText(txt).width + 8 + 10;
+    });
+    ctx.restore();
+
+    let thal = 0, halfw = 0;
+    for (let ix = 0; ix < NXG; ix++) {
+      thal = Math.max(thal, g[iy * NXG + ix]);
+      if (g[iy * NXG + ix] > 0.001) halfw++;
+    }
+    $('s4thal').textContent = (thal * 1000).toFixed(1) + ' ms';
+    $('s4lo').textContent = peaks[0].toFixed(1) + ' ms fill';
+    $('s4hi').textContent = peaks[2].toFixed(1) + ' ms fill';
+    $('s4w').textContent = (halfw / 2).toFixed(0) + ' traces';
+  }
+
+  /* ------------------------------------------------------------- step 5 */
+  /* One iso-frequency map on its own, drawn in the single color channel it will
+     contribute to the blend. Shown before the blend so that the three inputs are
+     separable: a combined RGB image is very hard to read backwards into the
+     three maps it came from. */
+  function drawChannelMap(el, map, chan, freq) {
+    if (!el) return;
+    const w = contentWidth(el);
+    const h = mapHeight(w, 340);
+    const ctx = SEIS.fitCanvas(el, w, h);
+    ctx.clearRect(0, 0, w, h);
+    const rect = mapBox(w, h);
+    const mx = maxOf(map) || 1;
+    drawField(ctx, rect, (ix, iy) => map[iy * NXG + ix] / mx, NXG, NYG, (v) => {
+      const u = Math.round(255 * Math.max(0, Math.min(1, v)));
+      return chan === 0 ? [u, 0, 0] : chan === 1 ? [0, u, 0] : [0, 0, u];
+    });
+    SEIS.axisBottom(ctx, rect, 0, NXG, 'crossline', (v) => v.toFixed(0), { ticks: 4 });
+    SEIS.axisLeft(ctx, rect, 0, NYG, 'inline', (v) => v.toFixed(0), { ticks: 4, down: true });
+    SEIS.tag(ctx, rect.x + 6, rect.y + 6, freq + ' Hz', CRIM);
+  }
+
+  function drawStep5() {
+    const a = $('c5a'), b = $('c5b');
+    if (!a || !b) return;
+    const fs = [LOW(), S.fc, HIGH()];
+    const r = isoMap(fs[0]), g2 = isoMap(fs[1]), bl = isoMap(fs[2]);
+
+    drawChannelMap($('c5r'), r, 0, fs[0]);
+    drawChannelMap($('c5g'), g2, 1, fs[1]);
+    drawChannelMap($('c5bl'), bl, 2, fs[2]);
+    if ($('lblR')) $('lblR').textContent = fs[0] + ' Hz, thick fill';
+    if ($('lblG')) $('lblG').textContent = fs[1] + ' Hz';
+    if ($('lblB')) $('lblB').textContent = fs[2] + ' Hz, thin fill';
+
+    const w = contentWidth(a), h = mapHeight(w, 460);
+    const ctx = SEIS.fitCanvas(a, w, h);
+    ctx.clearRect(0, 0, w, h);
+    const rect = mapBox(w, h);
+    drawRGB(ctx, rect, r, g2, bl, NXG, NYG);
+    SEIS.axisBottom(ctx, rect, 0, NXG, 'crossline', (v) => v.toFixed(0), { ticks: 5 });
+    SEIS.axisLeft(ctx, rect, 0, NYG, 'inline', (v) => v.toFixed(0), { ticks: 4, down: true });
+    SEIS.tag(ctx, rect.x + 6, rect.y + 6,
+      fs[0] + ' / ' + fs[1] + ' / ' + fs[2] + ' Hz', CRIM);
+
+    drawMap(b, thickness(), SEIS.SEQMAPS.cividis, 'fill thickness', 420);
+
+    // lit fraction of the blend: any channel above threshold on any channel
+    const gt = thickness();
+    const mr = maxOf(r) || 1, mg = maxOf(g2) || 1, mb = maxOf(bl) || 1;
+    let lit = 0, tot = 0;
+    for (let i = 0; i < gt.length; i++) {
+      if (gt[i] < 0.002) continue;
+      tot++;
+      if (r[i] > 0.7 * mr || g2[i] > 0.7 * mg || bl[i] > 0.7 * mb) lit++;
+    }
+    $('s5f').textContent = fs[0] + ' / ' + fs[1] + ' / ' + fs[2] + ' Hz';
+    $('s5t').textContent = (1000 / (2 * fs[0])).toFixed(0) + ' / ' +
+      (1000 / (2 * fs[1])).toFixed(0) + ' / ' + (1000 / (2 * fs[2])).toFixed(0) + ' ms';
+    $('s5area').textContent = tot ? (100 * lit / tot).toFixed(0) + '%' : '—';
+    $('s5full').textContent = litFraction(fullMap()).toFixed(0) + '%';
+  }
+
+  /* =====================================================================
+     PLUMBING
+     ===================================================================== */
+  function syncLabels() {
+    $('thickV').textContent = S.thick + ' ms';
+    $('wideV').textContent = S.wide < 60 ? 'narrow' : (S.wide > 110 ? 'wide' : 'medium');
+    $('taperV').textContent = S.taper + '%';
+    $('fdV').textContent = S.fd + ' Hz';
+    $('fcV').textContent = S.fc + ' Hz';
+    $('iyV').textContent = S.iy < 40 ? 'upstream' : (S.iy > 85 ? 'downstream' : 'midway');
+    $('velV').textContent = S.vel + ' m/s';
+    $('noiseV').textContent = S.noise === 0 ? 'none' : S.noise + '%';
+    $('fd1V').textContent = S.fd + ' Hz';
+    /* Every range input that names a state key, so the header panel's copy and
+       step 1's copy of the frequency slider always read the same value. */
+    document.querySelectorAll('input[type="range"][data-key]').forEach((el) => {
+      const k = el.dataset.key;
+      if (k in S && String(S[k]) !== el.value) el.value = S[k];
+    });
+    ['thick', 'wide', 'taper', 'fd', 'fc', 'iy', 'vel', 'noise'].forEach((k) => {
+      const el = $(k);
+      if (el && String(S[k]) !== el.value) el.value = S[k];
+    });
+    document.querySelectorAll('#segPreset button').forEach((b) => {
+      const on = S.thick === parseFloat(b.dataset.thick) &&
+                 S.wide === parseFloat(b.dataset.wide) &&
+                 S.taper === parseFloat(b.dataset.taper);
+      b.setAttribute('aria-pressed', on);
+      b.classList.toggle('on', on);
+    });
+  }
+
+  function drawAll() {
+    const lab = document.querySelector('.labhead');
+    if (lab && !lab.hidden) { drawHeader(); drawHeaderSection(); }
+    if (visible('p1')) drawStep1();
+    if (visible('p2')) drawStep2();
+    if (visible('p3')) drawStep3();
+    if (visible('p4')) { drawStep4Section(); drawStep4(); }
+    if (visible('p5')) drawStep5();
+  }
+
+  const PANES = ['p1', 'p2', 'p3', 'p4', 'p5', 'pw', 'pe', 'pk', 'pm'];
+  const STEPNAMES = {
+    p1: 'The band', p2: 'One map', p3: 'Many maps', p4: 'Cross-section',
+    p5: 'The blend', pw: 'Why it matters', pe: 'Exercises', pk: 'Key points', pm: 'Method',
+  };
+
+  function buildStepNav() {
+    PANES.forEach((id, i) => {
+      const pane = $(id);
+      if (!pane || pane.querySelector('.stepnav')) return;
+      const prev = PANES[i - 1], next = PANES[i + 1];
+      const nav = document.createElement('div');
+      nav.className = 'stepnav';
+      const mk = (target, text, ghost) => {
+        const b = document.createElement('button');
+        b.type = 'button';
+        b.className = 'btn' + (ghost ? ' ghost' : '') + ' small';
+        b.textContent = text;
+        b.addEventListener('click', () => {
+          showTab(target);
+          const t = document.querySelector('.tabhint');
+          if (t && t.scrollIntoView) t.scrollIntoView({ behavior: 'smooth', block: 'start' });
+        });
+        return b;
+      };
+      nav.appendChild(prev ? mk(prev, '\u2190 ' + STEPNAMES[prev], true)
+                           : document.createElement('span'));
+      const where = document.createElement('span');
+      where.className = 'where';
+      where.textContent = i < 5 ? 'step ' + (i + 1) + ' of 5' : STEPNAMES[id];
+      nav.appendChild(where);
+      nav.appendChild(next ? mk(next, STEPNAMES[next] + ' \u2192')
+                           : document.createElement('span'));
+      pane.appendChild(nav);
+    });
+  }
+
+  function showTab(id) {
+    PANES.forEach((q) => { const el = $(q); if (el) el.hidden = q !== id; });
+    document.querySelectorAll('#tabs button').forEach((b) => {
+      b.setAttribute('aria-selected', b.dataset.tab === id);
+    });
+    const lab = document.querySelector('.labhead');
+    // step 1 is about the wavelet, not the map; steps 2 and 5 show the truth already
+    if (lab) lab.hidden = !(id === 'p1' || id === 'p2' || id === 'p3' || id === 'p4' || id === 'p5');
+    /* The forward link lives on the pager. Show it once the reader has reached
+       the exercises, not only on the two reference tabs — a student who works
+       the exercises and stops used to have no way on to the next module. */
+    const done = (id === 'pe' || id === 'pk' || id === 'pm');
+    if ($('nextup')) $('nextup').hidden = !(id === 'pk' || id === 'pm');
+    if ($('pager')) $('pager').hidden = !done;
+    S.tab = id;
+    drawAll();
+    saveState();
+  }
+  document.querySelectorAll('#tabs button').forEach((b) => {
+    b.addEventListener('click', () => showTab(b.dataset.tab));
+  });
+
+  /* The three channel presets set the geology sliders and nothing else, so the
+     module opens on a shape rather than on three unlabeled numbers. Every one
+     of them remains draggable afterward. */
+  document.querySelectorAll('#segPreset button').forEach((b) => {
+    b.addEventListener('click', () => {
+      S.thick = parseFloat(b.dataset.thick);
+      S.wide = parseFloat(b.dataset.wide);
+      S.taper = parseFloat(b.dataset.taper);
+      syncLabels(); drawAll(); saveState();
+    });
+  });
+
+  document.addEventListener('input', (ev) => {
+    const t = ev.target;
+    if (!t || t.tagName !== 'INPUT') return;
+    /* data-key rather than id, so that a step can carry its own copy of a
+       control that lives in the header panel — step 1 has a second peak
+       frequency slider beside its velocity slider, since the panel's copy is
+       scrolled out of sight while that step is being read. Ids stay unique;
+       both copies name the same state key. */
+    const key = t.dataset.key || t.id;
+    if (!(key in DEF)) return;
+    S[key] = parseFloat(t.value);
+    syncLabels(); drawAll(); saveState();
+  });
+
+  let rt;
+  window.addEventListener('resize', () => { clearTimeout(rt); rt = setTimeout(drawAll, 140); });
+
+  buildStepNav();
+  syncLabels();
+  showTab(PANES.indexOf(S.tab) >= 0 ? S.tab : 'p1');
+})();
+</script>
+</body>
+</html>

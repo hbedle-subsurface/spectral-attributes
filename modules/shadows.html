@@ -1,0 +1,1343 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Three ways to make a low-frequency anomaly, and one to miss a reservoir | How Spectral Attributes Actually Work</title>
+<meta name="description" content="Four different causes of a low-frequency anomaly — tuning, attenuation, a higher tuning lobe and processing — shown side by side on the same display, with the diagnostics that separate them.">
+<link rel="stylesheet" href="../assets/fonts.css">
+<link rel="stylesheet" href="../assets/style.css">
+</head>
+<body>
+
+<div class="wrap">
+  <header class="masthead">
+    <a class="brand" href="../index.html"><span class="dot"></span>How spectral attributes <b>actually</b> work</a>
+    <nav>
+      <a href="../index.html">All modules</a>
+      <a href="methods.html">← Module 08</a>
+      <a href="#notes">Method &amp; references</a>
+    </nav>
+  </header>
+
+  <div class="mod-head">
+    <p class="eyebrow">Module 09 &nbsp;·&nbsp; Spectral attributes</p>
+    <h1>Three ways to make a low-frequency anomaly, and one to miss a reservoir</h1>
+    <p class="sub">A low-frequency anomaly on a spectral attribute map is where this work becomes useful and where most of the errors are made. Four different things produce one, and their spectra at the target are not distinguishable. These five steps build all four, show what separates them, and end with a set of tests that an interpreter can actually run.</p>
+  </div>
+
+  <div class="labhead">
+    <div class="labgrid">
+      <div>
+        <p class="cap">Four locations, four causes <span>&mdash; peak frequency down a line</span></p>
+        <canvas id="cHead" aria-label="Peak frequency along a line containing four different anomalies"></canvas>
+      </div>
+      <div>
+        <p class="cap">Set up the line <span>&mdash; every step updates as you drag</span></p>
+        <div class="controls" id="winControls">
+          <div class="ctl-col">
+            <h2>The earth</h2>
+            <div class="ctl">
+              <label for="q">Gas sand Q <span class="val" id="qV">30</span></label>
+              <input type="range" data-key="q" id="q" min="10" max="200" step="5" value="30">
+            </div>
+            <div class="ctl">
+              <label for="bed">Target bed <span class="val" id="bedV">24 ms</span></label>
+              <input type="range" data-key="bed" id="bed" min="8" max="40" step="2" value="24">
+            </div>
+          </div>
+          <div class="ctl-col">
+            <h2>The data</h2>
+            <div class="ctl">
+              <label for="fd">Wavelet peak frequency <span class="val" id="fdV">32 Hz</span></label>
+              <input type="range" data-key="fd" id="fd" min="20" max="50" step="2" value="32">
+            </div>
+            <div class="ctl">
+              <label for="ix">Location shown <span class="val" id="ixV">1 — tuning</span></label>
+              <input type="range" data-key="ix" id="ix" min="0" max="3" step="1" value="0">
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <p class="tabhint">Work through the five steps in order, <b>then try the exercises</b>.
+    Method and references are there when you want them.</p>
+  <nav class="tabs" id="tabs" role="tablist" aria-label="Module steps">
+    <button role="tab" data-tab="p1" aria-selected="false">1 · Four causes</button>
+    <button role="tab" data-tab="p2" aria-selected="false">2 · Attenuation</button>
+    <button role="tab" data-tab="p3" aria-selected="false">3 · The shadow</button>
+    <button role="tab" data-tab="p4" aria-selected="false">4 · Other causes</button>
+    <button role="tab" data-tab="p5" aria-selected="false">5 · The tests</button>
+    <button role="tab" data-tab="pw" aria-selected="false">Why it matters</button>
+    <span class="gap"></span>
+    <button role="tab" data-tab="pe" aria-selected="false">Exercises</button>
+    <button role="tab" data-tab="pk" aria-selected="false">Key points</button>
+    <button role="tab" data-tab="pm" aria-selected="false">Method</button>
+  </nav>
+
+  <!-- =============================== STEP 1 =============================== -->
+  <section class="tabpane" id="p1" role="tabpanel" hidden>
+    <div class="plot-head" style="margin-bottom:14px">
+      <h3><span class="stepno">1</span>Four locations, three anomalies that look the same</h3>
+      <span class="hint">Try telling them apart from the map alone &mdash; and find the one that isn't there</span>
+    </div>
+    <p class="qbox"><b>Why this step is here.</b> A peak frequency map shows a low-frequency anomaly over a prospect. Can the cause be identified from the spectrum at the target?</p>
+    <p class="lede">The panel below shows the target-level spectrum at whichever location is selected in the header. Cycling through all four is the test: the question is whether anything separates them.</p>
+
+    <div class="plot">
+      <div class="plot-head">
+        <h3>Target-level spectrum at the selected location</h3>
+        <span class="hint">Gray: the background away from any anomaly</span>
+      </div>
+      <canvas id="c1" aria-label="Spectrum at the selected anomaly, against the background spectrum"></canvas>
+    </div>
+    <div class="stats">
+      <div class="stat key"><span>Location</span><b id="s1loc">—</b></div>
+      <div class="stat"><span>Peak frequency here</span><b id="s1pf">—</b></div>
+      <div class="stat"><span>Background peak frequency</span><b id="s1bg">—</b></div>
+      <div class="stat"><span>Implied thickness</span><b id="s1th">—</b></div>
+    </div>
+    <div class="legend prose">
+      <span><b>Three causes produce the same anomaly, and one reservoir produces none.</b> The first three spectra are not distinguishable in any reliable way at the target level, which is the reason this module exists. The fourth location holds a bed thick enough that its spectral peak falls on a high lobe, so it reports close to the background frequency and appears on the map as nothing at all.</span>
+    </div>
+  </section>
+
+  <!-- =============================== STEP 2 =============================== -->
+  <section class="tabpane" id="p2" role="tabpanel" hidden>
+    <div class="plot-head" style="margin-bottom:14px">
+      <h3><span class="stepno">2</span>What attenuation does to a wavelet</h3>
+      <span class="hint">A wavelet, propagated through absorbing rock</span>
+    </div>
+    <p class="qbox"><b>Why this step is here.</b> Absorbing rock is said to lower the frequency of what passes through it. By how much, and does it look like a thin bed?</p>
+    <p class="lede">The quantity that describes how lossy a rock is is <b>Q</b>, the quality factor.
+      High Q means low loss: a stiff, well-cemented, low-porosity rock might reach several hundred.
+      Unconsolidated sands and shales, and rocks with mobile pore fluid, run much lower. Low Q over gas
+      is widely reported, but the mechanism and the size of the effect are still argued over, so treat a
+      low-Q zone as evidence worth following rather than as a fluid indicator on its own.</p>
+    <p class="lede">The amplitude at frequency <i>f</i>, after travelling for time <i>t</i>, is
+      multiplied by exp(&minus;π<i>ft</i>/<i>Q</i>). Because that factor depends on <i>f</i>, it changes
+      the shape of the spectrum as well as its size, and the shape change is what moves the peak down.</p>
+    <p class="lede">Below is a wavelet before and after propagation, with its spectrum. Lowering Q shows what a thickness estimate would make of the result.</p>
+
+    <div class="sec-row">
+      <div class="panel-col">
+        <p class="sublabel"><b>The wavelet</b> <span class="note">before and after</span></p>
+        <canvas id="c2a" aria-label="A wavelet before and after constant-Q attenuation"></canvas>
+      </div>
+      <div class="panel-col">
+        <p class="sublabel"><b>Its spectrum</b> <span class="note">the peak moves down</span></p>
+        <canvas id="c2b" aria-label="Spectrum of the wavelet before and after attenuation"></canvas>
+      </div>
+    </div>
+    <div class="stats">
+      <div class="stat key"><span>Peak frequency before</span><b id="s2b4">—</b></div>
+      <div class="stat"><span>Peak frequency after</span><b id="s2af">—</b></div>
+      <div class="stat"><span>Amplitude loss at 60 Hz</span><b id="s2loss">—</b></div>
+      <div class="stat"><span>False thickness this implies</span><b id="s2th">—</b></div>
+    </div>
+    <div class="legend prose">
+      <span><b>Attenuation produces exactly the signature a thin bed produces.</b> A 32.2 Hz wavelet
+      propagated through 600 ms of rock comes back at 29.9 Hz for Q = 200, at 26.8 Hz for Q = 80, at
+      20.2 Hz for Q = 30 and at 11.1 Hz for Q = 10. Fed through 1/(2<i>f</i>), those become thicknesses
+      too large by 1.2, 3.1, 9.2 and 29.4 ms, with no bed involved anywhere. At Q = 30 the loss at 60 Hz
+      is 98% — the high frequencies have not been cancelled by interference, they have been absorbed, and
+      nothing about the spectrum at the target says which of the two happened.</span>
+    </div>
+  </section>
+
+  <!-- =============================== STEP 3 =============================== -->
+  <section class="tabpane" id="p3" role="tabpanel" hidden>
+    <div class="plot-head" style="margin-bottom:14px">
+      <h3><span class="stepno">3</span>The low-frequency shadow</h3>
+      <span class="hint">The clue is below the reservoir, not at it</span>
+    </div>
+    <p class="qbox"><b>Why this step is here.</b> If the spectra at the target are identical, what else is different?</p>
+    <p class="lede">Two effects stack here and are worth separating. Passing down through the gas sand and back up through it removes high frequencies twice, which is a fixed penalty applied to everything below. On top of that, the section beneath the sand is itself low-Q in this model, so the loss keeps building with depth. The first produces the step at the reservoir, the second the downward trend below it. Both are present on real data, and the trend is usually the larger.</p>
+    <p class="lede">The section below is what this looks like on seismic. A gas sand sits at 150 ms,
+      covering part of the line, with identical stratigraphy everywhere else. The traces that pass
+      through the sand carry the loss; the traces either side of it do not. Widening or narrowing the
+      body moves the edges of the shadow with it.</p>
+
+    <p class="lede"><b>Why the shadow is the useful observation and the anomaly is not.</b> The spectrum
+      at the target is the same for all four causes, so nothing measured there separates them. The
+      shadow is a statement about the interval the wave passed through, and only one of the four causes
+      involves passing through anything absorbing. It is also evidence about geometry: the shadow is as
+      wide as the body above it, so its edges mark the lateral extent of whatever absorbed, and that
+      outline can be compared with the outline mapped from amplitude. Where the two agree, the same body
+      produced both. Where the shadow is wider than the amplitude anomaly, the amplitude has been
+      limited by tuning rather than by the extent of the body.</p>
+    <div class="controls" style="margin-bottom:14px">
+      <div class="ctl-col">
+        <div class="ctl">
+          <label for="ext">Width of the gas sand <span class="val" id="extV">40% of the line</span></label>
+          <input type="range" data-key="ext" id="ext" min="0" max="90" step="5" value="40">
+        </div>
+      </div>
+      <div class="ctl-col">
+        <div class="ctl">
+          <label for="noise">Noise <span class="val" id="noiseV">none</span></label>
+          <input type="range" data-key="noise" id="noise" min="0" max="40" step="2" value="0">
+        </div>
+      </div>
+    </div>
+    <div class="plot">
+      <div class="plot-head">
+        <h3>The shadow on a seismic section</h3>
+        <span class="hint">Teal: the edges of the gas sand. Dashed: the target level</span>
+      </div>
+      <canvas id="c3s" aria-label="A seismic section with a gas sand and the low-frequency shadow beneath it"></canvas>
+    </div>
+    <div class="stats">
+      <div class="stat key"><span>Peak frequency, off the body</span><b id="s3off">—</b></div>
+      <div class="stat"><span>Peak frequency, under the body</span><b id="s3on">—</b></div>
+      <div class="stat"><span>Shadow strength</span><b id="s3drop">—</b></div>
+      <div class="stat"><span>Survives the noise?</span><b id="s3snr">—</b></div>
+    </div>
+    <div class="legend prose">
+      <span><b>The shadow has the same edges as the body that caused it.</b> On clean data at Q = 30 the
+      measurement level reads about 35 Hz off the body and 11.8 Hz under it, a drop of 23.5 Hz, which is
+      5.7 times the trace-to-trace scatter of the measurement made off the body. Comparing against that
+      scatter is the test, rather than against a fixed number of hertz. Taking the body to zero width
+      removes the shadow, which is the control worth running.</span>
+    </div>
+    <div class="legend prose">
+      <span><b>Noise takes the shadow zone before it takes the rest of the section.</b> Raising the noise
+      to 10% does not weaken the shadow; it reverses it. The measurement under the body reads about
+      12 Hz <em>higher</em> than off it. A shadow zone is dim by definition — the energy that made it
+      low-frequency is energy it lost — so noise dominates there while the brighter section either side
+      is still readable, and the peak frequency of noise is not low. On a real section this appears as a
+      low-frequency anomaly that vanishes or inverts when the data are reprocessed with a different
+      noise attenuation, and that behavior is itself the diagnostic.</span>
+    </div>
+
+    <p class="lede" style="margin-top:22px">The same information as a measurement. Peak frequency
+      against time down the trace, at the attenuating location and at the tuning location.</p>
+
+    <div class="plot">
+      <div class="plot-head">
+        <h3>Peak frequency against depth, at two locations</h3>
+        <span class="hint">Crimson: through the gas sand. Teal: at the tuned bed</span>
+      </div>
+      <canvas id="c3" aria-label="Peak frequency against time beneath an attenuating body and a tuned bed"></canvas>
+    </div>
+    <div class="stats">
+      <div class="stat key"><span>Above the target</span><b id="s3ab">—</b></div>
+      <div class="stat"><span>At the target</span><b id="s3at">—</b></div>
+      <div class="stat"><span>200 ms below</span><b id="s3bel">—</b></div>
+      <div class="stat"><span>Recovery below the tuned bed</span><b id="s3rec">—</b></div>
+    </div>
+    <div class="legend prose">
+      <span><b>Below the gas sand the frequency stays down; below the tuned bed it comes back.</b> At
+      Q = 30 the line reads 28.3 Hz above the absorbing body, 25.8 Hz at the target, and
+      <b>26.0 Hz two hundred milliseconds below it</b> — still well under the 28.3 Hz measured above.
+      Take Q to 15 and the reading two hundred milliseconds below collapses to 5.0 Hz, while the value
+      above the body barely moves at 27.7 Hz. Beneath the tuned bed the frequency recovers by 4.1 Hz, back toward the background.
+      This is the low-frequency shadow: a shadow cast downward by something the energy passed through.
+      It has two uses. A shadow is evidence about the body <em>above</em> it, so an anomaly with a
+      shadow beneath it indicates that something absorbed. And an anomaly with no shadow beneath it
+      cannot be attenuation, which removes one of the four causes from one further look at data that is
+      already available.</span>
+    </div>
+  </section>
+
+  <!-- =============================== STEP 4 =============================== -->
+  <section class="tabpane" id="p4" role="tabpanel" hidden>
+    <div class="plot-head" style="margin-bottom:14px">
+      <h3><span class="stepno">4</span>Tuning lobes and the wavelet</h3>
+      <span class="hint">A thicker bed, and a processing choice</span>
+    </div>
+    <p class="qbox"><b>Why this step is here.</b> Two more causes produce the same anomaly and are less often named. What are they?</p>
+    <p class="lede">The panels show both. On the left, bed thickness is plotted against the peak frequency it produces, so a vertical line at one frequency shows every thickness that could have caused it. On the right, identical geology under two different wavelets. Frequency runs left to right on both, as it does on every spectrum in the set.</p>
+
+    <p class="lede"><b>What the left panel means for a prospect.</b> One peak frequency is produced by
+      more than one thickness, because the interference peaks repeat at 1/(2<i>T</i>), 3/(2<i>T</i>),
+      5/(2<i>T</i>) and so on. A low peak frequency read as a thick gas-charged sand is equally
+      consistent with a much thinner bed sitting on a higher lobe. Stratigraphic context is what settles
+      it: a channel form of known scale, a well tie a few kilometers away, or the thickness the
+      depositional system is capable of producing. The seismic alone does not.</p>
+
+    <p class="lede">The right panel carries a different warning. Identical rock under two wavelets
+      produces two spectra, so a spectral anomaly present in a reprocessed volume and absent in the
+      original is a statement about the processing sequence. This is the cause most often missed,
+      because a reprocessing is usually undertaken to improve something and the improvement is what gets
+      examined, rather than the attributes computed afterward.</p>
+
+    <div class="sec-row">
+      <div class="panel-col">
+        <p class="sublabel"><b>One bed, two lobes</b> <span class="note">thickness against peak frequency</span></p>
+        <canvas id="c4a" aria-label="Peak frequency against bed thickness showing multiple tuning lobes"></canvas>
+      </div>
+      <div class="panel-col">
+        <p class="sublabel"><b>One bed, two wavelets</b> <span class="note">the same rock, processed twice</span></p>
+        <canvas id="c4b" aria-label="Spectra of the same bed under two different wavelets"></canvas>
+      </div>
+    </div>
+    <div class="stats">
+      <div class="stat key"><span>Bed thickness</span><b id="s4t">—</b></div>
+      <div class="stat"><span>First lobe</span><b id="s4l1">—</b></div>
+      <div class="stat"><span>Other beds giving the same peak</span><b id="s4l3">—</b></div>
+      <div class="stat"><span>Same bed, 24 vs 44 Hz wavelet</span><b id="s4w">—</b></div>
+    </div>
+    <div class="legend prose">
+      <span><b>Both are ambiguities rather than errors.</b> A bed tunes at 1/(2T), again at 3/(2T) and again at 5/(2T), so as it thickens the measured peak follows 1/(2T) down until the next lobe carries more energy and the reading jumps. Which lobe is measured depends on the wavelet, so the same bed under two different sources reports two different frequencies. Neither measurement is wrong; the map simply does not record which lobe it read.</span>
+    </div>
+  </section>
+
+  <!-- =============================== STEP 5 =============================== -->
+  <section class="tabpane" id="p5" role="tabpanel" hidden>
+    <div class="plot-head" style="margin-bottom:14px">
+      <h3><span class="stepno">5</span>Four tests that separate the causes</h3>
+      <span class="hint">Four tests, run on all four anomalies</span>
+    </div>
+    <p class="qbox"><b>Why this step is here.</b> If no single spectrum identifies the cause, what does?</p>
+    <ul class="lede" style="padding-left:20px">
+      <li><b>Is there a shadow?</b> Compare the peak frequency well below the target with the background.
+        Only attenuation casts one.</li>
+      <li><b>Does the magnitude drop too?</b> Attenuation removes energy; tuning redistributes it.</li>
+      <li><b>Does it move when the wavelet changes?</b> A processing artifact tracks the wavelet; geology
+        does not.</li>
+      <li><b>Is the notch spacing consistent?</b> A genuine thin bed has notches at 1/T, 2/T, 3/T; a bed
+        on a higher lobe has them closer together than its peak suggests.</li>
+    </ul>
+
+    <p class="lede">None of the four is a spectral measurement at the target, and that is the point of
+      the module. Three of them ask what is above, below or beside the anomaly, and the fourth asks what
+      happens when the processing changes. A cause is established by the pattern across the four rather
+      than by any one, which is the same standard applied to a direct hydrocarbon indicator: how many
+      independent observations agree, not how strong the strongest one is.</p>
+
+    <p class="lede">The failure this guards against is specific. Four causes produce the same anomaly,
+      three of them are ordinary and one is a reservoir, so an anomaly taken at face value is one
+      candidate out of four rather than a finding. The four tests run on data that are already on disk,
+      and the outcome is either a shorter list of causes or an anomaly that has survived all four, which
+      is a different thing from an anomaly that was never questioned.</p>
+
+    <div class="plot">
+      <div class="plot-head">
+        <h3>The four tests at the four locations</h3>
+        <span class="hint">Each bar is one test, at one location</span>
+      </div>
+      <canvas id="c5" aria-label="Four diagnostic tests evaluated at four anomaly locations"></canvas>
+    </div>
+    <div class="stats">
+      <div class="stat key"><span>Shadow below</span><b id="s5sh">—</b></div>
+      <div class="stat"><span>Changed above the body</span><b id="s5notch">—</b></div>
+      <div class="stat"><span>Magnitude change</span><b id="s5mag">—</b></div>
+      <div class="stat"><span>Moves with the wavelet</span><b id="s5wav">—</b></div>
+    </div>
+    <div class="legend prose">
+      <span><b>The four tests together separate all four causes, and no single test does.</b> Attenuation changes the frequency 3.2 Hz below the target and the others do not, which is the shadow test. Tuning drops the magnitude with the frequency and attenuation does not. The lobe ambiguity moves when the wavelet changes and nothing else does. A processing difference shows a notch spacing inconsistent with any bed thickness. Running one test identifies nothing; running four leaves one cause standing.</span>
+    </div>
+  </section>
+
+  <!-- ============================ WHY IT MATTERS =========================== -->
+  <section class="tabpane" id="pw" role="tabpanel" hidden>
+    <div class="plot-head" style="margin-bottom:14px">
+      <h3>Why it matters</h3>
+      <span class="hint">Before the anomaly goes on a slide</span>
+    </div>
+    <p class="lede">The low-frequency shadow has been used as a direct hydrocarbon indicator, published as one, and also shown to arise from several causes that have nothing to do with fluid. Both accounts are in the literature and neither settles it.</p>
+    <ul class="lede" style="padding-left:20px">
+      <li><b>Before calling an anomaly a reservoir.</b> Four causes and four tests, all of which run on data already in hand.</li>
+      <li><b>When a thickness map has a bullseye in it.</b> A local thickening on a spectral thickness map
+        is often a local attenuation, and the shadow test distinguishes them.</li>
+      <li><b>When two surveys disagree.</b> Frequency differences across a survey boundary are processing
+        until shown otherwise, and the boundary shape usually settles it.</li>
+      <li><b>When a bed is thicker than assumed.</b> The lobe ambiguity means a thickness estimate has
+        more than one answer, and the band decides whether they can be told apart.</li>
+      <li><b>Reading the literature.</b> Shadows are reported both as reliable indicators and as
+        artifacts, and papers that state which tests were run are the ones to trust.</li>
+    </ul>
+    <p class="lede"><b>The mistakes that carry the most consequence.</b> The most consequential is treating a low-frequency anomaly as a fluid indicator without checking whether it has a shadow beneath it, since the shadow is what distinguishes attenuation from tuning. The second is assuming the cause lies at the anomaly. Attenuation is cumulative, so the absorbing body can be far shallower than the level where the anomaly appears.</p>
+    <div class="legend prose">
+      <span>The AASPI documentation supplied with this module set contains no Q estimation program. This module therefore teaches what attenuation looks like and how to test for it, rather than how to measure Q. The tests in step 5 are ones an interpreter can run with the volumes they already have.</span>
+    </div>
+  </section>
+
+  <!-- ============================== EXERCISES ============================= -->
+  <section class="tabpane" id="pe" role="tabpanel" hidden>
+    <div class="tryit" style="max-width:none">
+      <h3>Exercises</h3>
+      <ol>
+        <li><b>Try to identify the cause from the target alone.</b>
+          <em class="point">Why: this is the test that fails, and knowing it fails is what the rest of the module rests on.</em>
+           In step 1, cycle through the four
+          locations and compare the spectra.
+          <em class="predict">Before cycling through them: the four spectra below have four different geological causes. How many should be distinguishable?</em>
+          <details class="reveal"><summary>Hint</summary><span class="ans">Three of them look like a
+            spectrum with its peak pulled down — 25.4, 25.7 and 22.6 Hz against a background of 32.4 —
+            similar enough that a peak frequency map would contour them into one family of anomalies. The
+            fourth reads 32.6 Hz, indistinguishable from the background, and it holds a 72 ms bed. A map
+            of this line would show three anomalies and miss the largest body on it. Start from that position
+            before reaching for the diagnostics: what separates these four causes is not in the picture
+            that drew attention to them in the first place.</span></details></li>
+        <li><b>Turn a gas sand into a thickness error.</b>
+          <em class="point">Why: attenuation produces the same spectral signature as a thin bed, so a thickness map inherits it.</em>
+           In step 2, take Q from 200 down to 10 and read
+          the false thickness.
+          <details class="reveal"><summary>Hint</summary><span class="ans">The peak falls from 29.9 Hz at
+            Q = 200 to 26.8 at Q = 80, 20.2 at Q = 30 and 11.1 at Q = 10, and the thickness inferred from
+            it is too large by 1.2, 3.1, 9.2 and 29.4 ms respectively, with no bed involved anywhere. The
+            reason this matters more than it first appears is that attenuation increases with travel time,
+            so on a real survey the effect is a systematic deepening trend on any thickness map made
+            without correcting for it — not scatter, and not something more traces will
+            average away.</span></details></li>
+        <li><b>Find the shadow.</b>
+          <em class="point">Why: the shadow beneath the anomaly is what separates attenuation from tuning, and it is the one test most often skipped.</em>
+           In step 3, compare the frequency 200 ms below the target at the two
+          locations.
+          <details class="reveal"><summary>Hint</summary><span class="ans">At Q = 30 the line reads
+            28.3 Hz above the body, 25.8 at the target and 26.0 two hundred milliseconds below, against
+            28.3 above; at Q = 15 that figure below falls to 5.0 Hz while the one above holds at 27.7. Two things put it there. The wave crossed the gas sand
+            twice, down and back up, which removes high frequencies once and for all. And the section
+            below the sand is low-Q as well in this model, so the loss keeps building the deeper the
+            reflection came from. Beneath the tuned bed the frequency recovers by 4.1 Hz toward the
+            background, because a tuned bed changes its own reflection and nothing else. This one
+            comparison rules attenuation in or out, it uses data already in hand, and it takes about a
+            minute.</span></details></li>
+        <li><b>Meet the lobe ambiguity.</b>
+          <em class="point">Why: the same bed under two wavelets reports two frequencies, and the map does not record which lobe it read.</em>
+           In step 4, read the thickness that would mimic the bed on its
+          third lobe.
+          <details class="reveal"><summary>Hint</summary><span class="ans">The measured peak does not
+            keep falling as the bed thickens. It follows 1/(2T) down for a while and then jumps back up
+            onto a higher lobe, because the wavelet has stopped illuminating the low one — a 24 ms bed
+            reads 20.8 Hz and a 72 ms bed reads 32.6 Hz. So the thickness inverted from a peak frequency
+            has more than one answer, and on a thick bed it returns the wrong one without any sign of
+            trouble. What would separate them is notch spacing, since the notches sit at 1/T regardless of
+            which lobe carries the peak — but that check needs bandwidth the data here does not have,
+            which is why it is often unavailable exactly where it would help.</span></details></li>
+        <li><b>Run the whole panel.</b>
+          <em class="point">Why: no single test identifies a cause; four together leave one standing.</em>
+           In step 5, look at which tests fire at which locations.
+          <details class="reveal"><summary>Hint</summary><span class="ans">Attenuation shows 3.2 Hz of
+            shadow below and 0.1 Hz above, with 59% of the magnitude gone. Processing shows a very
+            similar 3.6 Hz below, but 28.3 Hz above — a different wavelet is different at every depth.
+            The two shadows are nearly equal, so the shadow alone decides nothing; the reading above the
+            body is what tells them apart. The thick bed fires neither depth test but shifts 10.0 Hz
+            when the wavelet moves, because the wavelet decides which lobe gets measured. Tuning gives
+            0.0, 0.0 and 1.4 Hz, so it is diagnosed by exclusion rather than by evidence. Say so when the
+            conclusion is written down: "the other three were ruled out" is a weaker claim than "this is
+            a tuned bed," and it is the one the data supports.</span></details></li>
+      </ol>
+    </div>
+  </section>
+
+  <!-- ============================= KEY POINTS ============================= -->
+  <section class="tabpane" id="pk" role="tabpanel" hidden>
+    <div class="takeaway">
+      <h3>Key points</h3>
+      <ul>
+        <li><b>Three different things produce the same low-frequency anomaly:</b> a bed at tuning,
+          attenuation above the target, and a processing difference. None can be identified from the
+          target spectrum alone.</li>
+        <li><b>A bed can also be too thick to see at all.</b> When the first tuning lobe falls below the
+          recorded band the peak lands on a higher lobe, so a 72 ms bed reads at the background frequency
+          and a peak frequency map shows nothing where the largest reservoir is.</li>
+        <li><b>Attenuation reshapes the spectrum as well as weakening it,</b> losing amplitude as
+          exp(&minus;π<i>ft</i>/<i>Q</i>) so that the peak moves down and a thickness inferred from it
+          comes out too large.</li>
+        <li><b>The shadow is the diagnostic.</b> Attenuation affects everything recorded beneath the
+          absorbing body; tuning affects only its own reflection. Comparing frequency well below the
+          target rules attenuation in or out.</li>
+        <li><b>Attenuation is cumulative, so the cause may be far shallower</b> than the anomaly, and its
+          effect on a thickness map is a depth trend rather than scatter.</li>
+        <li><b>The wavelet decides which tuning lobe is measured,</b> so a thickness inverted from a
+          peak frequency has more than one answer and returns the wrong one on thick beds without
+          warning.</li>
+        <li><b>An anomaly whose boundary follows a survey edge is processing,</b> and that is the most direct of the four to check.</li>
+      </ul>
+    </div>
+    <div class="takeaway" style="margin-top:18px">
+      <h3>Words introduced here</h3>
+      <dl class="terms">
+        <dt>low-frequency shadow</dt>
+        <dd>A zone of reduced peak frequency beneath a body, produced by absorption on the way down and
+          back. The diagnostic that separates attenuation from tuning.</dd>
+        <dt>Q, the quality factor</dt>
+        <dd>How lossy a rock is. High Q means low loss. Amplitude at frequency <i>f</i> after travelling
+          for time <i>t</i> is multiplied by exp(&minus;π<i>ft</i>/Q).</dd>
+        <dt>attenuation, or absorption</dt>
+        <dd>The loss itself. It removes high frequencies faster than low ones, so it changes the shape of
+          the spectrum as well as its size.</dd>
+        <dt>cumulative</dt>
+        <dd>Absorption accumulates with travel time, so the effect grows with depth below the body and
+          the cause can be far shallower than the anomaly.</dd>
+        <dt>tuning lobe</dt>
+        <dd>A bed produces spectral maxima at 1/(2T), 3/(2T), 5/(2T) and so on. Which one carries the
+          most energy depends on the wavelet.</dd>
+        <dt>lobe ambiguity</dt>
+        <dd>The same bed measured under two different wavelets reporting two different peak frequencies,
+          because a different lobe dominated.</dd>
+        <dt>direct hydrocarbon indicator</dt>
+        <dd>An observation taken as evidence of hydrocarbons. The low-frequency shadow has been published
+          both as one and as an artifact of several other causes.</dd>
+      </dl>
+    </div>
+
+  </section>
+
+  <!-- =============================== METHOD =============================== -->
+  <section class="tabpane" id="pm" role="tabpanel" hidden>
+    <div class="plot-head" style="margin-bottom:14px">
+      <h3 id="notes">Method</h3>
+      <span class="hint">What is computed, and what is left out</span>
+    </div>
+    <p class="lede"><b>Attenuation</b> is applied as a constant-Q filter in the frequency domain:
+      amplitude multiplied by exp(&minus;π<i>ft</i>/<i>Q</i>), together with the velocity dispersion that
+      must accompany it, referenced to 50 Hz. Dispersion means the higher frequencies travel slightly
+      faster and so arrive slightly early; the effect is small at these values of Q and is included for
+      correctness rather than because the module depends on it. The amplitude loss was checked against
+      the closed form at 20, 40 and 60 Hz, and the direction of the dispersion against the exact power
+      law, before this module was built.</p>
+    <p class="lede"><b>How the absorbing location is built.</b> Everything below 150 ms at that
+      location is given the chosen Q, and the loss applied to each reflection uses the two-way time
+      accumulated between 150 ms and that reflection. So the shadow has two parts: a step at the
+      absorbing body, from crossing it twice, and a downward trend below it, because the rock beneath is
+      lossy too. A model in which only a thin gas sand absorbed would give the step and no trend. Real
+      sections show both, and the trend is normally larger, which is why the module is built this way.</p>
+    <p class="lede"><b>The four locations</b> are separate synthetic traces rather than positions in a
+      lateral model, built with the same background wavelet: a bed at the chosen thickness, the same
+      background beneath an absorbing layer, a bed three times thicker, and the background under a
+      different wavelet. Building them separately keeps each cause isolated, which a real line would not
+      do.</p>
+        <p class="lede"><b>A convention used throughout this set.</b> A tuned bed produces maxima in its
+      spectrum at 1/(2<i>T</i>), 3/(2<i>T</i>), 5/(2<i>T</i>) and so on, all of similar height once the
+      wavelet has been divided out. Taking the tallest of them makes a thickness estimate jump between
+      lobes as the bed changes. Every module here that picks a peak frequency therefore takes the
+      lowest-frequency maximum that reaches 70% of the tallest, which is the one that inverts to the
+      correct thickness. Production software achieves the same thing by asking for a frequency search
+      range.</p>
+    <p class="lede"><b>The diagnostics in step 5</b> are computed, not asserted. Shadow strength is
+      the difference in peak frequency 200 ms below the target between that location and the background.
+      Magnitude change is the ratio of peak magnitude at the target to the background's. The wavelet test
+      recomputes each location with the wavelet peak moved by 10 Hz and reports how far the anomaly's peak
+      frequency moved. The notch test finds the lowest genuine notch and compares 1/(notch frequency) with
+      the thickness implied by the peak.</p>
+    <p class="lede"><b>Simplifications, stated plainly.</b> There is no Q estimation here and none in the
+      AASPI documentation this set was built against, so the module teaches recognition rather than
+      measurement. Q is constant with frequency, which is the usual assumption and is known to be
+      imperfect. The model has no multiples, no mode conversion, no anisotropy and no transmission losses
+      other than the absorption itself, all of which change spectra in real data. And the four causes are
+      shown one at a time, where a real anomaly will often have two or three of them at once — which makes
+      the diagnostics weaker in practice than they look here.</p>
+    <p class="lede"><b>Where this departs from production software.</b> Nothing in this module corresponds
+      to an AASPI program. Spectral kurtosis and skewness are sometimes used to estimate Q between two
+      picked horizons, and narrow-band wavelets have been used for the same purpose, but neither is a
+      program in the documentation supplied and neither is implemented here.</p>
+    <details class="reveal">
+      <summary>References</summary>
+      <ul class="lede" style="padding-left:20px">
+        <li>Kjartansson, E., 1979, Constant Q wave propagation and attenuation: <em>Journal of Geophysical
+          Research</em>, <b>84</b>, 4737&ndash;4748.</li>
+        <li>Ebrom, D., 2004, The low-frequency gas shadow on seismic sections: <em>The Leading Edge</em>,
+          <b>23</b>, 772.</li>
+        <li>Castagna, J. P., S. Sun, and R. W. Siegfried, 2003, Instantaneous spectral analysis: detection
+          of low-frequency shadows associated with hydrocarbons: <em>The Leading Edge</em>, <b>22</b>,
+          120&ndash;127.</li>
+        <li>Matheney, M. P., and R. L. Nowack, 1995, Seismic attenuation values obtained from
+          instantaneous-frequency matching and spectral ratios: <em>Geophysical Journal International</em>,
+          <b>123</b>, 1&ndash;15.</li>
+        <li>Singleton, S., M. T. Taner, and S. Treitel, 2006, Q estimation using Gabor-Morlet joint
+          time-frequency analysis techniques: <em>SEG Technical Program Expanded Abstracts</em>,
+          1610&ndash;1614.</li>
+      </ul>
+    </details>
+  </section>
+
+  <section class="nextup" id="nextup" hidden>
+    <p class="eyebrow">That is the set</p>
+    <h3>Ten modules, from why to watch out</h3>
+    <p>Starting at module 00, the set runs from a channel that looks different at every frequency,
+      through what a spectrum is and how it is measured, to reading a thickness out of one and knowing the
+      several ways it can mislead. The landing page lists the AASPI programs this set does not cover,
+      for anyone going further.</p>
+    <a class="btn ghost" href="../index.html">All modules</a>
+  </section>
+
+  <div class="pager" id="pager" hidden>
+    <a class="btn ghost" href="methods.html">← Module 08: why there is more than one program</a>
+    <a class="btn ghost" href="../index.html">All modules</a>
+  </div>
+
+  <footer>
+    <div class="foot-grid">
+      <p>Built for teaching by Dr. Heather Bedle and Dr. April Moreno-Ward, University of Oklahoma, with
+        the <a href="https://www.ou.edu/mcee/labs/aaspi">AASPI</a> consortium.</p>
+      <p class="lic">To cite: H. Bedle and A. Moreno-Ward, 2026, <i>How Spectral Attributes Actually
+        Work: A Set of Browser-Based Interactive Modules</i>: SSRN working paper, University of Oklahoma.
+        <span class="k">SSRN: [article link to follow]</span></p>
+      <p class="lic">Licensed <a href="https://creativecommons.org/licenses/by-sa/4.0/">CC BY-SA 4.0</a>.
+        Free to use, adapt and share, including in teaching, provided the source is credited and any
+        adaptation is released under the same license. If you use it in a course or a talk, a credit line
+        and a link back are all that is asked.</p>
+      <p class="lic">Nothing you do in this module leaves your browser. The only thing recorded is that
+        the page was opened, so that the university can see these are being used &mdash; no cookie, no
+        account, nothing about you.</p>
+    </div>
+  </footer>
+</div>
+
+<script src="../assets/count.js"></script>
+<script src="../assets/popout.js"></script>
+<script src="../assets/panelout.js"></script>
+<script src="../assets/glossary.js"></script>
+<script src="../assets/seismic.js"></script>
+<script src="../assets/strata.js"></script>
+<script src="../assets/spectral.js"></script>
+<script>
+(function () {
+  'use strict';
+
+  if (typeof SEIS === 'undefined' || typeof SPEC === 'undefined') {
+    const missing = [];
+    if (typeof SEIS === 'undefined') missing.push('assets/seismic.js');
+    if (typeof SPEC === 'undefined') missing.push('assets/spectral.js');
+    const el = document.createElement('div');
+    el.setAttribute('style', 'background:#841617;color:#fff;padding:14px 18px;margin:16px 0;' +
+      'font:13px/1.6 ui-monospace,Menlo,monospace');
+    el.textContent = 'This page could not load ' + missing.join(' and ') +
+      '. It expects them one directory up, at ../assets/, and file names are ' +
+      'case-sensitive on GitHub Pages.';
+    const w = document.querySelector('.wrap');
+    (w || document.body).insertBefore(el, w ? w.firstChild : null);
+    return;
+  }
+
+  const $ = (id) => document.getElementById(id);
+  const clamp = (v, a, b) => Math.max(a, Math.min(b, v));
+  const visible = (id) => { const el = $(id); return el && !el.hidden; };
+  const CRIM = '#841617', TEAL = '#0B7285', SLATE = '#5C6670';
+
+  const DT = 0.001, NT = 900;
+  const T_TARGET = 0.300;              // the level everything is measured at
+  const T_ABS = 0.150;                 // the absorbing body sits here
+  /* Where the shadow is measured on the section. Well below the body, because
+     absorption accumulates with travel time and the effect an interpreter
+     notices is not the one immediately under the reservoir. */
+  const T_MEAS = 0.620;
+  const FMAX = 110;
+  const FREQS = [];
+  for (let f = 4; f <= FMAX; f += 1) FREQS.push(f);
+  /* Location 3 was built as a bed sitting on a higher tuning lobe, on the
+   assumption that it would read low. It does not: with a 32 Hz wavelet the low
+   lobes of a thick bed carry almost no energy, so the measured peak lands on a
+   HIGH lobe and reports essentially the background frequency. A 72 ms bed is
+   therefore invisible on a peak frequency map, which is a more useful trap than
+   the one originally intended. */
+const NAMES = ['1 — tuning', '2 — attenuation', '3 — thick bed', '4 — processing'];
+
+  const DEF = { q: 30, bed: 24, fd: 32, ix: 0, ext: 40, noise: 0, tab: 'p1' };
+  let S = SEIS.readState(DEF);
+
+  const CAN_LINK = location.protocol !== 'file:';
+  const saveState = () => {
+    if (!CAN_LINK) return;
+    try { SEIS.writeState(S, DEF); } catch (e) { /* nothing shareable */ }
+  };
+
+  /* =====================================================================
+     THE FOUR LOCATIONS
+
+     Separate traces rather than positions on a line, so each cause is
+     isolated. A real line would have them overlapping, which is what makes
+     the diagnostics weaker in practice than they look here.
+     ===================================================================== */
+  function baseTrace(fd, bedMs) {
+    const wav = SEIS.makeWavelet({ type: 'ricker', f: fd });
+    const T = bedMs / 1000;
+    const tr = new Float64Array(NT);
+    // a background of ordinary reflections, plus the target bed
+    const rnd = SEIS.mulberry32(9);
+    const spikes = [];
+    for (let t = 0.06; t < 0.86; t += 0.035) {
+      if (Math.abs(t - T_TARGET) < 0.05) continue;
+      spikes.push({ t, r: 0.06 * (rnd() * 2 - 1) });
+    }
+    for (let i = 0; i < NT; i++) {
+      const t = i * DT;
+      let v = 0.10 * wav.fn(t - T_TARGET);
+      if (T > 0) v -= 0.10 * wav.fn(t - (T_TARGET + T));
+      for (const s of spikes) v += s.r * wav.fn(t - s.t);
+      tr[i] = v;
+    }
+    return tr;
+  }
+
+  /* Attenuation below the absorbing body, applied window by window so the loss
+     accumulates with depth.
+
+     An earlier version applied one fixed travel time to the whole section below
+     the body. That is not what absorption does — a reflection 500 ms below has
+     spent longer in the rock than one 100 ms below — and it left the shadow
+     almost unmeasurable, about 2 Hz, which made the module's main diagnostic
+     look useless when in fact it had not been modeled. */
+  function attenuateBelow(tr, Q) {
+    const iA = Math.round(T_ABS / DT);
+    const out = Float64Array.from(tr);
+    const WIN = 120, HOP = 60;                    // samples
+    const acc = new Float64Array(NT), wsum = new Float64Array(NT);
+    for (let i0 = iA; i0 < NT; i0 += HOP) {
+      const n = Math.min(WIN, NT - i0);
+      if (n < 16) break;
+      const seg = new Float64Array(n), w = new Float64Array(n);
+      for (let k = 0; k < n; k++) {
+        w[k] = 0.5 * (1 - Math.cos(2 * Math.PI * k / (n - 1)));
+        seg[k] = tr[i0 + k] * w[k];
+      }
+      // two-way travel time accumulated between the body and this window
+      const tt = 2 * Math.max(0.01, (i0 + n / 2) * DT - T_ABS);
+      const att = SPEC.applyQ(seg, DT, Q, tt, { fref: 50, dispersion: true });
+      for (let k = 0; k < n; k++) { acc[i0 + k] += att[k]; wsum[i0 + k] += w[k]; }
+    }
+    for (let i = iA; i < NT; i++) if (wsum[i] > 1e-6) out[i] = acc[i] / wsum[i];
+    return out;
+  }
+
+  /* =====================================================================
+     A SECTION, RATHER THAN FOUR ISOLATED TRACES
+
+     Everything above works on single traces, one per cause, which keeps the
+     causes separate but is not how anyone meets a low-frequency shadow. On
+     real data it is a laterally confined zone of dim, low-frequency reflections
+     underneath a body, and recognising that picture is the skill the module is
+     trying to build.
+
+     The section is a layered package from assets/strata.js with a gas sand at
+     the absorbing level. Attenuation is applied only to the traces that pass
+     through the sand, so the shadow has edges, and those edges line up with the
+     edges of the body. The background stratigraphy is identical everywhere, so
+     anything that varies along the section came from the gas.
+     ===================================================================== */
+  let SECTION = null, SKEY = '';
+  function section() {
+    const key = [S.q, S.fd, S.ext, S.noise, S.bed].join('|');
+    if (SECTION && SKEY === key) return SECTION;
+    const NXS = 140;
+    const sec = STRATA.buildSection({
+      nx: NXS, nt: NT, dt: DT, f: S.fd, target: 'gasInShale',
+      thickL: 30, thickR: 30, tTarget: T_ABS, noise: 0, seed: 4242,
+    });
+    /* Which traces the body covers: a block centred on the section, its width
+       set by the slider. Outside it the section is unattenuated, which is the
+       control the eye needs to see a shadow at all. */
+    const half = (S.ext / 100) * NXS / 2;
+    const lo = Math.round(NXS / 2 - half), hi = Math.round(NXS / 2 + half);
+    const traces = [];
+    for (let ix = 0; ix < NXS; ix++) {
+      const inBody = ix >= lo && ix < hi;
+      if (!inBody) {
+        /* No gas here, so no sand either: rebuild this trace without the target
+           bed so the body does not appear to extend past its own edges.
+           The bed strengths are perturbed a few percent from trace to trace.
+           Without that every off-body trace is identical, the trace-to-trace
+           scatter is exactly zero, and the readout below divides by it and
+           reports an infinite confidence in the shadow. Real sections vary
+           laterally, and the scatter is what a shadow has to be judged
+           against. */
+        const bare = new Float64Array(NT);
+        const wav = SEIS.makeWavelet({ type: 'ricker', f: S.fd });
+        /* Perturbing the bed strengths alone left every off-body trace reading
+           the same peak frequency, because peak frequency is set by the spacing
+           of the beds rather than by their amplitudes. The times have to move
+           too — a few milliseconds, which is what mild structure does — before
+           the measurement varies from trace to trace at all. */
+        const jit = SEIS.mulberry32(1000 + ix);
+        const JIT = sec.layers.map(() => ({
+          a: 0.88 + 0.24 * jit(),
+          dt: (jit() - 0.5) * 0.006,
+        }));
+        for (let i = 0; i < NT; i++) {
+          const t = i * DT;
+          let v = 0;
+          for (let k = 0; k < sec.layers.length; k++) {
+            const L = sec.layers[k];
+            v += L.r * JIT[k].a * wav.fn(t - (L.t + JIT[k].dt));
+          }
+          bare[i] = v;
+        }
+        traces.push(bare);
+      } else {
+        traces.push(attenuateBelow(sec.traces[ix], S.q));
+      }
+    }
+    if (S.noise > 0) {
+      const rnd = SEIS.mulberry32(777);
+      let peak = 0;
+      for (const tr of traces) for (const v of tr) peak = Math.max(peak, Math.abs(v));
+      const amp = (S.noise / 100) * peak;
+      for (const tr of traces) {
+        const raw = new Float64Array(NT), sm = new Float64Array(NT);
+        let rms = 0;
+        for (let i = 0; i < NT; i++) raw[i] = rnd() * 2 - 1;
+        for (let i = 1; i < NT - 1; i++) sm[i] = (raw[i - 1] + raw[i] + raw[i + 1]) / 3;
+        for (let i = 0; i < NT; i++) rms += sm[i] * sm[i];
+        rms = Math.sqrt(rms / NT) || 1;
+        for (let i = 0; i < NT; i++) tr[i] += (amp / rms) * sm[i];
+      }
+    }
+    SECTION = { traces, nx: NXS, lo, hi };
+    SKEY = key;
+    return SECTION;
+  }
+
+  let TRACES = null, TKEY = '';
+  function traces(fdOverride) {
+    const fd = fdOverride || S.fd;
+    const key = [S.q, S.bed, fd].join('|');
+    if (!fdOverride && TRACES && TKEY === key) return TRACES;
+    const t = [
+      baseTrace(fd, S.bed),                                  // tuning
+      attenuateBelow(baseTrace(fd, 0), S.q),                 // attenuation, no bed
+      baseTrace(fd, S.bed * 3),                              // third lobe
+      baseTrace(fd - 10, S.bed * 0 + 0),                     // processing: different wavelet
+    ];
+    const bg = baseTrace(fd, 0);                             // the background
+    const out = { t, bg, fd };
+    if (!fdOverride) { TRACES = out; TKEY = key; }
+    return out;
+  }
+
+  function spectrumAt(tr, tCenter, halfMs) {
+    const half = Math.round(halfMs / (DT * 1000));
+    const i0 = clamp(Math.round(tCenter / DT) - half, 0, NT - 4);
+    const i1 = clamp(i0 + 2 * half, i0 + 4, NT);
+    const n = i1 - i0;
+    const w = new Float64Array(n);
+    let wsum = 0;
+    for (let k = 0; k < n; k++) { w[k] = 0.5 * (1 - Math.cos(2 * Math.PI * k / (n - 1))); wsum += w[k]; }
+    const out = new Float64Array(FREQS.length);
+    for (let j = 0; j < FREQS.length; j++) {
+      const f = FREQS[j];
+      let re = 0, im = 0;
+      for (let k = 0; k < n; k++) {
+        const t = (i0 + k) * DT;
+        const v = tr[i0 + k] * w[k];
+        const a = 2 * Math.PI * f * t;
+        re += v * Math.cos(a); im -= v * Math.sin(a);
+      }
+      out[j] = Math.hypot(re, im) * (wsum > 0 ? 2 / wsum : 0);
+    }
+    return out;
+  }
+
+  /* Lowest strong lobe, as everywhere else in this set. */
+  function peakOf(mag) {
+    let g = 0;
+    for (const v of mag) g = Math.max(g, v);
+    let jb = -1;
+    for (let j = 1; j < mag.length - 1; j++) {
+      if (mag[j] >= mag[j - 1] && mag[j] > mag[j + 1] && mag[j] > 0.7 * g) { jb = j; break; }
+    }
+    if (jb < 0) { jb = 0; for (let j = 1; j < mag.length; j++) if (mag[j] > mag[jb]) jb = j; }
+    if (jb > 0 && jb < mag.length - 1) {
+      const y0 = mag[jb - 1], y1 = mag[jb], y2 = mag[jb + 1];
+      const den = y0 - 2 * y1 + y2;
+      if (Math.abs(den) > 1e-18) return FREQS[jb] + 0.5 * (y0 - y2) / den;
+    }
+    return FREQS[jb];
+  }
+  function firstNotch(mag) {
+    let g = 0;
+    for (const v of mag) g = Math.max(g, v);
+    if (g <= 0) return null;
+    for (let k = 2; k < mag.length - 2; k++) {
+      if (!(mag[k] < mag[k - 1] && mag[k] <= mag[k + 1])) continue;
+      let lo = mag[k], hi = mag[k];
+      for (let j = k - 1; j >= 0; j--) { if (mag[j] < mag[j + 1]) break; lo = mag[j]; }
+      for (let j = k + 1; j < mag.length; j++) { if (mag[j] < mag[j - 1]) break; hi = mag[j]; }
+      const flank = Math.min(lo, hi);
+      if (flank < 0.12 * g) continue;
+      if (mag[k] < 0.35 * flank) return FREQS[k];
+    }
+    return null;
+  }
+  const maxOf = (a) => { let m = 0; for (const v of a) m = Math.max(m, v); return m; };
+
+  /* =====================================================================
+     DRAWING
+     ===================================================================== */
+  const M = { l: 54, r: 16, t: 16, b: 34 };
+  function boxOf(w, h) { return { x: M.l, y: M.t, w: w - M.l - M.r, h: h - M.t - M.b }; }
+  function contentWidth(el) {
+    const p = el.parentElement || el;
+    const cs = getComputedStyle(p);
+    return Math.max(240, p.clientWidth - parseFloat(cs.paddingLeft) - parseFloat(cs.paddingRight));
+  }
+  function series(ctx, rect, xs, ys, x0, x1, y0, y1, color, width, dash) {
+    ctx.save();
+    ctx.beginPath();
+    ctx.lineWidth = width || 1.8;
+    ctx.strokeStyle = color;
+    if (dash) ctx.setLineDash(dash);
+    let st = false;
+    for (let i = 0; i < xs.length; i++) {
+      if (!isFinite(ys[i]) || xs[i] < x0 || xs[i] > x1) { st = false; continue; }
+      const X = rect.x + ((xs[i] - x0) / (x1 - x0)) * rect.w;
+      const Y = rect.y + rect.h - ((clamp(ys[i], y0, y1) - y0) / (y1 - y0)) * rect.h;
+      if (!st) { ctx.moveTo(X, Y); st = true; } else ctx.lineTo(X, Y);
+    }
+    ctx.stroke();
+    ctx.restore();
+  }
+
+  /* ------------------------------------------------------------- header */
+  function drawHeader() {
+    const el = $('cHead');
+    if (!el) return;
+    const w = contentWidth(el), h = 210;
+    const ctx = SEIS.fitCanvas(el, w, h);
+    ctx.clearRect(0, 0, w, h);
+    const rect = boxOf(w, h);
+    const T = traces();
+    const bgPk = peakOf(spectrumAt(T.bg, T_TARGET, 60));
+    const xs = [0, 1, 2, 3], ys = T.t.map((tr) => peakOf(spectrumAt(tr, T_TARGET, 60)));
+    SEIS.frame(ctx, rect);
+    const Yb = rect.y + rect.h - ((bgPk - 5) / 55) * rect.h;
+    SEIS.dashedLine(ctx, rect.x, Yb, rect.x + rect.w, Yb, 'rgba(92,102,112,0.7)', [5, 4], 1.4);
+    SEIS.tag(ctx, rect.x + 6, Yb - 16, 'background', SLATE);
+    ctx.save();
+    for (let k = 0; k < 4; k++) {
+      const X = rect.x + ((k + 0.5) / 4) * rect.w;
+      const Y = rect.y + rect.h - ((ys[k] - 5) / 55) * rect.h;
+      ctx.fillStyle = k === S.ix ? CRIM : 'rgba(11,114,133,0.75)';
+      ctx.fillRect(X - 26, Y, 52, rect.y + rect.h - Y);
+      ctx.font = '10px "IBM Plex Mono", monospace';
+      ctx.fillStyle = SLATE; ctx.textAlign = 'center'; ctx.textBaseline = 'top';
+      ctx.fillText(String(k + 1), X, rect.y + rect.h + 6);
+    }
+    ctx.restore();
+    SEIS.axisLeft(ctx, rect, 5, 60, 'peak frequency (Hz)', (v) => v.toFixed(0), { ticks: 5 });
+  }
+
+  /* ------------------------------------------------------------- step 1 */
+  function drawStep1() {
+    const el = $('c1');
+    if (!el) return;
+    const w = contentWidth(el), h = 320;
+    const ctx = SEIS.fitCanvas(el, w, h);
+    ctx.clearRect(0, 0, w, h);
+    const rect = boxOf(w, h);
+    const T = traces();
+    const k = clamp(Math.round(S.ix), 0, 3);
+    const sp = spectrumAt(T.t[k], T_TARGET, 60);
+    const bg = spectrumAt(T.bg, T_TARGET, 60);
+    const m = Math.max(maxOf(sp), maxOf(bg)) || 1;
+    SEIS.frame(ctx, rect);
+    series(ctx, rect, FREQS, Array.from(bg, (v) => v / m), 0, FMAX, 0, 1.1, 'rgba(92,102,112,0.75)', 2.4, [5, 4]);
+    series(ctx, rect, FREQS, Array.from(sp, (v) => v / m), 0, FMAX, 0, 1.1, CRIM, 2.2);
+    SEIS.axisBottom(ctx, rect, 0, FMAX, 'frequency (Hz)', (v) => v.toFixed(0), { ticks: 6 });
+    SEIS.axisLeft(ctx, rect, 0, 1.1, 'relative magnitude', (v) => v.toFixed(1), { ticks: 5 });
+    const pf = peakOf(sp);
+    const X = rect.x + (pf / FMAX) * rect.w;
+    SEIS.dashedLine(ctx, X, rect.y, X, rect.y + rect.h, CRIM, [4, 3], 1.3);
+
+    $('s1loc').textContent = NAMES[k];
+    $('s1pf').textContent = pf.toFixed(1) + ' Hz';
+    $('s1bg').textContent = peakOf(bg).toFixed(1) + ' Hz';
+    $('s1th').textContent = (1000 / (2 * pf)).toFixed(1) + ' ms';
+  }
+
+  /* ------------------------------------------------------------- step 2 */
+  function drawStep2() {
+    const A = $('c2a'), B = $('c2b');
+    if (!A || !B) return;
+    const wav = SEIS.makeWavelet({ type: 'ricker', f: S.fd });
+    const n = 400;
+    const before = new Float64Array(n);
+    for (let i = 0; i < n; i++) before[i] = wav.fn((i - n / 2) * DT);
+    const after = SPEC.applyQ(before, DT, S.q, 0.60, { fref: 50, dispersion: true });
+    const h = 260;
+
+    const wA = contentWidth(A);
+    const cA = SEIS.fitCanvas(A, wA, h);
+    cA.clearRect(0, 0, wA, h);
+    const rA = boxOf(wA, h);
+    const xs = [];
+    for (let i = 0; i < n; i++) xs.push((i - n / 2) * DT * 1000);
+    SEIS.frame(cA, rA);
+    const Y0 = rA.y + rA.h / 2;
+    SEIS.dashedLine(cA, rA.x, Y0, rA.x + rA.w, Y0, 'rgba(92,102,112,0.45)', [3, 3], 1);
+    series(cA, rA, xs, Array.from(before), -80, 80, -1.1, 1.1, 'rgba(92,102,112,0.75)', 2.4, [5, 4]);
+    series(cA, rA, xs, Array.from(after), -80, 80, -1.1, 1.1, CRIM, 2.2);
+    SEIS.axisBottom(cA, rA, -80, 80, 'time (ms)', (v) => v.toFixed(0), { ticks: 5 });
+    SEIS.axisLeft(cA, rA, -1.1, 1.1, 'amplitude', (v) => v.toFixed(1), { ticks: 5 });
+
+    const sB = spectrumAt(before, (n / 2) * DT, 100);
+    const sA = spectrumAt(after, (n / 2) * DT, 100);
+    const m = maxOf(sB) || 1;
+    const wB = contentWidth(B);
+    const cB = SEIS.fitCanvas(B, wB, h);
+    cB.clearRect(0, 0, wB, h);
+    const rB = boxOf(wB, h);
+    SEIS.frame(cB, rB);
+    series(cB, rB, FREQS, Array.from(sB, (v) => v / m), 0, FMAX, 0, 1.1, 'rgba(92,102,112,0.75)', 2.4, [5, 4]);
+    series(cB, rB, FREQS, Array.from(sA, (v) => v / m), 0, FMAX, 0, 1.1, CRIM, 2.2);
+    SEIS.axisBottom(cB, rB, 0, FMAX, 'frequency (Hz)', (v) => v.toFixed(0), { ticks: 6 });
+    SEIS.axisLeft(cB, rB, 0, 1.1, 'relative magnitude', (v) => v.toFixed(1), { ticks: 5 });
+
+    const p0 = peakOf(sB), p1 = peakOf(sA);
+    const j60 = FREQS.indexOf(60);
+    $('s2b4').textContent = p0.toFixed(1) + ' Hz';
+    $('s2af').textContent = p1.toFixed(1) + ' Hz';
+    $('s2loss').textContent = sB[j60] > 0 ? (100 * (1 - sA[j60] / sB[j60])).toFixed(0) + '%' : '—';
+    $('s2th').textContent = (1000 / (2 * p1) - 1000 / (2 * p0)).toFixed(1) + ' ms too thick';
+  }
+
+  /* ------------------------------------------------------------- step 3 */
+  function profileOf(tr) {
+    const ts = [], pf = [];
+    for (let t = 0.10; t <= 0.80; t += 0.02) {
+      ts.push(t * 1000);
+      pf.push(peakOf(spectrumAt(tr, t, 50)));
+    }
+    return { ts, pf };
+  }
+  /* The shadow as a picture. Drawn before the measurement panel, because the
+     picture is what a geologist will recognise on their own data and the curve
+     is the confirmation of it. */
+  function drawStep3Section() {
+    const el = $('c3s');
+    if (!el) return;
+    const sec = section();
+    const i0 = Math.round(0.080 / DT), i1 = Math.round(0.800 / DT);
+    const h = 300;
+    const w = contentWidth(el);
+    const ctx = SEIS.fitCanvas(el, w, h);
+    ctx.clearRect(0, 0, w, h);
+    const rect = boxOf(w, h);
+    SEIS.drawSectionPanel(ctx, sec.traces, rect, {
+      i0, i1, dt: DT, xlabel: 'trace', xmin: 0, xmax: sec.nx - 1,
+    });
+
+    // the edges of the body, and the level everything is measured at
+    if (S.ext > 0) {
+      [sec.lo, sec.hi].forEach((ix) => {
+        const x = rect.x + (ix / sec.nx) * rect.w;
+        SEIS.dashedLine(ctx, x, rect.y, x, rect.y + rect.h, TEAL, [6, 4], 1.8);
+      });
+    }
+    const yM = rect.y + ((T_MEAS / DT) - i0) / (i1 - i0) * rect.h;
+    SEIS.dashedLine(ctx, rect.x, yM, rect.x + rect.w, yM, 'rgba(132,22,23,0.55)', [4, 3], 1.4);
+    SEIS.tag(ctx, rect.x + 6, yM - 14, 'measured here', CRIM);
+
+    /* Peak frequency measured on the section itself, in a window at the target
+       level, averaged over the traces inside the body and over the traces
+       clear of it. */
+    /* Measured well below the body rather than at the target level. Absorption
+       accumulates with travel time, so 150 ms beneath the sand the loss is
+       still small; the measurement at T_MEAS is where the effect an interpreter
+       would actually notice has built up. */
+    const pfAt = (ix) => peakOf(spectrumAt(sec.traces[ix], T_MEAS, 90));
+    const onV = [], offV = [];
+    for (let ix = 0; ix < sec.nx; ix += 2) {
+      const inBody = S.ext > 0 && ix >= sec.lo && ix < sec.hi;
+      (inBody ? onV : offV).push(pfAt(ix));
+    }
+    const mean = (a) => a.reduce((x, y) => x + y, 0) / (a.length || 1);
+    const sd = (a) => {
+      if (a.length < 2) return 0;
+      const m = mean(a);
+      return Math.sqrt(a.reduce((x, y) => x + (y - m) * (y - m), 0) / (a.length - 1));
+    };
+    const on = onV.length ? mean(onV) : NaN, off = offV.length ? mean(offV) : NaN;
+    const drop = (isFinite(on) && isFinite(off)) ? off - on : NaN;
+
+    /* Whether the shadow can be told from the trace-to-trace scatter of the
+       measurement off the body. Comparing the drop against a fixed number of
+       hertz says nothing once noise is on the section; comparing it against the
+       scatter is the test an interpreter would actually apply. */
+    const scatter = sd(offV);
+    const ratio = scatter > 0.05 ? drop / scatter : (drop > 0 ? Infinity : 0);
+
+    $('s3off').textContent = isFinite(off) ? off.toFixed(1) + ' Hz' : '—';
+    $('s3on').textContent = isFinite(on) ? on.toFixed(1) + ' Hz' : 'no body';
+    $('s3drop').textContent = isFinite(drop) ? drop.toFixed(1) + ' Hz lower' : '—';
+    /* A negative drop is not a failure of the readout. A shadow zone is dim,
+       because the energy that made it low-frequency is also energy it lost, so
+       noise takes it over before it takes over the rest of the section. Once
+       that happens the measurement under the body reads HIGHER than off it, and
+       saying so is more useful than reporting a small positive number. */
+    $('s3snr').textContent = !isFinite(drop) ? '—'
+      : drop < -1 ? 'reversed — noise has taken the shadow zone'
+      : ratio >= 3 ? 'clearly, ' + ratio.toFixed(1) + '× the scatter'
+      : ratio >= 1.5 ? 'marginally, ' + ratio.toFixed(1) + '× the scatter'
+      : 'no, within the scatter';
+  }
+
+  function drawStep3() {
+    const el = $('c3');
+    if (!el) return;
+    const w = contentWidth(el), h = 330;
+    const ctx = SEIS.fitCanvas(el, w, h);
+    ctx.clearRect(0, 0, w, h);
+    const rect = boxOf(w, h);
+    const T = traces();
+    const att = profileOf(T.t[1]), tun = profileOf(T.t[0]), bg = profileOf(T.bg);
+    SEIS.frame(ctx, rect);
+    series(ctx, rect, bg.ts, bg.pf, 100, 800, 5, 60, 'rgba(92,102,112,0.6)', 2, [5, 4]);
+    series(ctx, rect, att.ts, att.pf, 100, 800, 5, 60, CRIM, 2.2);
+    series(ctx, rect, tun.ts, tun.pf, 100, 800, 5, 60, TEAL, 2.2);
+    SEIS.axisBottom(ctx, rect, 100, 800, 'time (ms)', (v) => v.toFixed(0), { ticks: 6 });
+    SEIS.axisLeft(ctx, rect, 5, 60, 'peak frequency (Hz)', (v) => v.toFixed(0), { ticks: 5 });
+    [[T_ABS * 1000, 'absorbing body'], [T_TARGET * 1000, 'target']].forEach(([t, lab]) => {
+      const X = rect.x + ((t - 100) / 700) * rect.w;
+      SEIS.dashedLine(ctx, X, rect.y, X, rect.y + rect.h, 'rgba(11,114,133,0.5)', [4, 3], 1);
+      SEIS.tag(ctx, X + 4, rect.y + 6, lab, TEAL);
+    });
+
+    const at = (p, t) => {
+      let bi = 0;
+      for (let i = 1; i < p.ts.length; i++) {
+        if (Math.abs(p.ts[i] - t) < Math.abs(p.ts[bi] - t)) bi = i;
+      }
+      return p.pf[bi];
+    };
+    $('s3ab').textContent = at(att, 220).toFixed(1) + ' Hz';
+    $('s3at').textContent = at(att, T_TARGET * 1000).toFixed(1) + ' Hz';
+    $('s3bel').textContent = at(att, T_TARGET * 1000 + 200).toFixed(1) + ' Hz';
+    $('s3rec').textContent = (at(tun, T_TARGET * 1000 + 200) - at(tun, T_TARGET * 1000)).toFixed(1) + ' Hz';
+  }
+
+  /* ------------------------------------------------------------- step 4 */
+  function drawStep4() {
+    const A = $('c4a'), B = $('c4b');
+    if (!A || !B) return;
+    const h = 260;
+    // peak frequency against bed thickness: the lobes
+    const wA = contentWidth(A);
+    const cA = SEIS.fitCanvas(A, wA, h);
+    cA.clearRect(0, 0, wA, h);
+    const rA = boxOf(wA, h);
+    /* Frequency runs along the horizontal axis here, as it does on every other
+       spectrum in the set and on the panel beside this one. That also puts the
+       point of the step on the picture rather than in the caption: a vertical
+       line at one peak frequency crosses the curve at more than one thickness,
+       so the reading is ambiguous by inspection. */
+    const th = [], pk = [];
+    for (let t = 4; t <= 60; t += 1) {
+      th.push(t);
+      pk.push(peakOf(spectrumAt(baseTrace(S.fd, t), T_TARGET, 60)));
+    }
+    SEIS.frame(cA, rA);
+    series(cA, rA, pk, th, 0, 70, 4, 60, CRIM, 2.2);
+    const idealF = th.map((t) => 1000 / (2 * t));
+    series(cA, rA, idealF, th, 0, 70, 4, 60, 'rgba(92,102,112,0.6)', 1.8, [5, 4]);
+    SEIS.axisBottom(cA, rA, 0, 70, 'peak frequency (Hz)', (v) => v.toFixed(0), { ticks: 5 });
+    SEIS.axisLeft(cA, rA, 4, 60, 'bed thickness (ms)', (v) => v.toFixed(0), { ticks: 6 });
+
+    /* the bed on the slider, and the frequency it produces */
+    const pkHere = peakOf(spectrumAt(baseTrace(S.fd, S.bed), T_TARGET, 60));
+    const Yb = rA.y + rA.h - ((S.bed - 4) / 56) * rA.h;
+    SEIS.dashedLine(cA, rA.x, Yb, rA.x + rA.w, Yb, TEAL, [4, 3], 1.3);
+    const Xf = rA.x + (pkHere / 70) * rA.w;
+    SEIS.dashedLine(cA, Xf, rA.y, Xf, rA.y + rA.h, TEAL, [4, 3], 1.3);
+    SEIS.tag(cA, Math.min(Xf + 6, rA.x + rA.w - 78), rA.y + 8, pkHere.toFixed(1) + ' Hz', TEAL);
+
+    /* every other thickness that produces the same peak frequency, to within
+       the sampling of the curve */
+    const alts = [];
+    for (let i = 1; i < th.length; i++) {
+      const a = pk[i - 1] - pkHere, b = pk[i] - pkHere;
+      if (a === 0 || (a < 0) !== (b < 0)) {
+        const t = th[i - 1] + (th[i] - th[i - 1]) * (a / (a - b || 1));
+        if (Math.abs(t - S.bed) > 2) alts.push(t);
+      }
+    }
+
+    // the same bed under two wavelets
+    const wB = contentWidth(B);
+    const cB = SEIS.fitCanvas(B, wB, h);
+    cB.clearRect(0, 0, wB, h);
+    const rB = boxOf(wB, h);
+    const s1 = spectrumAt(baseTrace(24, S.bed), T_TARGET, 60);
+    const s2 = spectrumAt(baseTrace(44, S.bed), T_TARGET, 60);
+    const m = Math.max(maxOf(s1), maxOf(s2)) || 1;
+    SEIS.frame(cB, rB);
+    series(cB, rB, FREQS, Array.from(s1, (v) => v / m), 0, FMAX, 0, 1.1, TEAL, 2.2);
+    series(cB, rB, FREQS, Array.from(s2, (v) => v / m), 0, FMAX, 0, 1.1, CRIM, 2.2);
+    SEIS.axisBottom(cB, rB, 0, FMAX, 'frequency (Hz)', (v) => v.toFixed(0), { ticks: 6 });
+    SEIS.axisLeft(cB, rB, 0, 1.1, 'relative magnitude', (v) => v.toFixed(1), { ticks: 5 });
+
+    const p1 = peakOf(s1), p2 = peakOf(s2);
+    $('s4t').textContent = S.bed + ' ms';
+    $('s4l1').textContent = (1000 / (2 * S.bed)).toFixed(1) + ' Hz';
+    $('s4l3').textContent = alts.length
+      ? alts.map((t) => t.toFixed(0) + ' ms').join(', ')
+      : 'none in 4-60 ms';
+    $('s4w').textContent = p1.toFixed(1) + ' vs ' + p2.toFixed(1) + ' Hz';
+  }
+
+  /* ------------------------------------------------------------- step 5 */
+  function diagnostics() {
+    const T = traces();
+    const Talt = traces(S.fd + 10);
+    const bgTarget = peakOf(spectrumAt(T.bg, T_TARGET, 60));
+    const bgBelow = peakOf(spectrumAt(T.bg, T_TARGET + 0.20, 50));
+    const bgAbove = peakOf(spectrumAt(T.bg, T_ABS - 0.04, 50));
+    const bgMag = maxOf(spectrumAt(T.bg, T_TARGET, 60));
+    const rows = [];
+    for (let k = 0; k < 4; k++) {
+      const sp = spectrumAt(T.t[k], T_TARGET, 60);
+      const below = peakOf(spectrumAt(T.t[k], T_TARGET + 0.20, 50));
+      const pf = peakOf(sp);
+      const pfAlt = peakOf(spectrumAt(Talt.t[k], T_TARGET, 60));
+      const nf = firstNotch(sp);
+      /* Above the target as well as below it. A shadow on its own does not
+         separate attenuation from a processing difference, because a different
+         wavelet changes the frequency at every depth. Attenuation changes only
+         what lies beneath the absorbing body. */
+      const above = peakOf(spectrumAt(T.t[k], T_ABS - 0.04, 50));
+      rows.push({
+        shadow: bgBelow - below,
+        above: bgAbove - above,
+        mag: maxOf(sp) / (bgMag || 1),
+        wavelet: pfAlt - pf,
+        notch: nf ? 1000 / nf : NaN,
+        peakTh: 1000 / (2 * pf),
+      });
+    }
+    return { rows, bgTarget };
+  }
+  function drawStep5() {
+    const el = $('c5');
+    if (!el) return;
+    const w = contentWidth(el), h = 340;
+    const ctx = SEIS.fitCanvas(el, w, h);
+    ctx.clearRect(0, 0, w, h);
+    const d = diagnostics();
+    const gap = 14;
+    const bw = (w - M.l - M.r - 3 * gap) / 4;
+    const bh = h - M.t - M.b - 16;
+    const tests = [
+      { lab: 'changed above (Hz)', get: (r) => Math.abs(r.above), max: 12 },
+      { lab: 'shadow below (Hz)', get: (r) => r.shadow, max: 12 },
+      { lab: 'magnitude lost', get: (r) => 1 - r.mag, max: 1 },
+      { lab: 'moves with wavelet (Hz)', get: (r) => Math.abs(r.wavelet), max: 12 },
+    ];
+    tests.forEach((t, ti) => {
+      const rect = { x: M.l + ti * (bw + gap), y: M.t, w: bw, h: bh };
+      SEIS.frame(ctx, rect);
+      for (let k = 0; k < 4; k++) {
+        const v = clamp(t.get(d.rows[k]) / t.max, 0, 1);
+        const X = rect.x + ((k + 0.5) / 4) * rect.w;
+        const bwid = rect.w / 6;
+        ctx.fillStyle = v > 0.45 ? CRIM : 'rgba(92,102,112,0.45)';
+        ctx.fillRect(X - bwid / 2, rect.y + rect.h - v * rect.h, bwid, v * rect.h);
+        ctx.save();
+        ctx.font = '10px "IBM Plex Mono", monospace';
+        ctx.fillStyle = SLATE; ctx.textAlign = 'center'; ctx.textBaseline = 'top';
+        ctx.fillText(String(k + 1), X, rect.y + rect.h + 5);
+        ctx.restore();
+      }
+      SEIS.tag(ctx, rect.x + 5, rect.y + 5, t.lab, TEAL);
+    });
+
+    const k = clamp(Math.round(S.ix), 0, 3);
+    const r = d.rows[k];
+    $('s5sh').textContent = r.shadow.toFixed(1) + ' Hz';
+    $('s5mag').textContent = (100 * (r.mag - 1)).toFixed(0) + '%';
+    $('s5wav').textContent = r.wavelet.toFixed(1) + ' Hz';
+    $('s5notch').textContent = r.above.toFixed(1) + ' Hz';
+  }
+
+  /* =====================================================================
+     PLUMBING
+     ===================================================================== */
+  function syncLabels() {
+    $('qV').textContent = String(S.q);
+    $('bedV').textContent = S.bed + ' ms';
+    $('fdV').textContent = S.fd + ' Hz';
+    $('ixV').textContent = NAMES[clamp(Math.round(S.ix), 0, 3)];
+    if ($('extV')) $('extV').textContent = S.ext === 0 ? 'no gas sand' : S.ext + '% of the line';
+    if ($('noiseV')) $('noiseV').textContent = S.noise === 0 ? 'none' : S.noise + '%';
+    ['q', 'bed', 'fd', 'ix', 'ext', 'noise'].forEach((k) => {
+      const el = $(k);
+      if (el && String(S[k]) !== el.value) el.value = S[k];
+    });
+  }
+  function drawAll() {
+    const lab = document.querySelector('.labhead');
+    if (lab && !lab.hidden) drawHeader();
+    if (visible('p1')) drawStep1();
+    if (visible('p2')) drawStep2();
+    if (visible('p3')) { drawStep3Section(); drawStep3(); }
+    if (visible('p4')) drawStep4();
+    if (visible('p5')) drawStep5();
+  }
+
+  const PANES = ['p1', 'p2', 'p3', 'p4', 'p5', 'pw', 'pe', 'pk', 'pm'];
+  const STEPNAMES = {
+    p1: 'Four causes', p2: 'Attenuation', p3: 'The shadow', p4: 'Other causes',
+    p5: 'The tests', pw: 'Why it matters', pe: 'Exercises', pk: 'Key points', pm: 'Method',
+  };
+  function buildStepNav() {
+    PANES.forEach((id, i) => {
+      const pane = $(id);
+      if (!pane || pane.querySelector('.stepnav')) return;
+      const prev = PANES[i - 1], next = PANES[i + 1];
+      const nav = document.createElement('div');
+      nav.className = 'stepnav';
+      const mk = (target, text, ghost) => {
+        const b = document.createElement('button');
+        b.type = 'button';
+        b.className = 'btn' + (ghost ? ' ghost' : '') + ' small';
+        b.textContent = text;
+        b.addEventListener('click', () => {
+          showTab(target);
+          const t = document.querySelector('.tabhint');
+          if (t && t.scrollIntoView) t.scrollIntoView({ behavior: 'smooth', block: 'start' });
+        });
+        return b;
+      };
+      nav.appendChild(prev ? mk(prev, '\u2190 ' + STEPNAMES[prev], true)
+                           : document.createElement('span'));
+      const where = document.createElement('span');
+      where.className = 'where';
+      where.textContent = i < 5 ? 'step ' + (i + 1) + ' of 5' : STEPNAMES[id];
+      nav.appendChild(where);
+      nav.appendChild(next ? mk(next, STEPNAMES[next] + ' \u2192')
+                           : document.createElement('span'));
+      pane.appendChild(nav);
+    });
+  }
+  function showTab(id) {
+    PANES.forEach((q) => { const el = $(q); if (el) el.hidden = q !== id; });
+    document.querySelectorAll('#tabs button').forEach((b) => {
+      b.setAttribute('aria-selected', b.dataset.tab === id);
+    });
+    const lab = document.querySelector('.labhead');
+    if (lab) lab.hidden = (id === 'pw' || id === 'pe' || id === 'pk' || id === 'pm');
+    /* The forward link lives on the pager. Show it once the reader has reached
+       the exercises, not only on the two reference tabs — a student who works
+       the exercises and stops used to have no way on to the next module. */
+    const done = (id === 'pe' || id === 'pk' || id === 'pm');
+    if ($('nextup')) $('nextup').hidden = !(id === 'pk' || id === 'pm');
+    if ($('pager')) $('pager').hidden = !done;
+    S.tab = id;
+    drawAll();
+    saveState();
+  }
+  document.querySelectorAll('#tabs button').forEach((b) => {
+    b.addEventListener('click', () => showTab(b.dataset.tab));
+  });
+  document.addEventListener('input', (ev) => {
+    const t = ev.target;
+    if (!t || t.tagName !== 'INPUT') return;
+    const id = t.id;
+    if (!(id in DEF)) return;
+    S[id] = parseFloat(t.value);
+    syncLabels(); drawAll(); saveState();
+  });
+  let rt;
+  window.addEventListener('resize', () => { clearTimeout(rt); rt = setTimeout(drawAll, 140); });
+
+  buildStepNav();
+  syncLabels();
+  showTab(PANES.indexOf(S.tab) >= 0 ? S.tab : 'p1');
+})();
+</script>
+</body>
+</html>

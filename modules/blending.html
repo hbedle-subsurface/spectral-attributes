@@ -1,0 +1,1285 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>The colored channel image, taken apart | How Spectral Attributes Actually Work</title>
+<meta name="description" content="How an RGB frequency blend is made, what its colors mean in thickness, how independent scaling of the three channels changes the apparent geology, and the hue-lightness display that shows peak frequency only where there is magnitude to support it.">
+<link rel="stylesheet" href="../assets/fonts.css">
+<link rel="stylesheet" href="../assets/style.css">
+</head>
+<body>
+
+<div class="wrap">
+  <header class="masthead">
+    <a class="brand" href="../index.html"><span class="dot"></span>How spectral attributes <b>actually</b> work</a>
+    <nav>
+      <a href="../index.html">All modules</a>
+      <a href="attributes.html">← Module 06</a>
+      <a href="#notes">Method &amp; references</a>
+    </nav>
+  </header>
+
+  <div class="mod-head">
+    <p class="eyebrow">Module 07 &nbsp;·&nbsp; Spectral attributes</p>
+    <h1>The colored channel image, taken apart</h1>
+    <p class="sub">The image most associated with spectral decomposition is a channel in red, green and blue. It is three iso-frequency maps in one frame, and several display choices sit between the data and what appears on screen. These five steps take a blend apart, measure what its colors correspond to, and show which of its features come from the earth and which from the display.</p>
+  </div>
+
+  <div class="labhead">
+    <div class="labgrid">
+      <div>
+        <p class="cap">The blend <span>&mdash; the same channel as modules 00 and 06</span></p>
+        <canvas id="cHead" aria-label="Three iso-frequency maps overlaid as colored layers"></canvas>
+      </div>
+      <div>
+        <p class="cap">Set up the blend <span>&mdash; every step updates as you drag</span></p>
+        <div class="controls" id="winControls">
+          <div class="ctl-col">
+            <h2>The three frequencies</h2>
+            <div class="ctl">
+              <label for="fr">Red <span class="val" id="frV">18 Hz</span></label>
+              <input type="range" data-key="fr" id="fr" min="10" max="50" step="2" value="18">
+            </div>
+            <div class="ctl">
+              <label for="fg">Green <span class="val" id="fgV">30 Hz</span></label>
+              <input type="range" data-key="fg" id="fg" min="14" max="66" step="2" value="30">
+            </div>
+            <div class="ctl">
+              <label for="fb">Blue <span class="val" id="fbV">46 Hz</span></label>
+              <input type="range" data-key="fb" id="fb" min="20" max="86" step="2" value="46">
+            </div>
+          </div>
+          <div class="ctl-col">
+            <h2>The data</h2>
+            <div class="ctl">
+              <label for="fd">Wavelet peak frequency <span class="val" id="fdV">30 Hz</span></label>
+              <input type="range" data-key="fd" id="fd" min="18" max="50" step="2" value="30">
+            </div>
+            <div class="seg" id="segScale" role="group" aria-label="Layer scaling">
+              <button type="button" data-s="ind">Scale each</button>
+              <button type="button" data-s="common">One scale</button>
+            </div>
+          </div>
+          <div class="ctl-col">
+            <h2>The layers</h2>
+            <div class="seg multi" id="segLayers" role="group" aria-label="Which layers are shown">
+              <button type="button" data-l="r" aria-pressed="true">Red</button>
+              <button type="button" data-l="g" aria-pressed="true">Green</button>
+              <button type="button" data-l="b" aria-pressed="true">Blue</button>
+            </div>
+            <div class="seg" id="segOrder" role="group" aria-label="Which layer is on top">
+              <button type="button" data-o="rgb">Blue on top</button>
+              <button type="button" data-o="bgr">Red on top</button>
+            </div>
+            <div class="ctl">
+              <label for="op">Layer opacity <span class="val" id="opV">70%</span></label>
+              <input type="range" data-key="op" id="op" min="30" max="100" step="5" value="70">
+            </div>
+            <div class="ctl">
+              <label for="noise">Noise <span class="val" id="noiseV">4%</span></label>
+              <input type="range" data-key="noise" id="noise" min="0" max="30" step="2" value="4">
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <p class="tabhint">Work through the five steps in order, <b>then try the exercises</b>.
+    Method and references are there when you want them.</p>
+  <nav class="tabs" id="tabs" role="tablist" aria-label="Module steps">
+    <button role="tab" data-tab="p1" aria-selected="false">1 · Taken apart</button>
+    <button role="tab" data-tab="p2" aria-selected="false">2 · The colors</button>
+    <button role="tab" data-tab="p3" aria-selected="false">3 · Scaling</button>
+    <button role="tab" data-tab="p4" aria-selected="false">4 · Which three</button>
+    <button role="tab" data-tab="p5" aria-selected="false">5 · Hue-lightness</button>
+    <button role="tab" data-tab="pw" aria-selected="false">Why it matters</button>
+    <span class="gap"></span>
+    <button role="tab" data-tab="pe" aria-selected="false">Exercises</button>
+    <button role="tab" data-tab="pk" aria-selected="false">Key points</button>
+    <button role="tab" data-tab="pm" aria-selected="false">Method</button>
+  </nav>
+
+  <!-- =============================== STEP 1 =============================== -->
+  <section class="tabpane" id="p1" role="tabpanel" hidden>
+    <div class="plot-head" style="margin-bottom:14px">
+      <h3><span class="stepno">1</span>Three maps, stacked</h3>
+      <span class="hint">Each layer alone, and the three stacked</span>
+    </div>
+    <p class="qbox"><b>Why this step is here.</b> A blend is three maps in one image. How are three maps combined into one picture?</p>
+    <p class="lede">Two consequences follow from stacking that follow from no other kind of map, and both are on the controls above.</p>
+    <p class="lede"><b>A layer hides what is beneath it.</b> On its own the 18 Hz map is bright straight down the channel axis. In the stack, with the 46 Hz layer above it, part of that axis is covered.</p>
+    <p class="lede">Taking the <b>layer opacity</b> to 100% carries the effect as far as it goes: wherever the top layer has any strength it covers everything beneath. Lowering the opacity brings the lower layers back through as mixed colors.</p>
+    <p class="lede"><b>The stacking order changes the picture.</b> Swapping which layer sits on top produces a different image from the same three maps. Nothing about the data changed.</p>
+    <p class="lede">The first three panels below are the three maps on their own, each drawn in its own
+      layer color. The fourth is the three of them stacked, which is the map in the header. Compare any
+      one of the solo panels with the stack: what is bright there and missing on the right has been
+      covered by a layer above it.</p>
+
+    <div class="plot">
+      <div class="plot-head">
+        <h3>Each layer on its own, and the three stacked</h3>
+        <span class="hint">Change the three frequencies in the header</span>
+      </div>
+      <canvas id="c1" aria-label="RGB blend beside its three separate frequency maps"></canvas>
+    </div>
+    <div class="stats">
+      <div class="stat key"><span>Red / green / blue</span><b id="s1f">—</b></div>
+      <div class="stat"><span>Thicknesses those tune to</span><b id="s1t">—</b></div>
+      <div class="stat"><span>Channel lit, blend</span><b id="s1blend">—</b></div>
+      <div class="stat"><span>Channel lit, best single map</span><b id="s1best">—</b></div>
+    </div>
+    <div class="legend prose">
+      <span><b>A blend carries no color bar, and cannot.</b> Three quantities are shown at once in a single color, so no one-dimensional scale describes it. Step 2 builds the nearest thing to one by measurement. Two features of a blend therefore come from the display rather than the earth: what a layer conceals, and which layer was placed on top.</span>
+    </div>
+  </section>
+
+  <!-- =============================== STEP 2 =============================== -->
+  <section class="tabpane" id="p2" role="tabpanel" hidden>
+    <div class="plot-head" style="margin-bottom:14px">
+      <h3><span class="stepno">2</span>What the colors mean</h3>
+      <span class="hint">A legend, built from the model and measured off it</span>
+    </div>
+    <p class="qbox"><b>Why this step is here.</b> A blend is red in one place and blue in another. What thickness does each color correspond to?</p>
+    <p class="lede">The panel below builds the legend by measurement: for each fill thickness present in the model, it reads the average color the blend assigns to it.</p>
+
+    <p class="lede"><b>How a blend is read stratigraphically.</b> Because color runs with thickness, a
+      change of hue along a body is a change of thickness along it and nothing else. A ribbon that runs
+      red down its axis and grades to blue at its edges is a body thickest in the middle and thinning
+      outward, which is what a channel fill or a levee does. A ribbon that stays one color along its
+      length is uniform in thickness, which is what a fault-bounded or an erosionally truncated edge
+      tends to look like. Two ribbons that meet and change color at the junction are two bodies of
+      different thickness, and the junction is a contact rather than a continuous fill.</p>
+
+    <p class="lede">The legend is set by the wavelet and by the three frequencies chosen, so it is not
+      transferable. With components at 18, 30 and 46 Hz the model reads reddest at 22.5 ms of fill and
+      bluest at 11.5 ms; moving them to 14, 26 and 50 Hz moves those to 26.5 ms and 10.5 ms. The same
+      channel changes color without changing. A blend from one survey and a blend from the next cannot
+      be compared by hue, and a hue quoted without the three frequencies behind it is not a
+      measurement.</p>
+
+    <div class="plot">
+      <div class="plot-head">
+        <h3>Color against fill thickness</h3>
+        <span class="hint">Measured off the blend, thickness by thickness</span>
+      </div>
+      <canvas id="c2" aria-label="The color the blend assigns to each fill thickness"></canvas>
+    </div>
+    <div class="stats">
+      <div class="stat key"><span>Reddest at fill</span><b id="s2r">—</b></div>
+      <div class="stat"><span>Greenest at fill</span><b id="s2g">—</b></div>
+      <div class="stat"><span>Bluest at fill</span><b id="s2b">—</b></div>
+      <div class="stat"><span>Thicknesses reading black</span><b id="s2dark">—</b></div>
+    </div>
+    <div class="legend prose">
+      <span><b>The color-to-thickness relation is neither linear nor absolute.</b> With components at 18, 30 and 46 Hz the blend is reddest on 22.5 ms of fill, greenest on 15.5 ms and bluest on 11.5 ms, close to 1/(2<i>f</i>) for each. Between those thicknesses the color runs through the mixtures rather than stepping. Changing any of the three frequencies moves the whole mapping, so a color read off one blend means nothing on another.</span>
+    </div>
+  </section>
+
+  <!-- =============================== STEP 3 =============================== -->
+  <section class="tabpane" id="p3" role="tabpanel" hidden>
+    <div class="plot-head" style="margin-bottom:14px">
+      <h3><span class="stepno">3</span>Scaling the three maps</h3>
+      <span class="hint">Same data, same frequencies, different picture</span>
+    </div>
+    <p class="qbox"><b>Why this step is here.</b> Two blends of the same data look different. One shows a strong high-frequency signal and the other barely any. Which is right?</p>
+    <p class="lede">Both scalings are defensible. They produce different images of the same earth, and the difference is large.</p>
+
+    <div class="sec-row">
+      <div class="panel-col">
+        <p class="sublabel"><b>Each channel scaled to itself</b> <span class="note">the usual default</span></p>
+        <canvas id="c3a" aria-label="Blend with each channel scaled independently"></canvas>
+      </div>
+      <div class="panel-col">
+        <p class="sublabel"><b>One scale for all three</b> <span class="note">relative energy preserved</span></p>
+        <canvas id="c3b" aria-label="Blend with all channels on a common scale"></canvas>
+      </div>
+    </div>
+    <div class="stats">
+      <div class="stat key"><span>Raw energy, red : green : blue</span><b id="s3raw">—</b></div>
+      <div class="stat"><span>After scaling each</span><b id="s3ind">—</b></div>
+      <div class="stat"><span>Channel lit, scale each</span><b id="s3li">—</b></div>
+      <div class="stat"><span>Channel lit, one scale</span><b id="s3lc">—</b></div>
+    </div>
+    <div class="legend prose">
+      <span><b>Independent scaling promotes the weakest frequency to equal billing.</b> At 12, 30 and 70 Hz the raw energies of the three components stand at 0.39 : 1.00 : 0.10. Scaled independently, all three reach full brightness somewhere, and the 70 Hz layer contributes as strongly as the 30 Hz one despite carrying a tenth of the energy. On a common scale the 70 Hz layer is almost invisible, which is what the data support. The first is a contrast stretch applied per color, and it is the default in most software.</span>
+    </div>
+  </section>
+
+  <!-- =============================== STEP 4 =============================== -->
+  <section class="tabpane" id="p4" role="tabpanel" hidden>
+    <div class="plot-head" style="margin-bottom:14px">
+      <h3><span class="stepno">4</span>Choosing the three frequencies</h3>
+      <span class="hint">There is no default worth trusting</span>
+    </div>
+    <p class="qbox"><b>Why this step is here.</b> Software offers three evenly spaced frequencies by default. Is that a good choice?</p>
+    <p class="lede">The curve below is what each single frequency is worth on its own: how much of the true channel that one component covers. The three markers are the current choices.</p>
+
+    <p class="lede">Read as geology, the curve is the thickness distribution of the body seen through
+      the wavelet. Each frequency covers the part of the body near its own responding thickness, so a
+      body with a narrow range of thicknesses has a sharply peaked curve and a body with a wide range
+      has a broad one. Choosing three frequencies is therefore choosing which three thicknesses to
+      image, and the choice belongs to the target: a channel that deepens and thins along its length
+      needs them spread, while an amalgamated sheet of nearly constant thickness gains little from
+      spreading them at all. On this model the three bunched at 26, 30 and 34 Hz cover 71% of the
+      channel and the same three spread to 12, 34 and 78 Hz cover 88%, against 67% for the best single
+      map.</p>
+
+    <div class="plot">
+      <div class="plot-head">
+        <h3>Coverage against frequency, with the three current choices marked</h3>
+        <span class="hint">Where the curve is high, that frequency shows a lot of channel</span>
+      </div>
+      <canvas id="c4" aria-label="Fraction of channel lit, against frequency, with the three selected frequencies marked"></canvas>
+    </div>
+    <div class="stats">
+      <div class="stat key"><span>Best single frequency</span><b id="s4best">—</b></div>
+      <div class="stat"><span>Coverage there</span><b id="s4bestv">—</b></div>
+      <div class="stat"><span>The three combined</span><b id="s4yours">—</b></div>
+      <div class="stat"><span>Evenly spaced across the band</span><b id="s4even">—</b></div>
+    </div>
+    <div class="legend prose">
+      <span><b>Three frequencies cover far more than one, and their spread matters more than their center.</b> The best single frequency here covers 68% of the channel; three together cover 88%. Moving all three together up or down the band changes the total little. Bringing them close together drops it sharply, because three nearly identical maps cover what one map covers. Even spacing across the usable band is a reasonable default for that reason rather than by convention.</span>
+    </div>
+  </section>
+
+  <!-- =============================== STEP 5 =============================== -->
+  <section class="tabpane" id="p5" role="tabpanel" hidden>
+    <div class="plot-head" style="margin-bottom:14px">
+      <h3><span class="stepno">5</span>Frequency on hue, magnitude on lightness</h3>
+      <span class="hint">Module 06's problem, solved properly</span>
+    </div>
+    <p class="qbox"><b>Why this step is here.</b> Blanking a peak frequency map below a magnitude threshold draws a hard edge that is not in the data. Is there an alternative?</p>
+    <p class="lede">The alternative puts peak frequency on hue and peak magnitude on lightness. Where there is energy the color reports the frequency; where there is none the display goes dark. No threshold is chosen and no boundary is drawn.</p>
+
+    <p class="lede"><b>Why this is the display to map an edge on.</b> Where a body thins toward its
+      margin the reflection weakens, so the frequency estimate becomes unreliable exactly at the point
+      the margin has to be drawn. A blanked map puts a hard line there, at a position set by the
+      threshold rather than by the rock, and that line is very easy to pick as the edge of the body. A
+      modulated display fades instead, so the picture shows the estimate becoming untrustworthy rather
+      than showing a boundary. On this model the colored part of the modulated display is 96% on
+      channel; the unmodulated map is colored everywhere and is 45% on channel.</p>
+
+    <p class="lede">A fade cannot be contoured, which is the honest consequence: the edge of a thinning
+      body is not sharply located by this method, and a display that draws it sharply is adding
+      information the data do not hold. Placing that edge takes something else — a well, an inversion,
+      or the geometry of the system the body belongs to.</p>
+
+    <div class="sec-row">
+      <div class="panel-col">
+        <p class="sublabel"><b>Peak frequency alone</b> <span class="note">every pixel has a color</span></p>
+        <canvas id="c5a" aria-label="Peak frequency map with no magnitude modulation"></canvas>
+      </div>
+      <div class="panel-col">
+        <p class="sublabel"><b>Hue by frequency, lightness by magnitude</b> <span class="note">the hlplot scheme</span></p>
+        <canvas id="c5b" aria-label="Peak frequency modulated by peak magnitude"></canvas>
+      </div>
+    </div>
+    <div class="stats">
+      <div class="stat key"><span>Visibly colored area</span><b id="s5area">—</b></div>
+      <div class="stat"><span>Of that, on channel</span><b id="s5on">—</b></div>
+      <div class="stat"><span>Same for the unmodulated map</span><b id="s5raw">—</b></div>
+      <div class="stat"><span>Off-channel pixels made dark</span><b id="s5dark">—</b></div>
+    </div>
+    <div class="legend prose">
+      <span><b>Modulating by magnitude removes the noise without drawing a boundary.</b> The unmodulated map is colored over 100% of its area, and 45% of that area has any channel beneath it. Modulated, the areas with no signal are dark rather than confidently colored, and the transition follows the data instead of a chosen cutoff.</span>
+    </div>
+  </section>
+
+  <!-- ============================ WHY IT MATTERS =========================== -->
+  <section class="tabpane" id="pw" role="tabpanel" hidden>
+    <div class="plot-head" style="margin-bottom:14px">
+      <h3>Why it matters</h3>
+      <span class="hint">Reading and making these images</span>
+    </div>
+    <p class="lede">Blends are the form in which spectral decomposition usually reaches an audience, and much of what makes them persuasive is display rather than data.</p>
+    <ul class="lede" style="padding-left:20px">
+      <li><b>Presenting a channel or a fan.</b> The blend shows more of a body than one map, and the color
+        carries a thickness ordering that a grayscale map cannot.</li>
+      <li><b>Reading someone else's blend.</b> Three questions, none of them usually answered on the
+        slide: which frequencies, how were the channels scaled, and was the data balanced first.</li>
+      <li><b>Deciding whether a color difference is geology.</b> A color change means one component grew
+        relative to another. On independently scaled channels, that can happen from a change in overall
+        amplitude rather than a change in frequency content.</li>
+      <li><b>Not over-reading a dark area.</b> Dark can mean no reflection, or fill outside the range the
+        three frequencies cover.</li>
+      <li><b>Displaying peak frequency at all.</b> Hue and lightness together is the right default, and
+        peak frequency on its own is almost never appropriate.</li>
+    </ul>
+    <p class="lede"><b>Why a good-looking blend can be wrong.</b> The most damaging error is treating a blend as quantitative. It has no color bar, its color-to-thickness mapping moves with the three frequencies chosen, and its scaling is usually a per-color contrast stretch. The second error is reading a dark area as absence, when a layer above it, the scaling, or a fill thickness outside all three components can each produce one.</p>
+    <div class="legend prose">
+      <span>A blend in a report carries as much display choice as data. Its three frequencies and its scaling choice are part of what it reports, in the same way a seismic section carries its polarity convention.</span>
+    </div>
+  </section>
+
+  <!-- ============================== EXERCISES ============================= -->
+  <section class="tabpane" id="pe" role="tabpanel" hidden>
+    <div class="tryit" style="max-width:none">
+      <h3>Exercises</h3>
+      <ol>
+        <li><b>Take the blend apart and put it back.</b>
+          <em class="point">Why: a combined RGB image cannot be read backwards into the three maps that made it.</em>
+           In step 1, set all three frequencies close
+          together, then spread them wide, watching the coverage readouts.
+          <em class="predict">Before spreading them: three frequencies close together are nearly the same measurement three times. How much more of the channel should that show than one map?</em>
+          <details class="reveal"><summary>Hint</summary><span class="ans">Bunched at 26, 30 and 34 Hz
+            the three maps are nearly the same map, the blend is gray everywhere it is bright, and it
+            covers 71% of the channel against 67% for the best single map — almost nothing gained. Spread
+            to 18, 30 and 46 Hz it reaches 88%. Spread apart the colors separate and the coverage climbs,
+            because each component now lights a different part of the channel. Spread too far and the
+            outer two land where the wavelet has little energy, so they contribute noise rather than
+            channel. The useful spread is set by the range of fill thicknesses present, which is a
+            geological question rather than a display one.</span></details></li>
+        <li><b>Build the color legend.</b>
+          <em class="point">Why: a blend has no color bar, and this is the nearest thing to one that can be measured.</em>
+           In step 2, read the three thicknesses at which the blend is
+          reddest, greenest and bluest.
+          <details class="reveal"><summary>Hint</summary><span class="ans">With 18, 30 and 46 Hz the
+            peaks are at 22.5, 15.5 and 11.5 ms against tuning thicknesses of 27.8, 16.7 and 10.9 — the
+            middle and high ones land close, and the low one falls short because this channel has almost
+            no fill that thick. So the color sequence red to green to blue does map to thick through thin
+            and can be read that way qualitatively. What it cannot give is a number: the mapping is
+            nonlinear, the spacing depends entirely on which frequencies were picked, a component tuned
+            outside the range present peaks at the thickest fill there is instead of announcing that it
+            is out of range, and everything beyond the covered range comes out the same
+            dark.</span></details></li>
+        <li><b>Change the picture without changing the earth.</b>
+          <em class="point">Why: scaling and stacking order are display choices that change what a blend appears to show.</em>
+           In step 3, switch between the two
+          scaling modes and compare the two coverage readouts and the energy ratios.
+          <details class="reveal"><summary>Hint</summary><span class="ans">At 12, 30 and 70 Hz the raw
+            energies stand at 0.39 : 1.00 : 0.10, and independent scaling rewrites them as 1.00 : 1.00 :
+            1.00. Coverage goes from 61% common to 93% independent on identical data. The visible result
+            is that a weak high-frequency component becomes a confident blue feature. Under common
+            scaling the same feature is dim or absent. Neither image is a lie,
+            but only one of them shows whether the blue is worth believing, and it is not the one
+            that gets used. If a blend is showing something surprising at the high-frequency end, look at
+            that channel on its own, unscaled, before building anything on it.</span></details></li>
+        <li><b>Choose the three frequencies on purpose.</b>
+          <em class="point">Why: the three frequencies are the most consequential choice in the display, and software picks them by default.</em>
+           In step 4, find the peak of the coverage
+          curve, then compare the three current choices with the evenly spaced default.
+          <details class="reveal"><summary>Hint</summary><span class="ans">The best single frequency is
+            22 Hz at 68% coverage, and any sensible three beat it by a wide margin — 88% for 18, 30 and
+            46 Hz. The surprise is that the evenly spaced default of 14, 46 and 78 Hz scores 91%, and at
+            a 40 Hz wavelet it reaches 98% against 89%. That looks like an argument for the default until
+            step 3 applies here: coverage is counted after each channel is stretched to its own maximum,
+            and the widest spread gains most from that stretch because its outer components carry the
+            least energy. What the wide default really does is amplify two weak components until they
+            look like data. So the answer is not "spread as wide as possible" — it is to pick frequencies
+            whose tuning thicknesses straddle the expected thickness range, and to check the components
+            at their own amplitudes before trusting a coverage number.</span></details></li>
+        <li><b>Compare the two ways of showing peak frequency.</b>
+          <em class="point">Why: blanking draws an edge that is not in the data; modulating by magnitude does not.</em>
+           In step 5, read the two on-channel
+          percentages.
+          <details class="reveal"><summary>Hint</summary><span class="ans">The unmodulated map is colored
+            over 100% of its area and 45% of that has channel beneath it. The hue-lightness version shows
+            color over 47% of the area, and 96% of that is channel, with 97% of the off-channel pixels
+            fading to dark unprompted. The rest has
+            gone dark rather than been cut off at a contour, so there is no artificial boundary and no
+            threshold to defend. This is why AASPI displays peak frequency this way and why a peak
+            frequency map on its own, with a full color range applied to every pixel, should be treated as
+            a work in progress, not a result.</span></details></li>
+              <li><b>Give one dark area on a blend three explanations.</b>
+          <em class="point">Why: a dark area has several causes, and only one of them is absence of the feature.</em>
+           In step 4, find a dark region
+          inside the channel outline, then move the three frequencies and watch whether it fills in.
+          <details class="reveal"><summary>Hint</summary><span class="ans">Dark on a blend means all
+            three components are weak there, and that happens for several distinct reasons. The fill may
+            be thicker than the lowest component can tune, which is the case in the thalweg on a
+            high-frequency blend. It may be thinner than the highest component can tune, which is the
+            case at the margins and downstream. There may be no channel there at all. Or the three
+            frequencies may simply have been chosen badly, leaving a gap in thickness coverage between
+            them. The first two and the fourth all fill in when the frequencies move; the third does
+            not. That test takes one drag of a slider and it is the reason a blend should never be
+            interpreted from a single choice of three frequencies.</span></details></li>
+        <li><b>Show that a layer hides what is under it.</b>
+          <em class="point">Why: concealment is a property of the display, and it is invisible unless it is looked for.</em>
+           In step 1, leave all three layers on and
+          find a place inside the channel that looks plain blue. Now switch the blue layer off with the
+          button in the header.
+          <em class="predict">Before doing so: is that pixel blue because the low and middle frequencies
+          are absent there, or because they are covered up?</em>
+          <details class="reveal"><summary>Hint</summary><span class="ans">Both happen, in different
+            places, and the blend does not distinguish them. Out on the thin margins the red and green
+            layers really are nearly empty, so switching blue off leaves almost nothing behind. Closer in,
+            where the fill passes through more than one component's range, removing blue reveals green
+            underneath that was there the whole time and simply covered. This is the difference between
+            "nothing at that frequency" and "something, hidden," and no single blended image separates
+            them. Then swap the stacking order with the Red on top button and watch the picture change
+            without a single number in the data changing. Anything that survives both orderings is a
+            property of the earth; anything that does not is a property of the display.</span></details></li>
+</ol>
+    </div>
+  </section>
+
+  <!-- ============================= KEY POINTS ============================= -->
+  <section class="tabpane" id="pk" role="tabpanel" hidden>
+    <div class="takeaway">
+      <h3>Key points</h3>
+      <ul>
+        <li><b>A blend is three iso-frequency maps stacked as layers.</b> Each has a color and an
+          opacity that follows its own magnitude. Nothing is computed by combining them, so a blend
+          shows three maps at once and is not a fourth measurement.</li>
+        <li><b>A layer covers what is under it, and the stacking order changes the picture.</b> Where
+          the top layer is opaque the layers beneath contribute nothing to that pixel, so a color can
+          mean "only this frequency is present here" or "the others are hidden," and the image does not
+          say which. Reordering the layers gives a different picture from identical data. Anything that
+          survives a reordering belongs to the earth; anything that does not belongs to the display.</li>
+        <li><b>It covers more of a body than any single map,</b> because three tuning thicknesses span
+          more of the thickness range than one. It adds coverage, not resolution.</li>
+        <li><b>Color maps to thickness, but not linearly and not absolutely.</b> The reddest, greenest
+          and bluest thicknesses are the tuning thicknesses of the three frequencies — except where the
+          body has no fill that thick, in which case the component peaks at the thickest fill present and
+          gives no sign that it is out of range. Everything beyond the covered range is the same dark.</li>
+        <li><b>Independent channel scaling is a contrast stretch per color</b> that promotes a weak
+          component to equal brightness. It changes which features look convincing and it is almost never
+          reported.</li>
+        <li><b>Three frequencies beat one by a wide margin</b> — 88% coverage against 67% here — but a
+          coverage score measured on independently scaled channels rewards wide spreads whether or not
+          the data support them.</li>
+        <li><b>Peak frequency should be shown with magnitude on lightness,</b> so the color fades where
+          the confidence does, rather than being cut off at a threshold or shown everywhere.</li>
+      </ul>
+    </div>
+    <div class="takeaway" style="margin-top:18px">
+      <h3>Words introduced here</h3>
+      <dl class="terms">
+        <dt>RGB blend</dt>
+        <dd>Three iso-frequency maps shown as one image, conventionally a low frequency in red, a middle
+          one in green and a high one in blue.</dd>
+        <dt>layer, and stacking order</dt>
+        <dd>Each map is painted over the ones before it. Which map goes on top changes the image, and a
+          layer conceals what lies beneath it.</dd>
+        <dt>opacity</dt>
+        <dd>How much of the layer beneath shows through. At 100% the top layer covers everything it
+          touches.</dd>
+        <dt>independent scaling</dt>
+        <dd>Normalizing each map by its own maximum, so all three reach full brightness somewhere. A
+          contrast stretch applied per color, and the default in most software.</dd>
+        <dt>common scaling</dt>
+        <dd>Normalizing all three by one maximum, so a weak component stays weak on screen.</dd>
+        <dt>coverage</dt>
+        <dd>The fraction of the true feature a map lights above a fixed threshold. Used here to compare
+          one frequency against three.</dd>
+        <dt>hue and lightness display</dt>
+        <dd>Peak frequency shown as color and peak magnitude as brightness, so areas with no signal go
+          dark without a threshold being chosen.</dd>
+        <dt>corender</dt>
+        <dd>The general name for showing two or more attributes in one image by giving each a different
+          visual property.</dd>
+      </dl>
+    </div>
+
+  </section>
+
+  <!-- =============================== METHOD =============================== -->
+  <section class="tabpane" id="pm" role="tabpanel" hidden>
+    <div class="plot-head" style="margin-bottom:14px">
+      <h3 id="notes">Method</h3>
+      <span class="hint">What is computed, and what is left out</span>
+    </div>
+    <p class="lede"><b>The model</b> is the channel from modules 00 and 06 on a 96 by 80 grid, with the
+      same sinuous axis, cosine cross section and downstream taper. At every grid point the fill is two
+      reflection coefficients convolved with a zero-phase Ricker, plus band-limited noise.</p>
+    <p class="lede"><b>How the blend is composited, and the other convention.</b> Each of the three
+      maps is normalized to 0&ndash;1 the way step 3 describes, then painted as a layer over an ink
+      background with an opacity equal to that normalized value:
+      <span class="k">out = out (1 &minus; a) + color &times; a</span>, with
+      <span class="k">a</span> the layer's own value times the opacity set in the header. Layers are
+      painted in the order set there too, so the last one painted sits on top. This is what a co-render
+      does, and it is why the order control changes the picture. The opacity defaults to 70% rather than
+      100% because at full opacity the top layer covers the others wherever it has any strength at all,
+      which on this channel means almost everywhere; the solo panels in step 1 are always drawn opaque,
+      since each is a map rather than a layer in a stack.</p>
+    <p class="lede">The other convention in common use writes the three maps straight into the display's
+      red, green and blue channels. That model is purely additive: the contributions add, stacking order
+      is irrelevant, and a pixel strong in all three comes out white instead of taking the color of
+      whichever layer is on top. Neither is more correct and interpretation packages differ, but the two
+      do not produce the same image from the same three volumes, which is a practical reason to say
+      which one a figure came from. The shared library carries both:
+      <span class="k">SPEC.overlayBlend</span> for the layered version used here, and
+      <span class="k">SPEC.rgbBlend</span> for the additive one.</p>
+    <p class="lede"><b>The maps</b> are computed at every point rather than interpolated from a few: each
+      iso-frequency map is a direct discrete Fourier transform of the Hann-tapered channel window,
+      evaluated at that one frequency. The peak frequency and peak magnitude maps in step 5 use the full
+      spectrum and the same definitions as module 06, including the lowest-strong-lobe rule.</p>
+        <p class="lede"><b>A convention used from module 05 onward.</b> A tuned bed produces maxima in its
+      spectrum at 1/(2<i>T</i>), 3/(2<i>T</i>), 5/(2<i>T</i>) and so on, all of similar height once the
+      wavelet has been divided out. Taking the tallest of them makes a thickness estimate jump between
+      lobes as the bed changes. Modules 05 through 09 therefore take the lowest-frequency maximum that
+      reaches 70% of the tallest, which is the one that inverts to the correct thickness. Production
+      software achieves the same thing by asking for a frequency search range. Module 04 is deliberately
+      the exception: it takes the tallest maximum wherever it falls, so that the estimator can be watched
+      failing at both ends of its working range, which is the point of that module's third step.</p>
+    <p class="lede"><b>The color legend in step 2</b> is measured, not drawn. Fill thicknesses are
+      binned in 1 ms steps, and for every bin the average red, green and blue of all the pixels in that
+      bin is accumulated. The strip is that average, bin by bin, so it is the mapping this particular
+      blend actually produces rather than an idealization of what a blend does.</p>
+    <p class="lede"><b>Coverage</b> counts the fraction of the true channel where a map exceeds 70% of its
+      own maximum, with the same threshold and denominator everywhere on the page so the numbers can be
+      compared with each other. For the blend, a pixel counts if any of the three channels exceeds it.
+      Hue-lightness uses the conversion in <span class="k">assets/spectral.js</span>, with hue running
+      from magenta through red as frequency rises and lightness proportional to peak magnitude.</p>
+    <p class="lede"><b>Simplifications, stated plainly.</b> No balancing is applied, so the relative
+      energy of the three components carries the wavelet's shape, which step 3 relies on and which would
+      need module 05's treatment before any of this was quantitative. The channel is flat, so the
+      extraction window is identical everywhere; in real work the extraction is usually the dominant
+      source of error. There is no opacity or corendering with a structural attribute, which is how most
+      production blends are actually displayed.</p>
+    <p class="lede"><b>Where this departs from production software.</b> AASPI's <span class="k">corender</span>
+      and <span class="k">hlplot</span> work on 3D volumes along interpreted horizons and offer more
+      control than the two scaling modes here — including separate clip percentiles per channel, which is
+      independent scaling with more parameters rather than a different idea. Production blends are also
+      commonly made from balanced volumes and often from more than three components using principal
+      component reduction, which this module does not cover.</p>
+    <details class="reveal">
+      <summary>References</summary>
+      <ul class="lede" style="padding-left:20px">
+        <li>Partyka, G., J. Gridley, and J. Lopez, 1999, Interpretational applications of spectral
+          decomposition in reservoir characterization: <em>The Leading Edge</em>, <b>18</b>,
+          353&ndash;360.</li>
+        <li>Guo, H., K. J. Marfurt, and J. Liu, 2009, Principal component spectral analysis:
+          <em>Geophysics</em>, <b>74</b>, P35&ndash;P43.</li>
+        <li>Chopra, S., and K. J. Marfurt, 2007, <em>Seismic Attributes for Prospect Identification and
+          Reservoir Characterization</em>: SEG Geophysical Development Series, 11.</li>
+        <li>Brewer, C. A., 1994, Color use guidelines for mapping and visualization, in
+          <em>Visualization in Modern Cartography</em>: Pergamon, 123&ndash;147.</li>
+        <li>AASPI, <em>Spectral Attributes: Programs corender and hlplot</em>, University of Oklahoma.</li>
+      </ul>
+    </details>
+  </section>
+
+  <section class="nextup" id="nextup" hidden>
+    <p class="eyebrow">Next up</p>
+    <h3>08 · One trace, four answers</h3>
+    <p>Every map in the last three modules came out of one decomposition. The software offers three, they
+      disagree, and the disagreement is informative.</p>
+    <a class="btn ghost" href="methods.html">Module 08 →</a>
+  </section>
+
+  <div class="pager" id="pager" hidden>
+    <a class="btn ghost" href="attributes.html">← Module 06: peak frequency and peak magnitude</a>
+    <a class="btn ghost" href="../index.html">All modules</a>
+    <a class="btn ghost" href="methods.html">Module 08: why there is more than one program →</a>
+  </div>
+
+  <footer>
+    <div class="foot-grid">
+      <p>Built for teaching by Dr. Heather Bedle and Dr. April Moreno-Ward, University of Oklahoma, with
+        the <a href="https://www.ou.edu/mcee/labs/aaspi">AASPI</a> consortium.</p>
+      <p class="lic">To cite: H. Bedle and A. Moreno-Ward, 2026, <i>How Spectral Attributes Actually
+        Work: A Set of Browser-Based Interactive Modules</i>: SSRN working paper, University of Oklahoma.
+        <span class="k">SSRN: [article link to follow]</span></p>
+      <p class="lic">Licensed <a href="https://creativecommons.org/licenses/by-sa/4.0/">CC BY-SA 4.0</a>.
+        Free to use, adapt and share, including in teaching, provided the source is credited and any
+        adaptation is released under the same license. If you use it in a course or a talk, a credit line
+        and a link back are all that is asked.</p>
+      <p class="lic">Nothing you do in this module leaves your browser. The only thing recorded is that
+        the page was opened, so that the university can see these are being used &mdash; no cookie, no
+        account, nothing about you.</p>
+    </div>
+  </footer>
+</div>
+
+<script src="../assets/count.js"></script>
+<script src="../assets/popout.js"></script>
+<script src="../assets/panelout.js"></script>
+<script src="../assets/glossary.js"></script>
+<script src="../assets/seismic.js"></script>
+<script src="../assets/spectral.js"></script>
+<script>
+(function () {
+  'use strict';
+
+  if (typeof SEIS === 'undefined' || typeof SPEC === 'undefined') {
+    const missing = [];
+    if (typeof SEIS === 'undefined') missing.push('assets/seismic.js');
+    if (typeof SPEC === 'undefined') missing.push('assets/spectral.js');
+    const el = document.createElement('div');
+    el.setAttribute('style', 'background:#841617;color:#fff;padding:14px 18px;margin:16px 0;' +
+      'font:13px/1.6 ui-monospace,Menlo,monospace');
+    el.textContent = 'This page could not load ' + missing.join(' and ') +
+      '. It expects them one directory up, at ../assets/, and file names are ' +
+      'case-sensitive on GitHub Pages.';
+    const w = document.querySelector('.wrap');
+    (w || document.body).insertBefore(el, w ? w.firstChild : null);
+    return;
+  }
+
+  const $ = (id) => document.getElementById(id);
+  const clamp = (v, a, b) => Math.max(a, Math.min(b, v));
+  const visible = (id) => { const el = $(id); return el && !el.hidden; };
+  const CRIM = '#841617', TEAL = '#0B7285', SLATE = '#5C6670';
+
+  const NXG = 96, NYG = 80;
+  const DT = 0.001, NW = 128, T0 = 0.060;
+  const RTOP = 0.1, RBOT = -0.1;
+  const THALWEG = 34, WIDE = 56, TAPER = 50;
+  /* Noise was a fixed 4% here, applied to every trace and not exposed. It is
+     now a control, because a blend of narrow-band components behaves very
+     differently under noise from a full-bandwidth map and a student should be
+     able to see that rather than be told it. The default is the old constant,
+     so an existing shared link renders as it did. */
+  const LIT = 0.7;                                // the coverage threshold
+
+  const DEF = { fr: 18, fg: 30, fb: 46, fd: 30, scale: 'ind', order: 'rgb',
+    lr: 1, lg: 1, lb: 1, op: 70, noise: 4, tab: 'p1' };
+  let S = SEIS.readState(DEF);
+  if (S.scale !== 'ind' && S.scale !== 'common') S.scale = 'ind';
+  if (S.order !== 'rgb' && S.order !== 'bgr') S.order = 'rgb';
+  ['lr', 'lg', 'lb'].forEach((k) => { S[k] = (Number(S[k]) === 0) ? 0 : 1; });
+  /* All three off leaves an empty frame and no way back except the URL. */
+  if (!S.lr && !S.lg && !S.lb) { S.lr = S.lg = S.lb = 1; }
+
+  const CAN_LINK = location.protocol !== 'file:';
+  const saveState = () => {
+    if (!CAN_LINK) return;
+    try { SEIS.writeState(S, DEF); } catch (e) { /* nothing shareable */ }
+  };
+
+  const HANN = new Float64Array(NW);
+  (function () { for (let k = 0; k < NW; k++) HANN[k] = 0.5 * (1 - Math.cos(2 * Math.PI * k / (NW - 1))); })();
+
+  let THICK = null;
+  function thickness() {
+    if (THICK) return THICK;
+    const g = new Float64Array(NXG * NYG);
+    const halfW = WIDE / 2;
+    for (let iy = 0; iy < NYG; iy++) {
+      const axis = NXG / 2 + 18 * Math.sin(2 * Math.PI * iy / 63) + 8 * Math.sin(2 * Math.PI * iy / 27);
+      const down = 1 - (TAPER / 100) * (iy / (NYG - 1));
+      for (let ix = 0; ix < NXG; ix++) {
+        const d = Math.abs(ix - axis) / halfW;
+        g[iy * NXG + ix] = d >= 1 ? 0 : (THALWEG / 1000) * down * 0.5 * (1 + Math.cos(Math.PI * d));
+      }
+    }
+    THICK = g;
+    return THICK;
+  }
+  const onChannel = (i) => thickness()[i] > 0.003;
+
+  /* The trace at one grid point, windowed and tapered. Noise is seeded from the
+     point index so that it is the same every redraw — a blend that reshuffles
+     its own noise every time a slider moves cannot be compared with itself. */
+  function traceAt(i, wav) {
+    const T = thickness()[i];
+    const rnd = SEIS.mulberry32(1000 + i);
+    const tr = new Float64Array(NW);
+    const amp = (S.noise / 100) * Math.abs(RTOP);
+    let prev = 0;
+    for (let k = 0; k < NW; k++) {
+      const t = k * DT;
+      let v = RTOP * wav.fn(t - T0);
+      v += (T > 0 ? RBOT * wav.fn(t - (T0 + T)) : -RTOP * wav.fn(t - T0));
+      const r = rnd() * 2 - 1;
+      v += amp * 0.5 * (r + prev); prev = r;
+      tr[k] = v * HANN[k];
+    }
+    return tr;
+  }
+
+  const CACHE = {};
+  function isoMap(f) {
+    const key = 'iso|' + f + '|' + S.fd + '|' + S.noise;
+    if (CACHE[key]) return CACHE[key];
+    const wav = SEIS.makeWavelet({ type: 'ricker', f: S.fd });
+    const cos = new Float64Array(NW), sin = new Float64Array(NW);
+    for (let k = 0; k < NW; k++) {
+      const a = 2 * Math.PI * f * k * DT;
+      cos[k] = Math.cos(a); sin[k] = Math.sin(a);
+    }
+    const out = new Float64Array(NXG * NYG);
+    for (let i = 0; i < out.length; i++) {
+      const tr = traceAt(i, wav);
+      let re = 0, im = 0;
+      for (let k = 0; k < NW; k++) { re += tr[k] * cos[k]; im -= tr[k] * sin[k]; }
+      out[i] = Math.hypot(re, im);
+    }
+    const keys = Object.keys(CACHE).filter((k) => k.startsWith('iso'));
+    if (keys.length > 40) delete CACHE[keys[0]];
+    CACHE[key] = out;
+    return out;
+  }
+
+  /* Peak frequency and peak magnitude, for step 5 — the same definitions as
+     module 06, including taking the lowest strong lobe. */
+  let PEAK = null, PKEY = '';
+  function peaks() {
+    if (PEAK && PKEY === String(S.fd)) return PEAK;
+    const fs = [];
+    for (let f = 8; f <= 90; f += 2) fs.push(f);
+    const maps = fs.map((f) => isoMap(f));
+    const n = NXG * NYG;
+    const pf = new Float64Array(n), pm = new Float64Array(n);
+    for (let i = 0; i < n; i++) {
+      let gmx = 0;
+      for (let j = 0; j < fs.length; j++) gmx = Math.max(gmx, maps[j][i]);
+      let jp = 0;
+      for (let j = 1; j < fs.length - 1; j++) {
+        if (maps[j][i] >= maps[j - 1][i] && maps[j][i] > maps[j + 1][i] && maps[j][i] > 0.7 * gmx) {
+          jp = j; break;
+        }
+      }
+      if (!jp) for (let j = 1; j < fs.length; j++) if (maps[j][i] > maps[jp][i]) jp = j;
+      pf[i] = fs[jp]; pm[i] = maps[jp][i];
+    }
+    PEAK = { pf, pm, fs };
+    PKEY = String(S.fd);
+    return PEAK;
+  }
+
+  const maxOf = (a) => { let m = 0; for (const v of a) m = Math.max(m, v); return m; };
+  function coverage(map) {
+    const mx = maxOf(map) || 1;
+    let lit = 0, tot = 0;
+    for (let i = 0; i < map.length; i++) {
+      if (!onChannel(i)) continue;
+      tot++;
+      if (map[i] > LIT * mx) lit++;
+    }
+    return tot ? 100 * lit / tot : 0;
+  }
+
+  /* The three channels, scaled the chosen way. */
+  function channels() {
+    const r = isoMap(S.fr), g = isoMap(S.fg), b = isoMap(S.fb);
+    const mr = maxOf(r) || 1, mg = maxOf(g) || 1, mb = maxOf(b) || 1;
+    const common = Math.max(mr, mg, mb);
+    const dr = S.scale === 'ind' ? mr : common;
+    const dg = S.scale === 'ind' ? mg : common;
+    const db = S.scale === 'ind' ? mb : common;
+    return { r, g, b, mr, mg, mb, dr, dg, db };
+  }
+
+  /* =====================================================================
+     DRAWING
+     ===================================================================== */
+  const M = { l: 44, r: 14, t: 14, b: 32 };
+  function contentWidth(el) {
+    const p = el.parentElement || el;
+    const cs = getComputedStyle(p);
+    return Math.max(240, p.clientWidth - parseFloat(cs.paddingLeft) - parseFloat(cs.paddingRight));
+  }
+  /* Canvas height that lets a map fill the width it has been given. The maps are
+     aspect-locked to the grid, so passing a fixed canvas height left them
+     floating in the middle of a much wider panel with empty space either side —
+     278 px of map in a 560 px panel. maxH caps the result so a very wide panel
+     does not produce an absurdly tall canvas. */
+  function mapHeight(w, maxH) {
+    const availW = w - M.l - M.r;
+    const h = availW * (NYG / NXG) + M.t + M.b + 22;
+    return Math.round(Math.min(h, maxH || 440));
+  }
+
+  function mapBox(w, h) {
+    const availW = w - M.l - M.r, availH = h - M.t - M.b - 20;
+    const aspect = NYG / NXG;
+    let bw = availW, bh = bw * aspect;
+    if (bh > availH) { bh = availH; bw = bh / aspect; }
+    return { x: M.l + (availW - bw) / 2, y: M.t, w: bw, h: bh };
+  }
+  function paint(ctx, rect, rgb) {
+    const off = document.createElement('canvas');
+    off.width = NXG; off.height = NYG;
+    const octx = off.getContext('2d');
+    const img = octx.createImageData(NXG, NYG);
+    for (let i = 0; i < NXG * NYG; i++) {
+      const c = rgb(i);
+      img.data[i * 4] = c[0]; img.data[i * 4 + 1] = c[1];
+      img.data[i * 4 + 2] = c[2]; img.data[i * 4 + 3] = 255;
+    }
+    octx.putImageData(img, 0, 0);
+    ctx.save();
+    ctx.imageSmoothingEnabled = true;
+    ctx.drawImage(off, rect.x, rect.y, rect.w, rect.h);
+    ctx.restore();
+    SEIS.frame(ctx, rect);
+  }
+  function axes(ctx, rect, showX) {
+    SEIS.axisBottom(ctx, rect, 0, NXG, showX ? 'crossline' : '', (v) => v.toFixed(0), { ticks: 4 });
+    SEIS.axisLeft(ctx, rect, 0, NYG, 'inline', (v) => v.toFixed(0), { ticks: 4, down: true });
+  }
+  /* The three layer colors, and the ink the stack sits on. Pure 255,0,0 is
+     harsh and, more to the point, makes it hard to see that a layer is
+     partly transparent, so the layers use the display palette. */
+  const LAYER = {
+    r: [229, 57, 53],
+    g: [67, 160, 71],
+    b: [30, 136, 229],
+  };
+  const INK = [16, 19, 21];
+
+  /* Normalized value of each layer at pixel i, in the fixed order r, g, b. */
+  function layerValues(ch) {
+    return (i) => [
+      clamp(ch.r[i] / ch.dr, 0, 1),
+      clamp(ch.g[i] / ch.dg, 0, 1),
+      clamp(ch.b[i] / ch.db, 0, 1),
+    ];
+  }
+
+  /* Which layers are drawn, and in what order. 'rgb' paints red first and blue
+     last, so blue ends up on top. */
+  function stack() {
+    const on = [!!S.lr, !!S.lg, !!S.lb];
+    const order = S.order === 'bgr' ? [2, 1, 0] : [0, 1, 2];
+    return { on, order };
+  }
+
+  /* An OVERLAY, not an additive blend. Each map is a layer painted over the
+     ones before it with an opacity equal to its own normalized magnitude, so a
+     layer is transparent where its frequency has nothing and covers what is
+     underneath where it is strong. See SPEC.overlayPixel for the arithmetic and
+     for why the two models differ. */
+  function blendOverlay(ch, opts) {
+    const o = opts || {};
+    const vals = layerValues(ch);
+    const st = stack();
+    const on = o.on || st.on;
+    const order = o.order || st.order;
+    const cols = [LAYER.r, LAYER.g, LAYER.b];
+    const buf = [{ value: 0, color: null, on: true }, { value: 0, color: null, on: true },
+      { value: 0, color: null, on: true }];
+    return (i) => {
+      const v = vals(i);
+      const a = (o.opacity == null ? S.op / 100 : o.opacity);
+      order.forEach((k, j) => {
+        buf[j].value = v[k]; buf[j].color = cols[k]; buf[j].on = on[k]; buf[j].opacity = a;
+      });
+      return SPEC.overlayPixel(buf, INK);
+    };
+  }
+
+  /* One layer on its own, over the same ink, so a single map and the same map
+     inside the stack are drawn by identical code. */
+  function soloLayer(ch, k) {
+    const vals = layerValues(ch);
+    const cols = [LAYER.r, LAYER.g, LAYER.b];
+    /* A solo panel is drawn opaque whatever the stack opacity is, because it
+       is the map itself, not a layer in a stack. */
+    return (i) => SPEC.overlayPixel([{ value: vals(i)[k], color: cols[k], opacity: 1 }], INK);
+  }
+
+  /* ------------------------------------------------------------- header */
+  function drawHeader() {
+    const el = $('cHead');
+    if (!el) return;
+    const w = contentWidth(el), h = mapHeight(w, 330);
+    const ctx = SEIS.fitCanvas(el, w, h);
+    ctx.clearRect(0, 0, w, h);
+    const rect = mapBox(w, h);
+    paint(ctx, rect, blendOverlay(channels()));
+    axes(ctx, rect, true);
+    const st = stack();
+    const names = ['r', 'g', 'b'], freqs = [S.fr, S.fg, S.fb];
+    const shown = st.order.filter((k) => st.on[k]).map((k) => freqs[k] + ' Hz');
+    SEIS.tag(ctx, rect.x + 6, rect.y + 6,
+      shown.length ? shown.join(' under ') : 'no layers shown', CRIM);
+  }
+
+  /* ------------------------------------------------------------- step 1 */
+  function drawStep1() {
+    const el = $('c1');
+    if (!el) return;
+    const w = contentWidth(el), h = mapHeight(w, 430);
+    const ctx = SEIS.fitCanvas(el, w, h);
+    ctx.clearRect(0, 0, w, h);
+    const ch = channels();
+    const gap = 12;
+    const bw = (w - M.l - M.r - 3 * gap) / 4;
+    const bh = Math.min(h - M.t - M.b, bw * NYG / NXG);
+    /* Each layer ALONE, then the three stacked. An earlier version showed the
+       stack accumulating — layer one, then one plus two, then all three — and
+       it read wrong: the second panel is labelled with the middle frequency but
+       has the low-frequency layer showing through it, so it looks like the
+       30 Hz map has red in it. The three solo panels are the three maps, full
+       stop. What the stack hides is then visible by comparing a solo panel with
+       the fourth, which is the same comparison but the right way round. */
+    const st1 = stack();
+    const freqs = [S.fr, S.fg, S.fb];
+    const shown = st1.order.filter((k) => st1.on[k]).map((k) => freqs[k]);
+    const panes = [
+      { lab: S.fr + ' Hz alone', rgb: soloLayer(ch, 0) },
+      { lab: S.fg + ' Hz alone', rgb: soloLayer(ch, 1) },
+      { lab: S.fb + ' Hz alone', rgb: soloLayer(ch, 2) },
+      { lab: shown.length === 3 ? 'all three stacked'
+        : shown.length ? shown.join(' + ') + ' Hz only' : 'no layers shown',
+        rgb: blendOverlay(ch) },
+    ];
+    panes.forEach((p, k) => {
+      const rect = { x: M.l + k * (bw + gap), y: M.t, w: bw, h: bh };
+      paint(ctx, rect, p.rgb);
+      SEIS.tag(ctx, rect.x + 5, rect.y + 5, p.lab, k === 3 ? CRIM : SLATE);
+      SEIS.axisBottom(ctx, rect, 0, NXG, '', (v) => v.toFixed(0), { ticks: 2 });
+      if (k === 0) SEIS.axisLeft(ctx, rect, 0, NYG, 'inline', (v) => v.toFixed(0), { ticks: 4, down: true });
+    });
+
+    const covs = [coverage(ch.r), coverage(ch.g), coverage(ch.b)];
+    let lit = 0, tot = 0;
+    for (let i = 0; i < ch.r.length; i++) {
+      if (!onChannel(i)) continue;
+      tot++;
+      if (ch.r[i] > LIT * ch.mr || ch.g[i] > LIT * ch.mg || ch.b[i] > LIT * ch.mb) lit++;
+    }
+    $('s1f').textContent = S.fr + ' / ' + S.fg + ' / ' + S.fb + ' Hz';
+    $('s1t').textContent = (1000 / (2 * S.fr)).toFixed(0) + ' / ' + (1000 / (2 * S.fg)).toFixed(0) +
+      ' / ' + (1000 / (2 * S.fb)).toFixed(0) + ' ms';
+    $('s1blend').textContent = tot ? (100 * lit / tot).toFixed(0) + '%' : '—';
+    $('s1best').textContent = Math.max.apply(null, covs).toFixed(0) + '%';
+  }
+
+  /* ------------------------------------------------------------- step 2 */
+  function colorByThickness() {
+    const ch = channels(), g = thickness();
+    const bins = 40;
+    const acc = [];
+    for (let b = 0; b < bins; b++) acc.push({ r: 0, g: 0, b: 0, n: 0 });
+    for (let i = 0; i < g.length; i++) {
+      const t = g[i] * 1000;
+      if (t <= 0.5) continue;
+      const b = Math.min(bins - 1, Math.floor(t));
+      acc[b].r += clamp(ch.r[i] / ch.dr, 0, 1);
+      acc[b].g += clamp(ch.g[i] / ch.dg, 0, 1);
+      acc[b].b += clamp(ch.b[i] / ch.db, 0, 1);
+      acc[b].n++;
+    }
+    return acc.map((a) => a.n ? { r: a.r / a.n, g: a.g / a.n, b: a.b / a.n, n: a.n } : null);
+  }
+
+  function drawStep2() {
+    const el = $('c2');
+    if (!el) return;
+    const w = contentWidth(el), h = mapHeight(w, 450);
+    const ctx = SEIS.fitCanvas(el, w, h);
+    ctx.clearRect(0, 0, w, h);
+    const rect = { x: M.l + 8, y: M.t, w: w - M.l - M.r - 16, h: h - M.t - M.b - 40 };
+    const cb = colorByThickness();
+    const bins = cb.length;
+    SEIS.frame(ctx, rect);
+    const xs = [], rr = [], gg = [], bb = [];
+    for (let b = 0; b < bins; b++) {
+      if (!cb[b]) continue;
+      xs.push(b + 0.5); rr.push(cb[b].r); gg.push(cb[b].g); bb.push(cb[b].b);
+    }
+    const line = (ys, col) => {
+      ctx.save();
+      ctx.beginPath(); ctx.lineWidth = 2; ctx.strokeStyle = col;
+      xs.forEach((x, k) => {
+        const X = rect.x + (x / bins) * rect.w;
+        const Y = rect.y + rect.h - clamp(ys[k], 0, 1.05) / 1.05 * rect.h;
+        k ? ctx.lineTo(X, Y) : ctx.moveTo(X, Y);
+      });
+      ctx.stroke(); ctx.restore();
+    };
+    line(rr, '#c62828'); line(gg, '#2e7d32'); line(bb, '#1565c0');
+    SEIS.axisBottom(ctx, rect, 0, bins, 'fill thickness (ms)', (v) => v.toFixed(0), { ticks: 6 });
+    SEIS.axisLeft(ctx, rect, 0, 1.05, 'channel value', (v) => v.toFixed(1), { ticks: 5 });
+
+    // the measured color strip: what this blend gives each thickness
+    const strip = { x: rect.x, y: rect.y + rect.h + 30, w: rect.w, h: 14 };
+    for (let b = 0; b < bins; b++) {
+      const c = cb[b];
+      ctx.fillStyle = c ? 'rgb(' + Math.round(255 * c.r) + ',' + Math.round(255 * c.g) + ',' +
+        Math.round(255 * c.b) + ')' : '#f6f5f1';
+      ctx.fillRect(strip.x + (b / bins) * strip.w, strip.y, strip.w / bins + 1, strip.h);
+    }
+    ctx.save();
+    ctx.strokeStyle = 'rgba(22,25,28,.45)'; ctx.lineWidth = 1;
+    ctx.strokeRect(strip.x + 0.5, strip.y + 0.5, strip.w, strip.h);
+    ctx.restore();
+
+    /* Only bins with a real population count. The thickest bins hold a few
+       pixels on the upstream thalweg and nowhere else, and their average color
+       is dominated by whatever the noise did there. */
+    const MINN = 40;
+    const pop = xs.map((x) => cb[Math.floor(x)].n);
+    const argmax = (ys) => {
+      let k = -1;
+      for (let j = 0; j < ys.length; j++) {
+        if (pop[j] < MINN) continue;
+        if (k < 0 || ys[j] > ys[k]) k = j;
+      }
+      return k < 0 ? NaN : xs[k];
+    };
+    let dark = 0, tot = 0;
+    for (let b = 0; b < bins; b++) {
+      if (!cb[b]) continue;
+      tot++;
+      if (Math.max(cb[b].r, cb[b].g, cb[b].b) < 0.35) dark++;
+    }
+    $('s2r').textContent = argmax(rr).toFixed(1) + ' ms';
+    $('s2g').textContent = argmax(gg).toFixed(1) + ' ms';
+    $('s2b').textContent = argmax(bb).toFixed(1) + ' ms';
+    $('s2dark').textContent = tot ? (100 * dark / tot).toFixed(0) + '% of bins' : '—';
+  }
+
+  /* ------------------------------------------------------------- step 3 */
+  function drawStep3() {
+    const A = $('c3a'), B = $('c3b');
+    if (!A || !B) return;
+    const r = isoMap(S.fr), g = isoMap(S.fg), b = isoMap(S.fb);
+    const mr = maxOf(r) || 1, mg = maxOf(g) || 1, mb = maxOf(b) || 1;
+    const common = Math.max(mr, mg, mb);
+    const draw = (el, dr, dg, db) => {
+      const w = contentWidth(el), h = mapHeight(w, 420);
+      const ctx = SEIS.fitCanvas(el, w, h);
+      ctx.clearRect(0, 0, w, h);
+      const rect = mapBox(w, h);
+      paint(ctx, rect, (i) => [255 * clamp(r[i] / dr, 0, 1), 255 * clamp(g[i] / dg, 0, 1),
+        255 * clamp(b[i] / db, 0, 1)]);
+      axes(ctx, rect, true);
+      return { r, g, b, dr, dg, db };
+    };
+    draw(A, mr, mg, mb);
+    draw(B, common, common, common);
+
+    const cov = (dr, dg, db) => {
+      let lit = 0, tot = 0;
+      for (let i = 0; i < r.length; i++) {
+        if (!onChannel(i)) continue;
+        tot++;
+        if (r[i] > LIT * dr || g[i] > LIT * dg || b[i] > LIT * db) lit++;
+      }
+      return tot ? 100 * lit / tot : 0;
+    };
+    const norm3 = (a, bb2, c) => {
+      const m = Math.max(a, bb2, c);
+      return (a / m).toFixed(2) + ' : ' + (bb2 / m).toFixed(2) + ' : ' + (c / m).toFixed(2);
+    };
+    $('s3raw').textContent = norm3(mr, mg, mb);
+    $('s3ind').textContent = '1.00 : 1.00 : 1.00';
+    $('s3li').textContent = cov(mr, mg, mb).toFixed(0) + '%';
+    $('s3lc').textContent = cov(common, common, common).toFixed(0) + '%';
+  }
+
+  /* ------------------------------------------------------------- step 4 */
+  function coverageCurve() {
+    const key = 'curve|' + S.fd + '|' + S.noise;
+    if (CACHE[key]) return CACHE[key];
+    const fs = [], cs = [];
+    for (let f = 10; f <= 86; f += 4) { fs.push(f); cs.push(coverage(isoMap(f))); }
+    CACHE[key] = { fs, cs };
+    return CACHE[key];
+  }
+
+  function drawStep4() {
+    const el = $('c4');
+    if (!el) return;
+    const w = contentWidth(el), h = mapHeight(w, 430);
+    const ctx = SEIS.fitCanvas(el, w, h);
+    ctx.clearRect(0, 0, w, h);
+    const rect = { x: M.l + 12, y: M.t, w: w - M.l - M.r - 24, h: h - M.t - M.b };
+    const cc = coverageCurve();
+    SEIS.frame(ctx, rect);
+    ctx.save();
+    ctx.beginPath(); ctx.lineWidth = 2.2; ctx.strokeStyle = TEAL;
+    cc.fs.forEach((f, k) => {
+      const X = rect.x + ((f - 10) / 76) * rect.w;
+      const Y = rect.y + rect.h - clamp(cc.cs[k] / 100, 0, 1) * rect.h;
+      k ? ctx.lineTo(X, Y) : ctx.moveTo(X, Y);
+    });
+    ctx.stroke(); ctx.restore();
+    SEIS.axisBottom(ctx, rect, 10, 86, 'frequency (Hz)', (v) => v.toFixed(0), { ticks: 6 });
+    SEIS.axisLeft(ctx, rect, 0, 100, 'channel lit (%)', (v) => v.toFixed(0), { ticks: 5 });
+    [[S.fr, '#c62828'], [S.fg, '#2e7d32'], [S.fb, '#1565c0']].forEach(([f, col]) => {
+      const X = rect.x + ((f - 10) / 76) * rect.w;
+      if (X >= rect.x && X <= rect.x + rect.w) {
+        SEIS.dashedLine(ctx, X, rect.y, X, rect.y + rect.h, col, [4, 3], 1.6);
+      }
+    });
+
+    let bk = 0;
+    for (let k = 1; k < cc.cs.length; k++) if (cc.cs[k] > cc.cs[bk]) bk = k;
+    const combo = (a, b2, c) => {
+      const ra = isoMap(a), rb = isoMap(b2), rc = isoMap(c);
+      const ma = maxOf(ra) || 1, mb2 = maxOf(rb) || 1, mc = maxOf(rc) || 1;
+      let lit = 0, tot = 0;
+      for (let i = 0; i < ra.length; i++) {
+        if (!onChannel(i)) continue;
+        tot++;
+        if (ra[i] > LIT * ma || rb[i] > LIT * mb2 || rc[i] > LIT * mc) lit++;
+      }
+      return tot ? 100 * lit / tot : 0;
+    };
+    $('s4best').textContent = cc.fs[bk] + ' Hz';
+    $('s4bestv').textContent = cc.cs[bk].toFixed(0) + '%';
+    $('s4yours').textContent = combo(S.fr, S.fg, S.fb).toFixed(0) + '%';
+    $('s4even').textContent = combo(14, 46, 78).toFixed(0) + '%';
+  }
+
+  /* ------------------------------------------------------------- step 5 */
+  function drawStep5() {
+    const A = $('c5a'), B = $('c5b');
+    if (!A || !B) return;
+    const pk = peaks();
+    const mm = maxOf(pk.pm) || 1;
+    const FLO = 8, FHI = 90;
+
+    const drawA = () => {
+      const w = contentWidth(A), h = mapHeight(w, 420);
+      const ctx = SEIS.fitCanvas(A, w, h);
+      ctx.clearRect(0, 0, w, h);
+      const rect = mapBox(w, h);
+      paint(ctx, rect, (i) => SEIS.SEQMAPS.structure(clamp((pk.pf[i] - FLO) / (FHI - FLO), 0, 1)));
+      axes(ctx, rect, true);
+    };
+    const drawB = () => {
+      const w = contentWidth(B), h = mapHeight(w, 420);
+      const ctx = SEIS.fitCanvas(B, w, h);
+      ctx.clearRect(0, 0, w, h);
+      const rect = mapBox(w, h);
+      paint(ctx, rect, (i) => {
+        const u = clamp((pk.pf[i] - FLO) / (FHI - FLO), 0, 1);
+        const l = 0.08 + 0.62 * clamp(pk.pm[i] / mm, 0, 1);
+        return SPEC.hslToRgb(300 + (0 - 300) * u, 0.78, l);
+      });
+      axes(ctx, rect, true);
+    };
+    drawA(); drawB();
+
+    let vis = 0, visOn = 0, dark = 0, offTot = 0;
+    for (let i = 0; i < pk.pf.length; i++) {
+      const l = pk.pm[i] / mm;
+      if (!onChannel(i)) { offTot++; if (l < 0.25) dark++; }
+      if (l >= 0.25) { vis++; if (onChannel(i)) visOn++; }
+    }
+    let rawOn = 0;
+    for (let i = 0; i < pk.pf.length; i++) if (onChannel(i)) rawOn++;
+    $('s5area').textContent = (100 * vis / pk.pf.length).toFixed(0) + '%';
+    $('s5on').textContent = vis ? (100 * visOn / vis).toFixed(0) + '%' : '—';
+    $('s5raw').textContent = (100 * rawOn / pk.pf.length).toFixed(0) + '%';
+    $('s5dark').textContent = offTot ? (100 * dark / offTot).toFixed(0) + '%' : '—';
+  }
+
+  /* =====================================================================
+     PLUMBING
+     ===================================================================== */
+  function syncLabels() {
+    $('frV').textContent = S.fr + ' Hz';
+    $('fgV').textContent = S.fg + ' Hz';
+    $('fbV').textContent = S.fb + ' Hz';
+    $('fdV').textContent = S.fd + ' Hz';
+    $('opV').textContent = S.op + '%';
+    $('noiseV').textContent = S.noise === 0 ? 'none' : S.noise + '%';
+    document.querySelectorAll('#segScale button').forEach((b) => {
+      b.setAttribute('aria-pressed', b.dataset.s === S.scale);
+      b.classList.toggle('on', b.dataset.s === S.scale);
+    });
+    document.querySelectorAll('#segOrder button').forEach((b) => {
+      b.setAttribute('aria-pressed', b.dataset.o === S.order);
+      b.classList.toggle('on', b.dataset.o === S.order);
+    });
+    document.querySelectorAll('#segLayers button').forEach((b) => {
+      const lit = !!S['l' + b.dataset.l];
+      b.setAttribute('aria-pressed', String(lit));
+      b.classList.toggle('on', lit);
+    });
+    ['fr', 'fg', 'fb', 'fd', 'op', 'noise'].forEach((k) => {
+      const el = $(k);
+      if (el && String(S[k]) !== el.value) el.value = S[k];
+    });
+  }
+  function drawAll() {
+    const lab = document.querySelector('.labhead');
+    if (lab && !lab.hidden) drawHeader();
+    if (visible('p1')) drawStep1();
+    if (visible('p2')) drawStep2();
+    if (visible('p3')) drawStep3();
+    if (visible('p4')) drawStep4();
+    if (visible('p5')) drawStep5();
+  }
+
+  const PANES = ['p1', 'p2', 'p3', 'p4', 'p5', 'pw', 'pe', 'pk', 'pm'];
+  const STEPNAMES = {
+    p1: 'Taken apart', p2: 'The colors', p3: 'Scaling', p4: 'Which three',
+    p5: 'Hue-lightness', pw: 'Why it matters', pe: 'Exercises', pk: 'Key points', pm: 'Method',
+  };
+  function buildStepNav() {
+    PANES.forEach((id, i) => {
+      const pane = $(id);
+      if (!pane || pane.querySelector('.stepnav')) return;
+      const prev = PANES[i - 1], next = PANES[i + 1];
+      const nav = document.createElement('div');
+      nav.className = 'stepnav';
+      const mk = (target, text, ghost) => {
+        const b = document.createElement('button');
+        b.type = 'button';
+        b.className = 'btn' + (ghost ? ' ghost' : '') + ' small';
+        b.textContent = text;
+        b.addEventListener('click', () => {
+          showTab(target);
+          const t = document.querySelector('.tabhint');
+          if (t && t.scrollIntoView) t.scrollIntoView({ behavior: 'smooth', block: 'start' });
+        });
+        return b;
+      };
+      nav.appendChild(prev ? mk(prev, '\u2190 ' + STEPNAMES[prev], true)
+                           : document.createElement('span'));
+      const where = document.createElement('span');
+      where.className = 'where';
+      where.textContent = i < 5 ? 'step ' + (i + 1) + ' of 5' : STEPNAMES[id];
+      nav.appendChild(where);
+      nav.appendChild(next ? mk(next, STEPNAMES[next] + ' \u2192')
+                           : document.createElement('span'));
+      pane.appendChild(nav);
+    });
+  }
+  function showTab(id) {
+    PANES.forEach((q) => { const el = $(q); if (el) el.hidden = q !== id; });
+    document.querySelectorAll('#tabs button').forEach((b) => {
+      b.setAttribute('aria-selected', b.dataset.tab === id);
+    });
+    const lab = document.querySelector('.labhead');
+    // step 5 is about peak frequency, not the three-frequency blend
+    if (lab) lab.hidden = !(id === 'p1' || id === 'p2' || id === 'p3' || id === 'p4' || id === 'p5');
+    /* The forward link lives on the pager. Show it once the reader has reached
+       the exercises, not only on the two reference tabs — a student who works
+       the exercises and stops used to have no way on to the next module. */
+    const done = (id === 'pe' || id === 'pk' || id === 'pm');
+    if ($('nextup')) $('nextup').hidden = !(id === 'pk' || id === 'pm');
+    if ($('pager')) $('pager').hidden = !done;
+    S.tab = id;
+    drawAll();
+    saveState();
+  }
+  document.querySelectorAll('#tabs button').forEach((b) => {
+    b.addEventListener('click', () => showTab(b.dataset.tab));
+  });
+  document.querySelectorAll('#segScale button').forEach((b) => {
+    b.addEventListener('click', () => { S.scale = b.dataset.s; syncLabels(); drawAll(); saveState(); });
+  });
+  document.querySelectorAll('#segOrder button').forEach((b) => {
+    b.addEventListener('click', () => { S.order = b.dataset.o; syncLabels(); drawAll(); saveState(); });
+  });
+  document.querySelectorAll('#segLayers button').forEach((b) => {
+    b.addEventListener('click', () => {
+      const key = 'l' + b.dataset.l;
+      /* Turning the last one off leaves a blank frame with no way back short of
+         reloading, so the last layer standing refuses to switch off. */
+      const others = ['lr', 'lg', 'lb'].filter((k) => k !== key).some((k) => S[k]);
+      if (S[key] && !others) return;
+      S[key] = S[key] ? 0 : 1;
+      syncLabels(); drawAll(); saveState();
+    });
+  });
+  document.addEventListener('input', (ev) => {
+    const t = ev.target;
+    if (!t || t.tagName !== 'INPUT') return;
+    const id = t.id;
+    if (!(id in DEF)) return;
+    S[id] = parseFloat(t.value);
+    syncLabels(); drawAll(); saveState();
+  });
+  let rt;
+  window.addEventListener('resize', () => { clearTimeout(rt); rt = setTimeout(drawAll, 140); });
+
+  buildStepNav();
+  syncLabels();
+  showTab(PANES.indexOf(S.tab) >= 0 ? S.tab : 'p1');
+})();
+</script>
+</body>
+</html>

@@ -1,0 +1,1334 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Putting a window on the trace | How Spectral Attributes Actually Work</title>
+<meta name="description" content="A spectrum of a whole trace says what frequencies are present but not where. The fix is a short analysis window, and the fix has a limit: sharpening time blurs frequency. The time-frequency trade, watched happening and measured.">
+<link rel="stylesheet" href="../assets/fonts.css">
+<link rel="stylesheet" href="../assets/style.css">
+</head>
+<body>
+
+<div class="wrap">
+  <header class="masthead">
+    <a class="brand" href="../index.html"><span class="dot"></span>How spectral attributes <b>actually</b> work</a>
+    <nav>
+      <a href="../index.html">All modules</a>
+      <a href="spectrum.html">← Module 01</a>
+      <a href="#notes">Method &amp; references</a>
+    </nav>
+  </header>
+
+  <div class="mod-head">
+    <p class="eyebrow">Module 02 &nbsp;·&nbsp; Spectral attributes</p>
+    <h1>Putting a window on the trace</h1>
+    <p class="sub">Module 01 took the spectrum of a single wavelet, which contained one event. A real trace contains hundreds of events at different depths, and their frequency content varies from one to the next. A spectrum of the whole trace reports which frequencies are present and reports nothing about where they are. These five steps put a window on the trace, measure what the window does to the answer, and put numbers on the trade.</p>
+  </div>
+
+  <div class="labhead">
+    <div class="labgrid">
+      <div>
+        <p class="cap">Two events, five traces <span>&mdash; and the spectrum of the middle one</span></p>
+        <canvas id="cHead" aria-label="A synthetic trace with two events beside the spectrum of the whole trace"></canvas>
+      </div>
+      <div>
+        <p class="cap">Build the trace <span>&mdash; every step updates as you drag</span></p>
+        <div class="controls" id="winControls">
+          <div class="ctl-col">
+            <h2>The events</h2>
+            <div class="ctl">
+              <label for="fa">Shallow event &mdash; thin beds <span class="val" id="faV">50 Hz</span></label>
+              <input type="range" data-key="fa" id="fa" min="15" max="90" step="1" value="50">
+            </div>
+            <div class="ctl">
+              <label for="fb">Deep event &mdash; thicker beds <span class="val" id="fbV">20 Hz</span></label>
+              <input type="range" data-key="fb" id="fb" min="10" max="90" step="1" value="20">
+            </div>
+            <div class="ctl">
+              <label for="tb">Deep event time <span class="val" id="tbV">400 ms</span></label>
+              <input type="range" data-key="tb" id="tb" min="240" max="460" step="5" value="400">
+            </div>
+          </div>
+          <div class="ctl-col">
+            <h2>The window</h2>
+            <div class="ctl">
+              <label for="win">Window length <span class="val" id="winV">80 ms</span></label>
+              <input type="range" data-key="win" id="win" min="20" max="300" step="10" value="80">
+            </div>
+            <p class="hint-line">Steps 2, 3 and 4 all use this window.</p>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <p class="tabhint">Work through the five steps in order, <b>then try the exercises</b>.
+    Method and references are there when you want them. Steps 4 and 5 are marked as advanced: they
+    put numbers on the limit that steps 1 to 3 establish, and nothing later in the set depends on
+    them.</p>
+  <nav class="tabs" id="tabs" role="tablist" aria-label="Module steps">
+    <button role="tab" data-tab="p1" aria-selected="false">1 · No location</button>
+    <button role="tab" data-tab="p2" aria-selected="false">2 · One window</button>
+    <button role="tab" data-tab="p3" aria-selected="false">3 · All windows</button>
+    <button role="tab" data-tab="p4" aria-selected="false">4 · Advanced: the trade</button>
+    <button role="tab" data-tab="p5" aria-selected="false">5 · Advanced: leakage</button>
+    <button role="tab" data-tab="pw" aria-selected="false">Why it matters</button>
+    <span class="gap"></span>
+    <button role="tab" data-tab="pe" aria-selected="false">Exercises</button>
+    <button role="tab" data-tab="pk" aria-selected="false">Key points</button>
+    <button role="tab" data-tab="pm" aria-selected="false">Method</button>
+  </nav>
+
+  <!-- =============================== STEP 1 =============================== -->
+  <section class="tabpane" id="p1" role="tabpanel" hidden>
+    <div class="plot-head" style="margin-bottom:14px">
+      <h3><span class="stepno">1</span>One spectrum, two different traces</h3>
+      <span class="hint">Swap the events over and nothing changes</span>
+    </div>
+    <p class="qbox"><b>Why this step is here.</b> A spectrum of a trace shows energy at 20 Hz and at 60 Hz. Which part of the section did each come from?</p>
+    <p class="lede">Each panel below is a short section: five traces side by side, two-way time down the
+      left, positive lobes shaded, which is how a seismic display is normally read. The two events are
+      given a gentle dip so the panel reads as a section. Every number on this page is measured on the
+      middle trace.</p>
+
+    <p class="lede">The right-hand panel is the same section with the two events swapped: low frequency
+      on top, high frequency underneath. The two describe different geology. Their whole-trace spectra
+      are identical.</p>
+
+    <p class="lede"><b>What the two events stand for.</b> An interval of thin interbedded sands and
+      shales returns reflections spaced closely in time, and the energy it sends back is concentrated at
+      high frequencies. A thicker, more massive unit returns reflections spaced further apart and sends
+      back lower frequencies. Which of the two lies above the other is a stratigraphic fact about the
+      section, and the whole-trace amplitude spectrum does not contain it. A survey described as
+      "30 Hz data" is being described by one number taken over an entire record, which belongs to no
+      interval in it.</p>
+
+    <div class="sec-row">
+      <div class="panel-col">
+        <p class="sublabel"><b>As built</b> <span class="note">high above low</span></p>
+        <canvas id="c1a" aria-label="The section as built, with the whole-trace spectrum of its middle trace"></canvas>
+      </div>
+      <div class="panel-col">
+        <p class="sublabel"><b>Events swapped</b> <span class="note">low above high</span></p>
+        <canvas id="c1b" aria-label="The same two events in the opposite order, with the same spectrum"></canvas>
+      </div>
+    </div>
+    <div class="stats">
+      <div class="stat key"><span>Largest spectral difference</span><b id="s1diff">—</b></div>
+      <div class="stat"><span>Peak frequency, as built</span><b id="s1pa">—</b></div>
+      <div class="stat"><span>Peak frequency, swapped</span><b id="s1pb">—</b></div>
+      <div class="stat"><span>Mean frequency, both</span><b id="s1mean">—</b></div>
+    </div>
+    <div class="legend prose">
+      <p class="lede">A Fourier transform of a whole trace does not record when anything happened. The timing is still present in the phase spectrum, which is how the trace can be reconstructed exactly, but the amplitude spectrum on its own carries none of it. Every spectral attribute is built on amplitude, so every one of them needs the timing supplied some other way.</p>
+    </div>
+  </section>
+
+  <!-- =============================== STEP 2 =============================== -->
+  <section class="tabpane" id="p2" role="tabpanel" hidden>
+    <div class="plot-head" style="margin-bottom:14px">
+      <h3><span class="stepno">2</span>The analysis window</h3>
+      <span class="hint">Slide it down the section and watch the spectrum change</span>
+    </div>
+    <p class="qbox"><b>Why this step is here.</b> A decomposition asks for a window length. What is the window for?</p>
+    <p class="lede">The gray band across the section is the analysis window. Everything outside it is excluded, and the spectrum beside it is of the middle trace within that band. Moving it over the shallow event raises the spectral peak; moving it over the deep event lowers the peak; placing it between them produces both humps at once, which is the whole-trace answer measured over a shorter interval.</p>
+
+    <div class="ctl" style="max-width:460px;margin:0 0 12px">
+      <label for="pos">Window center <span class="val" id="posV">160 ms</span></label>
+      <input type="range" id="pos" min="60" max="580" step="5" value="160">
+    </div>
+    <div class="sec-row">
+      <div class="panel-col">
+        <p class="sublabel"><b>The section, with the window across it</b> <span class="note">fixed axes</span></p>
+        <canvas id="c2a" aria-label="A short section of five traces with the analysis window highlighted"></canvas>
+      </div>
+      <div class="panel-col">
+        <p class="sublabel"><b>Spectrum of what is inside the window</b> <span class="note">fixed axes</span></p>
+        <canvas id="c2b" aria-label="Spectrum of the windowed piece of trace"></canvas>
+      </div>
+    </div>
+    <div class="stats">
+      <div class="stat key"><span>Peak frequency in window</span><b id="s2peak">—</b></div>
+      <div class="stat"><span>Window center</span><b id="s2pos">—</b></div>
+      <div class="stat"><span>Window length</span><b id="s2len">—</b></div>
+      <div class="stat"><span>Energy in window</span><b id="s2amp">—</b></div>
+    </div>
+    <div class="legend prose">
+      <p class="lede">That is spectral decomposition, carried out one window at a time. The result is a spectrum that belongs to a time rather than to the trace. Everything in the modules that follow refines it: doing it at every sample, choosing the window automatically, and handling what the window does to the answer.</p>
+      <p class="lede">The window is the interval the answer describes, so it is a stratigraphic choice
+        before it is a processing one. A window of 40 ms centered on a reservoir 20 ms thick contains
+        the reservoir and 10 ms of whatever lies above and below it, and the spectrum that comes back
+        describes all three. Lengthening the window to resolve frequency better draws in more of the
+        overburden and the underburden; shortening it to isolate the reservoir gives a spectrum too
+        coarse to locate a notch in. The interval that is geologically meaningful and the interval that
+        gives a well-resolved spectrum are usually not the same interval, and the size of the gap
+        between them is what step 4 measures.</p>
+    </div>
+  </section>
+
+  <!-- =============================== STEP 3 =============================== -->
+  <section class="tabpane" id="p3" role="tabpanel" hidden>
+    <div class="plot-head" style="margin-bottom:14px">
+      <h3><span class="stepno">3</span>Every window at once: the spectrogram</h3>
+      <span class="hint">Time across, frequency up, amplitude in color</span>
+    </div>
+    <p class="qbox"><b>Why this step is here.</b> A time-frequency image shows a bright blob. How much of its size is the geology and how much is the window?</p>
+    <p class="lede">The image reads as a map: two bright regions, one high-frequency and early, one low-frequency and late. Taking the window length slider in the header from one end to the other changes their shapes. Neither region is a point, and no window length makes both of them small at once.</p>
+
+    <div class="plot">
+      <div class="plot-head">
+        <h3>Time-frequency plot of the whole trace</h3>
+        <span class="hint">Change the window length in the header</span>
+      </div>
+      <canvas id="c3" aria-label="Spectrogram of the trace, with a color bar"></canvas>
+    </div>
+    <div class="stats">
+      <div class="stat key"><span>Window length</span><b id="s3len">—</b></div>
+      <div class="stat"><span>Lowest frequency the window holds</span><b id="s3floor">—</b></div>
+      <div class="stat"><span>Shallow blob, time spread</span><b id="s3tw">—</b></div>
+      <div class="stat"><span>Shallow blob, frequency spread</span><b id="s3fw">—</b></div>
+    </div>
+    <div class="legend prose">
+      <span><b>Neither region is a point, and no setting makes both of them small.</b> At a 20 ms window
+      <b>the shallow blob measures 18 ms by 108 Hz</b>: tight in time, hopeless in frequency. At 300 ms it is
+      151 ms by 58 Hz. There is no setting where it is tight in both directions, and that is not a
+      shortcoming of the software. Note that the frequency width stops improving. It barely moves between
+      80 ms and 300 ms, because past that point the window is no longer what limits it. The event has a
+      bandwidth of its own, and nothing can be measured as narrower than the thing being measured. That is why the next step measures the window on its own. The readout for the
+      lowest frequency the window can hold makes the other half of the point: 40 ms cannot fit one cycle
+      of anything below 25 Hz, so whatever the picture shows below that is not a measurement.</span>
+      <p class="lede">A spectrogram of a real trace is read the same way. A downward drift of the bright
+        region toward lower frequencies over hundreds of milliseconds is absorption, and is a property
+        of everything the wave has passed through rather than of the interval it is drawn at. An abrupt
+        local shift confined to a few tens of milliseconds is a property of that interval, and is the
+        kind of feature module 09 examines. Separating the two requires knowing how much of the vertical
+        extent of a bright region came from the window, which is what the readouts above measure.</p>
+    </div>
+  </section>
+
+  <!-- =============================== STEP 4 =============================== -->
+  <section class="tabpane" id="p4" role="tabpanel" hidden>
+    <div class="plot-head" style="margin-bottom:14px">
+      <h3><span class="stepno">4</span>Advanced concept: measuring the trade</h3>
+      <span class="hint">Sharpen one and the other blurs, every time</span>
+    </div>
+    <p class="qbox"><b>Why this step is here.</b> Halving the window length doubles the frequency smear. Is that an exact relationship or a rule of thumb?</p>
+    <p class="lede">Moving the window length through its range moves the two widths in opposite directions. The third readout is their product.</p>
+
+    <div class="sec-row">
+      <div class="panel-col">
+        <p class="sublabel"><b>A spike, through the window</b> <span class="note">fixed axes, ±160 ms</span></p>
+        <canvas id="c4a" aria-label="The window's time response, measured with a spike"></canvas>
+      </div>
+      <div class="panel-col">
+        <p class="sublabel"><b>A pure tone, through the window</b> <span class="note">fixed axes</span></p>
+        <canvas id="c4b" aria-label="The window's frequency response, measured with a pure tone"></canvas>
+      </div>
+    </div>
+    <div class="stats">
+      <div class="stat"><span>Window length</span><b id="s4win">—</b></div>
+      <div class="stat"><span>Time resolution</span><b id="s4t">—</b></div>
+      <div class="stat"><span>Frequency resolution</span><b id="s4f">—</b></div>
+      <div class="stat key"><span>Their product (s·Hz)</span><b id="s4p">—</b></div>
+    </div>
+    <div class="legend prose">
+      <span><b>The product does not move.</b> Frequency resolution is measured here as the full width at
+      half maximum of the window's frequency response, which for a Hann window is about 2/<i>T</i>. Two
+      tones can usually be told apart once they are separated by roughly half that, about 1/<i>T</i>, and
+      module 08 uses that separation figure. Both describe the same limit.
+      Put in stratigraphic terms: a window long enough to separate two notches 8 Hz apart, which is what
+      distinguishing a 60 ms bed from a 65 ms bed requires, is about 250 ms long, and 250 ms of section
+      at 2500 m/s is some 300 m of rock. The thickness is measured over an interval far larger than the
+      bed being measured. This is the reason a spectral thickness estimate is a property of a package
+      rather than of a single bed, and the reason two beds within one window cannot be told apart. Across the whole slider the
+      time resolution changes by a factor of fifteen, from 10 ms to 150 ms, and the frequency resolution
+      changes by a factor of fourteen and a half, from 97.4 Hz down to 6.7 Hz. Their product reads 1.00 at every single setting.
+      The two numbers are not independent quantities that happen to be related; they are one quantity,
+      seen from two sides. Time resolution comes out at exactly half the window length and frequency
+      resolution at almost exactly two divided by it, so the product is fixed before any parameter is set.
+      That is the uncertainty principle — the same one physics students meet attached to Heisenberg — and
+      it is a property of the Fourier transform rather than of seismic data or of software. No amount of
+      cleverness in a processing shop gets around it. What <em>can</em> get around it is refusing to use a
+      fixed window at all and assuming something about the signal instead, which is what the
+      matching pursuit and maximum entropy methods in module 08 do, and exactly why they can fail in ways
+      a window never can.</span>
+    </div>
+  </section>
+
+  <!-- =============================== STEP 5 =============================== -->
+  <section class="tabpane" id="p5" role="tabpanel" hidden>
+    <div class="plot-head" style="margin-bottom:14px">
+      <h3><span class="stepno">5</span>Advanced concept: window shape and leakage</h3>
+      <span class="hint">One pure tone, three windows</span>
+    </div>
+    <p class="qbox"><b>Why this step is here.</b> A spectrogram shows energy at a frequency the data cannot contain. Where did it come from?</p>
+    <p class="lede">Below is a single pure tone put through each window shape in turn. Its spectrum should be one spike. The readout measures how much of it appears elsewhere.</p>
+
+    <div class="seg" id="segWin" role="group" aria-label="Window shape" style="margin-bottom:14px">
+      <button type="button" data-w="boxcar">Boxcar</button>
+      <button type="button" data-w="hann">Hann</button>
+      <button type="button" data-w="gauss">Gaussian</button>
+    </div>
+    <div class="sec-row">
+      <div class="panel-col">
+        <p class="sublabel"><b>The window on the tone</b> <span class="note">what actually gets transformed</span></p>
+        <canvas id="c5a" aria-label="A pure tone multiplied by the chosen window shape"></canvas>
+      </div>
+      <div class="panel-col">
+        <p class="sublabel"><b>The spectrum it produces</b> <span class="note">log scale, fixed axes</span></p>
+        <canvas id="c5b" aria-label="Spectrum of the windowed tone on a log amplitude scale"></canvas>
+      </div>
+    </div>
+    <div class="stats">
+      <div class="stat key"><span>Window shape</span><b id="s5w">—</b></div>
+      <div class="stat"><span>Worst leakage</span><b id="s5leak">—</b></div>
+      <div class="stat"><span>Main peak width</span><b id="s5main">—</b></div>
+      <div class="stat"><span>Peak frequency found</span><b id="s5pk">—</b></div>
+    </div>
+    <div class="legend prose">
+      <span><b>Leakage puts energy at frequencies that were never in the ground.</b> The boxcar's worst
+      sidelobe reaches 0.223 of the peak, which is −13 dB: a fifth of the amplitude of a real event,
+      sitting at a frequency that was never there. Hann brings that to 0.027 (−31 dB) and the Gaussian to
+      0.0066 (−44 dB) — eight and thirty times better. Their main peaks are correspondingly wider, 25.4 and
+      24.2 Hz against the boxcar's 14.7 Hz, which is the same trade as everywhere else in this module, in
+      miniature.
+      Every spectral decomposition program applies a taper for this reason, and the AASPI programs apply
+      one at the top and bottom of the input as well, to stop the ends of the record behaving like two
+      enormous artificial steps.
+      Leakage matters for interpretation because it fills in the notches. A thin bed announces itself by
+      a minimum in the spectrum at a frequency set by its thickness, and leakage from the strong energy
+      on either side of that minimum partly fills it. A bed present in the ground can therefore leave a
+      notch too shallow to pick, and the thickness that would have followed from its position is
+      unavailable.</span>
+    </div>
+  </section>
+
+  <!-- ============================ WHY IT MATTERS =========================== -->
+  <section class="tabpane" id="pw" role="tabpanel" hidden>
+    <div class="plot-head" style="margin-bottom:14px">
+      <h3>Why it matters</h3>
+      <span class="hint">Where this shows up in real work</span>
+    </div>
+    <p class="lede">Window length is a parameter every spectral decomposition requires, usually with no guidance offered. These five steps are what the choice rests on.</p>
+    <ul class="lede" style="padding-left:20px">
+      <li><b>Choosing a window for a target.</b> A thin reservoir needs time resolution, so it needs a
+        short window and will be measured coarsely in frequency. A gradual attenuation trend needs
+        frequency resolution and can afford a long one. You cannot have a setting that suits both, so
+        decide which of the two questions the analysis is asking before running it.</li>
+      <li><b>Knowing when a low-frequency reading is fictional.</b> If the window cannot hold one cycle of
+        the frequency you asked for, the number that comes back is an extrapolation. The readout in step 3
+        tells you where that line falls.</li>
+      <li><b>Reading someone else's spectral volume.</b> Two decompositions of the same survey with
+        different window lengths will disagree, and neither is wrong. If the parameter is not recorded,
+        the volume is much harder to argue with.</li>
+      <li><b>Understanding why there are several programs.</b> Every method in module 08 is a different
+        answer to the trade you measured in step 4 — a fixed window, a window that scales with frequency,
+        or no window and a model instead.</li>
+      <li><b>Explaining a strange edge effect.</b> Ringing at the top and bottom of a spectral volume is
+        usually the taper in step 5 — or the absence of one.</li>
+    </ul>
+    <p class="lede"><b>Two mistakes worth naming.</b> The first is reading a spectrogram as though its bright regions were measurements of real objects. They are the true signal convolved with the smear the window choice imposed, and the smear is often the larger of the two. The second is comparing two time-frequency images made with different window lengths. Their blobs differ in size for reasons that have nothing to do with the rocks.</p>
+    <div class="legend prose">
+      <span>The window length is part of what a time-frequency image reports. An image presented without it is an instrument reading with no scale on the dial.</span>
+    </div>
+  </section>
+
+  <!-- ============================== EXERCISES ============================= -->
+  <section class="tabpane" id="pe" role="tabpanel" hidden>
+    <div class="tryit" style="max-width:none">
+      <h3>Exercises</h3>
+      <ol>
+        <li><b>Show that a whole-trace spectrum carries no timing.</b>
+          <em class="point">Why: "the spectrum of this survey" describes what is present and not where any of it is.</em>
+          In step 1, move the deep event time
+          across its whole range and watch the difference readout.
+          <em class="predict">Before moving it: the two traces hold the same two events at different depths. Should their amplitude spectra differ, and if so where?</em>
+          <details class="reveal"><summary>Hint</summary><span class="ans">It stays at zero wherever you
+            put the event. The two spectra are identical no matter how the events are arranged, because
+            an amplitude spectrum records how much of each frequency is present and nothing whatever about
+            when. Try changing the event frequencies too: now the spectrum changes, because the
+            <em>content</em> changed. Timing does not affect it, content does. That is the exact
+            distinction spectral decomposition exists to repair, and it is why "the spectrum of this
+            survey" is a much less useful object than people assume when they quote it in a
+            report.</span></details></li>
+        <li><b>Measure each event's frequency by moving the window.</b>
+          <em class="point">Why: this is spectral decomposition done one window at a time, and the numbers come back out of the data rather than being assumed.</em>
+          In step 2, park the window on the shallow
+          event, read the peak frequency, then park it on the deep one.
+          <details class="reveal"><summary>Hint</summary><span class="ans">Over the shallow event at 160 ms
+            the readout is close to 50 Hz, and over the deep one at 400 ms close to 20 Hz — the numbers
+            the events were built with, recovered from the data rather than assumed. Now park the window
+            between them, around 280 ms. The energy readout collapses to zero, and the peak frequency
+            readout goes on producing a number anyway: it pins to 2 Hz, the bottom of the axis, because
+            there is no peak to find and something has to be reported. On real data, where there is always
+            a noise floor rather than true silence, that number would not look obviously broken — it would
+            look like a low-frequency anomaly. Remember this for module 06: a peak frequency map means
+            nothing wherever the magnitude is small, which is why AASPI displays peak frequency modulated
+            by peak magnitude rather than on its own.</span></details></li>
+        <li><b>Set a window too short for the frequency being measured.</b>
+          <em class="point">Why: a window that is too short does not fail visibly. It returns a confident number that is wrong.</em>
+          In step 3, set the window length to its shortest and read
+          the lowest frequency the window can hold, then compare it with where the deep event sits.
+          <details class="reveal"><summary>Hint</summary><span class="ans">At a 20 ms window the floor reads
+            50 Hz, so a 20 Hz event is being described by a window that cannot contain a single cycle of
+            it. The blob does not disappear — that is the trap — it smears into a broad, weak, badly
+            placed stain, and a peak frequency picked from it is wrong rather than absent. At 40 ms the
+            floor is 25 Hz, still above the event. At 80 ms it is 12.5 Hz, comfortably below, and the blob
+            firms up. The rule to carry: a window has to be several times longer than the period of the
+            lowest frequency being measured, and a period is 1/f — 50 ms for a 20 Hz event.</span></details></li>
+        <li><b>Measure the time-frequency trade.</b>
+          <em class="point">Why: the limit belongs to the Fourier transform, not to this trace or this code, so every fixed-window method meets it.</em>
+          In step 4, take the window length from 20 ms to
+          300 ms, recording the time resolution, the frequency resolution and their product.
+          <details class="reveal"><summary>Hint</summary><span class="ans">Time resolution runs 10, 20, 30,
+            40, 60, 100, 150 ms — exactly half the window length each time. Frequency resolution runs
+            97.4, 51.0, 33.9, 25.3, 16.8, 10.1, 6.7 Hz, which is almost exactly 2 divided by the window
+            length. Each factor moves by about fifteen times across the slider. The product reads 1.00
+            throughout. That product is a property of the Fourier transform rather than of this trace or this code, so it is not measuring
+            a property of the Fourier transform, which is why every fixed-window method has the same
+            ceiling, and why the interesting methods in module 08 are the ones that stop using a fixed
+            window.</span></details></li>
+        <li><b>Compare the three window shapes for leakage.</b>
+          <em class="point">Why: leakage puts amplitude at frequencies the data never contained, and the window shape decides how much.</em>
+          In step 5, switch between the three window
+          shapes and compare the leakage readouts.
+          <details class="reveal"><summary>Hint</summary><span class="ans">The boxcar's worst sidelobe is
+            0.223 of the peak, or −13 dB. Hann gives 0.027 (−31 dB) and the Gaussian 0.0066 (−44 dB) —
+            eight and thirty times cleaner. They pay in main-peak width: 25.4 Hz and 24.2 Hz against the
+            boxcar's 14.7 Hz, so the boxcar really does have the sharpest main peak, which is exactly the
+            trap. On one clean tone the boxcar looks tolerable because there is nothing for the leaked
+            energy to fall on. On real data there always is, and a fifth of a strong event's amplitude
+            landing at a completely different frequency is indistinguishable from geology.</span></details></li>
+              <li><b>Give one low-frequency blob on a spectrogram three explanations.</b> In step 3, set a
+          long window, find a blob low on the frequency axis, then shorten the window and watch it.
+          <details class="reveal"><summary>Hint</summary><span class="ans">A blob low on the frequency
+            axis of a spectrogram has at least three causes, and the picture does not separate them. The
+            event may genuinely be low frequency. The window may be too short to hold a cycle of what it
+            is reporting, in which case the value below that floor is an extrapolation rather than a
+            measurement — the readout in step 3 tells you where the floor sits. Or the blob may be
+            leakage from a strong event at another frequency, spread there by the window shape rather
+            than by anything in the ground, which is step 5. Changing the window length separates the
+            first from the second and third: a real feature stays where it is, while a window artifact
+            moves when the window does. That single test is the most useful habit in this module.</span></details></li>
+</ol>
+    </div>
+  </section>
+
+  <!-- ============================= KEY POINTS ============================= -->
+  <section class="tabpane" id="pk" role="tabpanel" hidden>
+    <div class="takeaway">
+      <h3>Key points</h3>
+      <ul>
+        <li><b>An amplitude spectrum of a whole trace has no sense of time.</b> Rearrange the events and
+          it does not change. Any question of the form "is this interval lower frequency than that one"
+          is unanswerable from it.</li>
+        <li><b>The fix is a short analysis window,</b> giving a spectrum that belongs to a place rather
+          than to the whole trace. Doing that at every sample produces a time-frequency plot, which is
+          what every spectral attribute is computed from.</li>
+        <li><b>Window length is the parameter that matters most,</b> and there is no correct
+          value — only a value that suits the question. Short favors time, long favors frequency.</li>
+        <li><b>Sharpening one direction blurs the other, and the product is nearly fixed.</b> That is the
+          uncertainty principle, a property of the transform rather than of the data or the software.</li>
+        <li><b>A window shorter than one cycle of your target frequency is not measuring it.</b> The
+          picture still shows something, which is what makes it dangerous.</li>
+        <li><b>Window shape matters as much as window length.</b> A sharp-edged window leaks energy across
+          the whole band, where it is indistinguishable from signal; a taper suppresses it and broadens
+          the main peak slightly in return.</li>
+      </ul>
+    </div>
+    <div class="takeaway" style="margin-top:18px">
+      <h3>Words introduced here</h3>
+      <dl class="terms">
+        <dt>analysis window</dt>
+        <dd>The short piece of trace a spectrum is taken over. Everything outside it is excluded.</dd>
+        <dt>window length</dt>
+        <dd>How long that piece is. The parameter every spectral decomposition asks for.</dd>
+        <dt>spectrogram, or time-frequency plot</dt>
+        <dd>Spectral amplitude plotted with time along one axis and frequency along the other.</dd>
+        <dt>time resolution</dt>
+        <dd>How closely two events can sit in time and still be seen separately.</dd>
+        <dt>frequency resolution</dt>
+        <dd>How closely two frequencies can sit and still be seen separately. For a Hann window of
+          length T it is about 2/T.</dd>
+        <dt>window shape, or taper</dt>
+        <dd>How the window fades to zero at its ends. Boxcar, Hann and Gaussian are the common ones.</dd>
+        <dt>magnitude</dt>
+    <dd>The height of the amplitude spectrum at one frequency, in one
+      window.</dd>
+    <dt>leakage</dt>
+        <dd>Spectral amplitude appearing at frequencies that were not in the data, caused by the window
+          rather than by the rocks.</dd>
+        <dt>sidelobe</dt>
+        <dd>The largest of those false peaks, quoted as a fraction of the true peak.</dd>
+      </dl>
+    </div>
+
+  </section>
+
+  <!-- =============================== METHOD =============================== -->
+  <section class="tabpane" id="pm" role="tabpanel" hidden>
+    <div class="plot-head" style="margin-bottom:14px">
+      <h3 id="notes">Method</h3>
+      <span class="hint">What is computed, and what is left out</span>
+    </div>
+    <p class="lede"><b>The trace.</b> Two zero-phase Ricker wavelets of the chosen peak frequencies,
+      placed at 120 ms and at the time you set, sampled at 1 ms over half a second. No noise, no
+      reflectivity series and no propagation — the point of this module is the analysis, so the input is
+      kept as simple as it can be while still having two different frequencies in two different places.</p>
+    <p class="lede"><b>The time-frequency plot</b> is a short-time Fourier transform from
+      <span class="k">assets/spectral.js</span>. At every sample the trace is multiplied by the window,
+      and the result is transformed directly at each requested frequency rather than by an FFT, so the
+      frequency axis can be sampled as finely as we like instead of being tied to the window length. The
+      transform is normalized so that a cosine of amplitude A at the analysis frequency comes back with
+      magnitude A, which makes the readouts mean something without a scale factor. AASPI does not
+      normalize this way, so absolute magnitudes here are not comparable to AASPI output — shapes and
+      ratios are.</p>
+    <p class="lede"><b>The resolution numbers in step 4</b> are measured, not derived. Time resolution is
+      the full width at half maximum of a horizontal cut through the shallow blob at its own frequency;
+      frequency resolution is the full width at half maximum of a vertical cut at its own time. Both are
+      found by walking outward from the maximum until the curve falls below half, and interpolating
+      linearly between the two samples that straddle it. The product is simply one times the other, in
+      units of milliseconds times hertz.</p>
+    <p class="lede"><b>Why the product reads 1.00 and not the number in a physics textbook.</b> The
+      uncertainty principle puts a floor under the product of a time width and a frequency width, but
+      the value of that floor depends on how "width" is measured and on the shape of the window.
+      Measured as full widths at half maximum through a Hann window, as they are here, the product works
+      out to 1. Measured as standard deviations, which is the usual convention in physics, the same
+      principle is written as a floor of 1/(4π). The constant changes with the convention. The fact that
+      the two widths trade against each other does not, and that is the part to carry forward.</p>
+    <p class="lede"><b>Leakage in step 5</b> is the largest spectral amplitude found more than 15 Hz away
+      from the true tone frequency, as a fraction of the peak. The 15 Hz exclusion is arbitrary but fixed,
+      and it exists so the measurement describes energy that has genuinely escaped rather than the natural
+      width of the main peak.</p>
+    <p class="lede"><b>Simplifications, stated plainly.</b> The window here is centered on the output
+      sample and truncated at the ends of the record rather than padded, so the first and last half-window
+      of every spectrogram is computed on less data than the middle and should not be interpreted — real
+      software pads or tapers instead, and AASPI applies a taper to the top and bottom of the input for
+      exactly this reason. The spectrogram is computed at every sample, which no production code does for
+      a whole survey. And all three window shapes here are symmetric and zero phase; the phase of the
+      analysis is left entirely alone until module 03.</p>
+    <p class="lede"><b>Where this departs from production software.</b> The short-time Fourier transform
+      shown here is not what any of the AASPI spectral programs use — they use a wavelet transform,
+      matching pursuit or a sparse inversion, all of which module 08 compares. The STFT is here because it
+      is the one method where the trade can be seen directly, with a single slider that means exactly one
+      thing. Every other method makes the same trade less visibly.</p>
+    <details class="reveal">
+      <summary>References</summary>
+      <ul class="lede" style="padding-left:20px">
+        <li>Gabor, D., 1946, Theory of communication: <em>Journal of the IEE</em>, <b>93</b>,
+          429&ndash;457.</li>
+        <li>Harris, F. J., 1978, On the use of windows for harmonic analysis with the discrete Fourier
+          transform: <em>Proceedings of the IEEE</em>, <b>66</b>, 51&ndash;83.</li>
+        <li>Chakraborty, A., and D. Okaya, 1995, Frequency-time decomposition of seismic data using
+          wavelet-based methods: <em>Geophysics</em>, <b>60</b>, 1906&ndash;1916.</li>
+        <li>Castagna, J. P., and S. Sun, 2006, Comparison of spectral decomposition methods:
+          <em>First Break</em>, <b>24</b>, 75&ndash;79.</li>
+        <li>AASPI, <em>Spectral Attributes: Program spec_max_entropy</em>, University of Oklahoma — for
+          the window-length and frequency-sampling discussion.</li>
+      </ul>
+    </details>
+  </section>
+
+  <section class="nextup" id="nextup" hidden>
+    <p class="eyebrow">Next up</p>
+    <h3>03 · What actually comes out of a spectral decomposition</h3>
+    <p>You have made a time-frequency plot. Real software hands you volumes with names like
+      spec_mag_3d_cwt_20 — magnitude, phase and voice, one set per frequency. Time to find out what each
+      of them actually is.</p>
+    <a class="btn ghost" href="components.html">Module 03 →</a>
+  </section>
+
+  <div class="pager" id="pager" hidden>
+    <a class="btn ghost" href="spectrum.html">← Module 01: what a spectrum is</a>
+    <a class="btn ghost" href="../index.html">All modules</a>
+    <a class="btn ghost" href="components.html">Module 03: what comes out of a decomposition →</a>
+  </div>
+
+  <footer>
+    <div class="foot-grid">
+      <p>Built for teaching by Dr. Heather Bedle and Dr. April Moreno-Ward, University of Oklahoma, with
+        the <a href="https://www.ou.edu/mcee/labs/aaspi">AASPI</a> consortium.</p>
+      <p class="lic">To cite: H. Bedle and A. Moreno-Ward, 2026, <i>How Spectral Attributes Actually
+        Work: A Set of Browser-Based Interactive Modules</i>: SSRN working paper, University of Oklahoma.
+        <span class="k">SSRN: [article link to follow]</span></p>
+      <p class="lic">Licensed <a href="https://creativecommons.org/licenses/by-sa/4.0/">CC BY-SA 4.0</a>.
+        Free to use, adapt and share, including in teaching, provided the source is credited and any
+        adaptation is released under the same license. If you use it in a course or a talk, a credit line
+        and a link back are all that is asked.</p>
+      <p class="lic">Nothing you do in this module leaves your browser. The only thing recorded is that
+        the page was opened, so that the university can see these are being used &mdash; no cookie, no
+        account, nothing about you.</p>
+    </div>
+  </footer>
+</div>
+
+<script src="../assets/count.js"></script>
+<script src="../assets/popout.js"></script>
+<script src="../assets/panelout.js"></script>
+<script src="../assets/glossary.js"></script>
+<script src="../assets/seismic.js"></script>
+<script src="../assets/spectral.js"></script>
+<script>
+(function () {
+  'use strict';
+
+  if (typeof SEIS === 'undefined' || typeof SPEC === 'undefined') {
+    const missing = [];
+    if (typeof SEIS === 'undefined') missing.push('assets/seismic.js');
+    if (typeof SPEC === 'undefined') missing.push('assets/spectral.js');
+    const el = document.createElement('div');
+    el.setAttribute('style', 'background:#841617;color:#fff;padding:14px 18px;margin:16px 0;' +
+      'font:13px/1.6 ui-monospace,Menlo,monospace');
+    el.textContent = 'This module could not load ' + missing.join(' and ') +
+      '. It expects them one directory up, at ../assets/, and file names are ' +
+      'case-sensitive on GitHub Pages.';
+    const w = document.querySelector('.wrap');
+    (w || document.body).insertBefore(el, w ? w.firstChild : null);
+    return;
+  }
+
+  const $ = (id) => document.getElementById(id);
+  const clamp = (v, a, b) => Math.max(a, Math.min(b, v));
+  const visible = (id) => { const el = $(id); return el && !el.hidden; };
+  const CRIM = '#841617', TEAL = '#0B7285', SLATE = '#5C6670';
+
+  const DT = 0.001;                 // 1 ms
+  /* The record is long enough, and the shallow event far enough inside it, that
+     even a 10 Hz wavelet placed at either event time is complete. If either
+     wavelet is clipped by the end of the record then swapping the two events
+     changes the trace by more than their order, and step 1's whole argument
+     stops being true. */
+  const NT = 640;
+  const TA = 0.160;                 // the shallow event never moves
+  const FMAX = 110;                 // fixed frequency axis everywhere
+  const FSTEP = 1;
+  const FREQS = [];
+  for (let f = 2; f <= FMAX; f += FSTEP) FREQS.push(f);
+  const GFREQS = [];                // the image grid, half as fine, for speed
+  for (let f = 2; f <= FMAX; f += 2) GFREQS.push(f);
+
+  const DEF = {
+    fa: 50, fb: 20, tb: 400, win: 80, pos: 160, wshape: 'hann', tab: 'p1',
+  };
+  let S = SEIS.readState(DEF);
+  if (['boxcar', 'hann', 'gauss'].indexOf(S.wshape) < 0) S.wshape = 'hann';
+
+  const CAN_LINK = location.protocol !== 'file:';
+  const saveState = () => {
+    if (!CAN_LINK) return;
+    try { SEIS.writeState(S, DEF); } catch (e) { /* nothing shareable */ }
+  };
+
+  /* =====================================================================
+     THE TRACE
+     Two Ricker wavelets, different peak frequencies, different times.
+     swap=true puts the low frequency on top, which is step 1's whole point.
+     ===================================================================== */
+  function buildTrace(swap) {
+    const wa = SEIS.makeWavelet({ type: 'ricker', f: swap ? S.fb : S.fa });
+    const wb = SEIS.makeWavelet({ type: 'ricker', f: swap ? S.fa : S.fb });
+    const tb = S.tb / 1000;
+    const tr = new Float64Array(NT);
+    for (let i = 0; i < NT; i++) {
+      const t = i * DT;
+      tr[i] = wa.fn(t - TA) + wb.fn(t - tb);
+    }
+    return tr;
+  }
+
+  /* A short gather rather than one trace. A geologist reads a set of traces
+     side by side as seismic; a single amplitude-against-time curve is a signal
+     processing display and has to be translated first. The events are given a
+     gentle dip so that the panel reads as a section rather than as five copies
+     of the same trace. The center trace is the one every readout on the page is
+     computed from, and it is the one buildTrace returns. */
+  const NXG = 5;
+  const DIP = 0.006;                // 6 ms of dip per trace
+
+  function buildGather(swap) {
+    const wa = SEIS.makeWavelet({ type: 'ricker', f: swap ? S.fb : S.fa });
+    const wb = SEIS.makeWavelet({ type: 'ricker', f: swap ? S.fa : S.fb });
+    const tb = S.tb / 1000;
+    const out = new Float64Array(NXG * NT);
+    for (let ix = 0; ix < NXG; ix++) {
+      const shift = (ix - (NXG - 1) / 2) * DIP;
+      for (let i = 0; i < NT; i++) {
+        const t = i * DT;
+        out[ix * NT + i] = wa.fn(t - TA - shift) + wb.fn(t - tb - shift);
+      }
+    }
+    return out;
+  }
+
+  /* Time down the left-hand side, traces across, positive lobes filled: the
+     orientation and the shading a seismic section is read in. */
+  /* The record runs to 640 ms and both events sit between 150 and 460 of it,
+     so the panel is cropped to the part that has anything in it. Drawn over
+     the whole record the two events were a few pixels tall and swapping them
+     changed nothing visible. */
+  const GT0 = 60, GT1 = 560;             // ms shown
+
+  function drawGather(ctx, rect, gather, opts) {
+    const o = opts || {};
+    SEIS.frame(ctx, rect);
+    const tEnd = NT * DT * 1000;
+    const i0 = Math.round(GT0 / (DT * 1000)), i1 = Math.round(GT1 / (DT * 1000));
+    const nShown = i1 - i0;
+    const yOf = (tms) => rect.y + ((tms - GT0) / (GT1 - GT0)) * rect.h;
+    if (o.window) {
+      const a = yOf(o.window[0]);
+      const b = yOf(o.window[1]);
+      ctx.save();
+      ctx.fillStyle = 'rgba(11,114,133,0.13)';
+      ctx.fillRect(rect.x, a, rect.w, Math.max(1, b - a));
+      ctx.strokeStyle = 'rgba(11,114,133,0.55)'; ctx.lineWidth = 1;
+      ctx.strokeRect(rect.x + 0.5, a + 0.5, rect.w - 1, Math.max(1, b - a));
+      ctx.restore();
+    }
+    /* only the cropped part of each trace, laid out the way drawWiggle wants it */
+    const shown = new Float64Array(NXG * nShown);
+    for (let ix = 0; ix < NXG; ix++) {
+      for (let i = 0; i < nShown; i++) shown[ix * nShown + i] = gather[ix * NT + i0 + i];
+    }
+    SEIS.drawWiggle(ctx, shown, NXG, nShown, rect, {
+      clip: 1.15, excursion: 1.5, lineWidth: 1,
+      stroke: 'rgba(22,25,28,0.85)', fill: 'rgba(22,25,28,0.72)',
+    });
+    SEIS.axisLeft(ctx, rect, GT0, GT1, 'two-way time (ms)', (v) => v.toFixed(0),
+      { ticks: 5, down: true });
+    SEIS.axisBottom(ctx, rect, 1, NXG + 1, 'trace', (v) => v.toFixed(0), { ticks: 5 });
+
+    /* Each event is named on the panel with the frequency it carries. Which of
+       the two is on top is the whole subject of the step, and two unlabeled
+       wiggle packets at this size are hard to tell apart. */
+    if (o.tags) {
+      ctx.save();
+      for (const t of o.tags) {
+        const y = yOf(t.t);
+        if (y < rect.y || y > rect.y + rect.h) continue;
+        SEIS.tag(ctx, rect.x + 4, y - 26, t.text, t.color || TEAL);
+      }
+      ctx.restore();
+    }
+  }
+
+  // Direct DFT of a piece of trace at the display frequencies, normalized so a
+  // cosine of amplitude A returns A.
+  function dftOf(trace, i0, i1, wname) {
+    const n = i1 - i0;
+    if (n < 4) return FREQS.map((f) => ({ f, a: 0 }));
+    const wfn = SPEC.WINDOWS[wname] || SPEC.WINDOWS.hann;
+    const w = new Float64Array(n);
+    let wsum = 0;
+    for (let k = 0; k < n; k++) { w[k] = wfn(k / (n - 1)); wsum += w[k]; }
+    const norm = wsum > 0 ? 2 / wsum : 0;
+    const out = [];
+    for (const f of FREQS) {
+      let re = 0, im = 0;
+      for (let k = 0; k < n; k++) {
+        const t = (i0 + k) * DT;
+        const v = trace[i0 + k] * w[k];
+        const a = 2 * Math.PI * f * t;
+        re += v * Math.cos(a); im -= v * Math.sin(a);
+      }
+      out.push({ f, a: Math.hypot(re, im) * norm });
+    }
+    return out;
+  }
+
+  function peakOf(pts) {
+    let j = 0;
+    for (let k = 1; k < pts.length; k++) if (pts[k].a > pts[j].a) j = k;
+    if (j > 0 && j < pts.length - 1) {
+      const y0 = pts[j - 1].a, y1 = pts[j].a, y2 = pts[j + 1].a;
+      const den = y0 - 2 * y1 + y2;
+      if (Math.abs(den) > 1e-14) {
+        return pts[j].f + 0.5 * ((y0 - y2) / den) * FSTEP;
+      }
+    }
+    return pts[j].f;
+  }
+  function meanOf(pts) {
+    let s = 0, fs = 0;
+    for (const p of pts) { s += p.a; fs += p.a * p.f; }
+    return s > 0 ? fs / s : 0;
+  }
+  function maxOf(pts) { return pts.reduce((m, p) => Math.max(m, p.a), 0); }
+
+  /* Full width at half maximum of a sampled curve, interpolated between the
+     samples that straddle the half level. Used for both resolution numbers. */
+  function fwhm(xs, ys) {
+    let jm = 0;
+    for (let j = 1; j < ys.length; j++) if (ys[j] > ys[jm]) jm = j;
+    const half = ys[jm] / 2;
+    if (!(half > 0)) return 0;
+    let lo = xs[0], hi = xs[xs.length - 1];
+    for (let j = jm; j > 0; j--) {
+      if (ys[j] < half) {
+        const f = (half - ys[j]) / (ys[j + 1] - ys[j]);
+        lo = xs[j] + f * (xs[j + 1] - xs[j]);
+        break;
+      }
+    }
+    for (let j = jm; j < ys.length - 1; j++) {
+      if (ys[j] < half) {
+        const f = (half - ys[j]) / (ys[j - 1] - ys[j]);
+        hi = xs[j] + f * (xs[j - 1] - xs[j]);
+        break;
+      }
+    }
+    return Math.abs(hi - lo);
+  }
+
+  /* =====================================================================
+     DRAWING
+     ===================================================================== */
+  const M = { l: 54, r: 16, t: 16, b: 34 };
+  function boxOf(w, h) { return { x: M.l, y: M.t, w: w - M.l - M.r, h: h - M.t - M.b }; }
+
+  function contentWidth(el) {
+    const p = el.parentElement || el;
+    const cs = getComputedStyle(p);
+    return Math.max(240, p.clientWidth - parseFloat(cs.paddingLeft) - parseFloat(cs.paddingRight));
+  }
+
+  function series(ctx, rect, xs, ys, x0, x1, y0, y1, color, width) {
+    ctx.save();
+    ctx.beginPath();
+    ctx.lineWidth = width || 1.6;
+    ctx.strokeStyle = color;
+    let started = false;
+    for (let i = 0; i < xs.length; i++) {
+      if (xs[i] < x0 || xs[i] > x1) { started = false; continue; }
+      const X = rect.x + ((xs[i] - x0) / (x1 - x0)) * rect.w;
+      const Y = rect.y + rect.h - ((clamp(ys[i], y0, y1) - y0) / (y1 - y0)) * rect.h;
+      if (!started) { ctx.moveTo(X, Y); started = true; } else ctx.lineTo(X, Y);
+    }
+    ctx.stroke();
+    ctx.restore();
+  }
+
+  function drawTrace(ctx, rect, tr, opts) {
+    const o = opts || {};
+    const xs = [], ys = [];
+    for (let i = 0; i < NT; i++) { xs.push(i * DT * 1000); ys.push(tr[i]); }
+    SEIS.frame(ctx, rect);
+    const Y0 = rect.y + rect.h / 2;
+    SEIS.dashedLine(ctx, rect.x, Y0, rect.x + rect.w, Y0, 'rgba(92,102,112,0.45)', [3, 3], 1);
+    if (o.window) {
+      const a = rect.x + (o.window[0] / (NT * DT * 1000)) * rect.w;
+      const b = rect.x + (o.window[1] / (NT * DT * 1000)) * rect.w;
+      ctx.save();
+      ctx.fillStyle = 'rgba(11,114,133,0.13)';
+      ctx.fillRect(a, rect.y, Math.max(1, b - a), rect.h);
+      ctx.strokeStyle = 'rgba(11,114,133,0.55)'; ctx.lineWidth = 1;
+      ctx.strokeRect(a + 0.5, rect.y + 0.5, Math.max(1, b - a), rect.h);
+      ctx.restore();
+    }
+    series(ctx, rect, xs, ys, 0, NT * DT * 1000, -1.15, 1.15, o.color || CRIM, 1.6);
+    SEIS.axisBottom(ctx, rect, 0, NT * DT * 1000, 'time (ms)', (v) => v.toFixed(0), { ticks: 6 });
+    SEIS.axisLeft(ctx, rect, -1.15, 1.15, 'amplitude', (v) => v.toFixed(1), { ticks: 5 });
+  }
+
+  function drawSpectrum(ctx, rect, pts, opts) {
+    const o = opts || {};
+    const top = o.top || 1.05;
+    SEIS.frame(ctx, rect);
+    ctx.save();
+    ctx.beginPath();
+    ctx.moveTo(rect.x, rect.y + rect.h);
+    for (const p of pts) {
+      const X = rect.x + (p.f / FMAX) * rect.w;
+      const Y = rect.y + rect.h - (clamp(p.a, 0, top) / top) * rect.h;
+      ctx.lineTo(X, Y);
+    }
+    ctx.lineTo(rect.x + rect.w, rect.y + rect.h);
+    ctx.closePath();
+    ctx.fillStyle = 'rgba(11,114,133,0.14)';
+    ctx.fill();
+    ctx.restore();
+    series(ctx, rect, pts.map((p) => p.f), pts.map((p) => p.a), 0, FMAX, 0, top, TEAL, 1.8);
+    SEIS.axisBottom(ctx, rect, 0, FMAX, 'frequency (Hz)', (v) => v.toFixed(0), { ticks: 6 });
+    SEIS.axisLeft(ctx, rect, 0, top, o.ylabel || 'amplitude', (v) => v.toFixed(2), { ticks: 5 });
+  }
+
+  /* A 2D field drawn through an offscreen ImageData, then scaled up. Drawing
+     one rect per cell is far too slow at this grid size. */
+  function drawField(ctx, rect, get, nx, ny, cmap) {
+    const off = document.createElement('canvas');
+    off.width = nx; off.height = ny;
+    const octx = off.getContext('2d');
+    const img = octx.createImageData(nx, ny);
+    for (let iy = 0; iy < ny; iy++) {
+      for (let ix = 0; ix < nx; ix++) {
+        const c = cmap(get(ix, iy));
+        // image rows run top-down, frequency runs bottom-up
+        const o = ((ny - 1 - iy) * nx + ix) * 4;
+        img.data[o] = c[0]; img.data[o + 1] = c[1]; img.data[o + 2] = c[2]; img.data[o + 3] = 255;
+      }
+    }
+    octx.putImageData(img, 0, 0);
+    ctx.save();
+    ctx.imageSmoothingEnabled = true;
+    ctx.drawImage(off, rect.x, rect.y, rect.w, rect.h);
+    ctx.restore();
+    SEIS.frame(ctx, rect);
+  }
+
+  function seqColorbar(ctx, rect, cmap, label) {
+    const n = Math.max(2, Math.round(rect.w));
+    for (let i = 0; i < n; i++) {
+      const c = cmap(i / (n - 1));
+      ctx.fillStyle = 'rgb(' + c[0] + ',' + c[1] + ',' + c[2] + ')';
+      ctx.fillRect(rect.x + i * (rect.w / n), rect.y, rect.w / n + 1, rect.h);
+    }
+    ctx.save();
+    ctx.strokeStyle = 'rgba(22,25,28,.45)'; ctx.lineWidth = 1;
+    ctx.strokeRect(rect.x + 0.5, rect.y + 0.5, rect.w, rect.h);
+    ctx.font = '9.5px "IBM Plex Mono", monospace';
+    ctx.fillStyle = SLATE;
+    ctx.textBaseline = 'top'; ctx.textAlign = 'left';
+    ctx.fillText('low', rect.x, rect.y + rect.h + 4);
+    ctx.textAlign = 'right';
+    ctx.fillText('high', rect.x + rect.w, rect.y + rect.h + 4);
+    ctx.textAlign = 'center';
+    ctx.fillText(label || 'spectral amplitude', rect.x + rect.w / 2, rect.y + rect.h + 4);
+    ctx.restore();
+  }
+
+  /* =====================================================================
+     THE SPECTROGRAM, cached because several steps read the same one
+     ===================================================================== */
+  let tfCache = null, tfKey = '';
+  function spectrogram() {
+    const key = [S.fa, S.fb, S.tb, S.win, S.wshape].join('|');
+    if (tfCache && tfKey === key) return tfCache;
+    tfCache = SPEC.stft(buildTrace(false), DT, GFREQS,
+      { winLen: S.win / 1000, window: 'hann' });
+    tfKey = key;
+    return tfCache;
+  }
+
+  /* ------------------------------------------------------------- header */
+  function drawHeader() {
+    const el = $('cHead');
+    if (!el) return;
+    const w = contentWidth(el), h = 280;
+    const ctx = SEIS.fitCanvas(el, w, h);
+    ctx.clearRect(0, 0, w, h);
+    const gap = 26, split = Math.round(w * 0.40);
+    const rA = { x: M.l, y: M.t, w: split - M.l - 14, h: h - M.t - M.b };
+    const rB = { x: split + gap + M.l, y: M.t, w: w - split - gap - M.l - M.r, h: h - M.t - M.b };
+    const tr = buildTrace(false);
+    drawGather(ctx, rA, buildGather(false), {
+      tags: [{ t: TA * 1000, text: S.fa + ' Hz', color: TEAL },
+             { t: S.tb, text: S.fb + ' Hz', color: CRIM }],
+    });
+    const pts = dftOf(tr, 0, NT, 'boxcar');
+    const mx = maxOf(pts) || 1;
+    drawSpectrum(ctx, rB, pts.map((p) => ({ f: p.f, a: p.a / mx })), { ylabel: 'relative' });
+  }
+
+  /* ------------------------------------------------------------- step 1 */
+  function drawStep1() {
+    const a = $('c1a'), b = $('c1b');
+    if (!a || !b) return;
+    const trA = buildTrace(false), trB = buildTrace(true);
+    const pA = dftOf(trA, 0, NT, 'boxcar'), pB = dftOf(trB, 0, NT, 'boxcar');
+    const mx = Math.max(maxOf(pA), maxOf(pB)) || 1;
+    const nA = pA.map((p) => ({ f: p.f, a: p.a / mx }));
+    const nB = pB.map((p) => ({ f: p.f, a: p.a / mx }));
+
+    const gA = buildGather(false), gB = buildGather(true);
+    const tagsFor = (swap) => [
+      { t: TA * 1000, text: (swap ? S.fb : S.fa) + ' Hz', color: swap ? CRIM : TEAL },
+      { t: S.tb, text: (swap ? S.fa : S.fb) + ' Hz', color: swap ? TEAL : CRIM },
+    ];
+    [[a, gA, nA, false], [b, gB, nB, true]].forEach(([el, gath, pts, swap]) => {
+      const w = contentWidth(el), h = 340;
+      const ctx = SEIS.fitCanvas(el, w, h);
+      ctx.clearRect(0, 0, w, h);
+      /* the section on the left, its spectrum on the right, both full height */
+      const split = Math.round(w * 0.40);
+      const r1 = { x: M.l, y: M.t, w: split - M.l - 14, h: h - M.t - M.b };
+      const r2 = { x: split + M.l, y: M.t, w: w - split - M.l - M.r, h: h - M.t - M.b };
+      drawGather(ctx, r1, gath, { tags: tagsFor(swap) });
+      drawSpectrum(ctx, r2, pts, { ylabel: 'relative' });
+    });
+
+    let diff = 0;
+    for (let j = 0; j < nA.length; j++) diff = Math.max(diff, Math.abs(nA[j].a - nB[j].a));
+    $('s1diff').textContent = diff < 5e-4 ? '0.0000' : diff.toFixed(4);
+    $('s1pa').textContent = peakOf(pA).toFixed(1) + ' Hz';
+    $('s1pb').textContent = peakOf(pB).toFixed(1) + ' Hz';
+    $('s1mean').textContent = meanOf(pA).toFixed(1) + ' Hz';
+  }
+
+  /* ------------------------------------------------------------- step 2 */
+  function drawStep2() {
+    const a = $('c2a'), b = $('c2b');
+    if (!a || !b) return;
+    const tr = buildTrace(false);
+    const halfW = Math.round((S.win / 1000) / DT / 2);
+    const c = Math.round((S.pos / 1000) / DT);
+    const i0 = clamp(c - halfW, 0, NT - 4), i1 = clamp(c + halfW, i0 + 4, NT);
+
+    const wA = contentWidth(a), h = 340;
+    const cA = SEIS.fitCanvas(a, wA, h);
+    cA.clearRect(0, 0, wA, h);
+    drawGather(cA, boxOf(wA, h), buildGather(false), {
+      window: [i0 * DT * 1000, i1 * DT * 1000],
+      tags: [{ t: TA * 1000, text: S.fa + ' Hz', color: TEAL },
+             { t: S.tb, text: S.fb + ' Hz', color: CRIM }],
+    });
+
+    const pts = dftOf(tr, i0, i1, 'hann');
+    const wB = contentWidth(b);
+    const cB = SEIS.fitCanvas(b, wB, h);
+    cB.clearRect(0, 0, wB, h);
+    /* the spectrum is of the center trace, which is the one buildTrace returns */
+    drawSpectrum(cB, boxOf(wB, h), pts, { top: 0.62, ylabel: 'amplitude' });
+
+    let en = 0;
+    for (let i = i0; i < i1; i++) en += tr[i] * tr[i];
+    $('s2peak').textContent = peakOf(pts).toFixed(1) + ' Hz';
+    $('s2pos').textContent = S.pos.toFixed(0) + ' ms';
+    $('s2len').textContent = S.win.toFixed(0) + ' ms';
+    $('s2amp').textContent = (Math.sqrt(en / Math.max(1, i1 - i0))).toFixed(3);
+  }
+
+  /* ------------------------------------------------------------- step 3 */
+  function blobStats() {
+    const tf = spectrogram();
+    // the shallow event: find the brightest cell near its known time
+    const iA = Math.round(TA / DT);
+    let jBest = 0, best = 0;
+    for (let j = 0; j < GFREQS.length; j++) {
+      const v = tf.mag[j][iA];
+      if (v > best) { best = v; jBest = j; }
+    }
+    const tXs = [], tYs = [];
+    for (let i = 0; i < NT; i++) { tXs.push(i * DT * 1000); tYs.push(tf.mag[jBest][i]); }
+    const fXs = [], fYs = [];
+    for (let j = 0; j < GFREQS.length; j++) { fXs.push(GFREQS[j]); fYs.push(tf.mag[j][iA]); }
+    return {
+      tf, jBest, iA,
+      tXs, tYs, fXs, fYs,
+      tRes: fwhm(tXs, tYs), fRes: fwhm(fXs, fYs),
+      peakF: GFREQS[jBest],
+    };
+  }
+
+  function drawStep3() {
+    const el = $('c3');
+    if (!el) return;
+    const w = contentWidth(el), h = 330;
+    const ctx = SEIS.fitCanvas(el, w, h);
+    ctx.clearRect(0, 0, w, h);
+    const rect = { x: M.l, y: M.t, w: w - M.l - M.r, h: h - M.t - M.b - 26 };
+    const tf = spectrogram();
+
+    let mx = 0;
+    for (let j = 0; j < GFREQS.length; j++) {
+      for (let i = 0; i < NT; i++) mx = Math.max(mx, tf.mag[j][i]);
+    }
+    mx = mx || 1;
+    const cmap = SEIS.SEQMAPS.viridis;
+    drawField(ctx, rect, (ix, iy) => tf.mag[iy][ix] / mx, NT, GFREQS.length, cmap);
+    SEIS.axisBottom(ctx, rect, 0, NT * DT * 1000, 'time (ms)', (v) => v.toFixed(0), { ticks: 6 });
+    SEIS.axisLeft(ctx, rect, GFREQS[0], FMAX, 'frequency (Hz)', (v) => v.toFixed(0), { ticks: 6 });
+
+    // the window floor, drawn on the picture rather than only stated
+    const floor = SPEC.windowFloor(S.win / 1000);
+    if (floor > GFREQS[0] && floor < FMAX) {
+      const Y = rect.y + rect.h - ((floor - GFREQS[0]) / (FMAX - GFREQS[0])) * rect.h;
+      SEIS.dashedLine(ctx, rect.x, Y, rect.x + rect.w, Y, '#ffffff', [5, 4], 1.4);
+      SEIS.tag(ctx, rect.x + 6, Y + 4, 'one cycle per window', CRIM);
+    }
+    seqColorbar(ctx, { x: rect.x, y: rect.y + rect.h + 26, w: Math.min(220, rect.w), h: 9 }, cmap);
+
+    const bs = blobStats();
+    $('s3len').textContent = S.win.toFixed(0) + ' ms';
+    $('s3floor').textContent = floor.toFixed(1) + ' Hz';
+    $('s3tw').textContent = bs.tRes.toFixed(0) + ' ms';
+    $('s3fw').textContent = bs.fRes.toFixed(1) + ' Hz';
+  }
+
+  /* ------------------------------------------------------------- step 4 */
+  /* An earlier version measured the width of the shallow event's blob in the
+     spectrogram. That is the window's smear convolved with the event's OWN
+     bandwidth, and past about a 60 ms window the event's bandwidth dominates —
+     the frequency width stopped moving and the trade appeared to break. What
+     the trade is about is the window itself, so measure the window itself, with
+     the two ideal probes:
+
+       a spike  -> the time response is exactly the window shape
+       an endless tone -> the frequency response is the window's transform
+
+     Both are computed in closed form from the window, so neither carries any
+     signal bandwidth of its own. */
+  function windowProbes() {
+    const n = Math.max(8, Math.round((S.win / 1000) / DT));
+    const wfn = SPEC.WINDOWS.hann;
+    const w = new Float64Array(n);
+    let wsum = 0;
+    for (let k = 0; k < n; k++) { w[k] = wfn(k / (n - 1)); wsum += w[k]; }
+    const norm = wsum > 0 ? 2 / wsum : 0;
+
+    // time probe: a spike seen through the window as it slides past
+    const tXs = [], tYs = [];
+    for (let k = 0; k < n; k++) { tXs.push((k - (n - 1) / 2) * DT * 1000); tYs.push(w[k]); }
+
+    // frequency probe: an endless cosine at F0, seen through the same window
+    const F0 = 50;
+    const fXs = [], fYs = [];
+    for (let j = 0; j < FREQS.length; j++) {
+      const f = FREQS[j];
+      let re = 0, im = 0;
+      for (let k = 0; k < n; k++) {
+        const t = (k - (n - 1) / 2) * DT;
+        const v = Math.cos(2 * Math.PI * F0 * t) * w[k];
+        const a = 2 * Math.PI * f * t;
+        re += v * Math.cos(a); im -= v * Math.sin(a);
+      }
+      fXs.push(f); fYs.push(Math.hypot(re, im) * norm);
+    }
+    return { tXs, tYs, fXs, fYs, F0, tRes: fwhm(tXs, tYs), fRes: fwhm(fXs, fYs) };
+  }
+
+  function drawStep4() {
+    const a = $('c4a'), b = $('c4b');
+    if (!a || !b) return;
+    const pr = windowProbes();
+    const h = 250;
+    const TMAX = 320;                       // fixed axes, so the change is real
+
+    const wA = contentWidth(a);
+    const cA = SEIS.fitCanvas(a, wA, h);
+    cA.clearRect(0, 0, wA, h);
+    const rA = boxOf(wA, h);
+    const mxT = Math.max.apply(null, pr.tYs) || 1;
+    SEIS.frame(cA, rA);
+    series(cA, rA, pr.tXs, pr.tYs.map((v) => v / mxT), -TMAX / 2, TMAX / 2, 0, 1.05, CRIM, 1.9);
+    const Yh = rA.y + rA.h * (1 - 0.5 / 1.05);
+    SEIS.dashedLine(cA, rA.x, Yh, rA.x + rA.w, Yh, 'rgba(92,102,112,0.6)', [3, 3], 1);
+    SEIS.axisBottom(cA, rA, -TMAX / 2, TMAX / 2, 'time offset (ms)', (v) => v.toFixed(0), { ticks: 6 });
+    SEIS.axisLeft(cA, rA, 0, 1.05, 'relative', (v) => v.toFixed(1), { ticks: 5 });
+
+    const wB = contentWidth(b);
+    const cB = SEIS.fitCanvas(b, wB, h);
+    cB.clearRect(0, 0, wB, h);
+    const rB = boxOf(wB, h);
+    const mxF = Math.max.apply(null, pr.fYs) || 1;
+    SEIS.frame(cB, rB);
+    series(cB, rB, pr.fXs, pr.fYs.map((v) => v / mxF), 0, FMAX, 0, 1.05, TEAL, 1.9);
+    const Yh2 = rB.y + rB.h * (1 - 0.5 / 1.05);
+    SEIS.dashedLine(cB, rB.x, Yh2, rB.x + rB.w, Yh2, 'rgba(92,102,112,0.6)', [3, 3], 1);
+    const Xt = rB.x + (pr.F0 / FMAX) * rB.w;
+    SEIS.dashedLine(cB, Xt, rB.y, Xt, rB.y + rB.h, CRIM, [4, 3], 1.2);
+    SEIS.axisBottom(cB, rB, 0, FMAX, 'frequency (Hz)', (v) => v.toFixed(0), { ticks: 6 });
+    SEIS.axisLeft(cB, rB, 0, 1.05, 'relative', (v) => v.toFixed(1), { ticks: 5 });
+
+    $('s4win').textContent = S.win.toFixed(0) + ' ms';
+    $('s4t').textContent = pr.tRes.toFixed(0) + ' ms';
+    $('s4f').textContent = pr.fRes.toFixed(1) + ' Hz';
+    $('s4p').textContent = (pr.tRes * pr.fRes / 1000).toFixed(2);
+  }
+
+  /* ------------------------------------------------------------- step 5 */
+  const TONE = 40;                    // one clean tone, fixed
+  function drawStep5() {
+    const a = $('c5a'), b = $('c5b');
+    if (!a || !b) return;
+    const n = Math.max(8, Math.round((S.win / 1000) / DT));
+    const wfn = SPEC.WINDOWS[S.wshape];
+    const xs = [], raw = [], wnd = [], win = [];
+    for (let k = 0; k < n; k++) {
+      const t = k * DT;
+      const u = wfn(k / (n - 1));
+      xs.push(t * 1000);
+      raw.push(Math.cos(2 * Math.PI * TONE * t));
+      win.push(u);
+      wnd.push(Math.cos(2 * Math.PI * TONE * t) * u);
+    }
+    const h = 250;
+    const wA = contentWidth(a);
+    const cA = SEIS.fitCanvas(a, wA, h);
+    cA.clearRect(0, 0, wA, h);
+    const rA = boxOf(wA, h);
+    SEIS.frame(cA, rA);
+    const Y0 = rA.y + rA.h / 2;
+    SEIS.dashedLine(cA, rA.x, Y0, rA.x + rA.w, Y0, 'rgba(92,102,112,0.45)', [3, 3], 1);
+    series(cA, rA, xs, raw, 0, n * DT * 1000, -1.15, 1.15, 'rgba(92,102,112,0.5)', 1.2);
+    series(cA, rA, xs, win, 0, n * DT * 1000, -1.15, 1.15, TEAL, 1.4);
+    series(cA, rA, xs, wnd, 0, n * DT * 1000, -1.15, 1.15, CRIM, 1.8);
+    SEIS.axisBottom(cA, rA, 0, n * DT * 1000, 'time (ms)', (v) => v.toFixed(0), { ticks: 5 });
+    SEIS.axisLeft(cA, rA, -1.15, 1.15, 'amplitude', (v) => v.toFixed(1), { ticks: 5 });
+
+    // spectrum of the windowed tone, on a log scale so leakage is visible
+    let wsum = 0;
+    for (const u of win) wsum += u;
+    const norm = wsum > 0 ? 2 / wsum : 0;
+    const pts = [];
+    for (const f of FREQS) {
+      let re = 0, im = 0;
+      for (let k = 0; k < n; k++) {
+        const t = k * DT;
+        const ang = 2 * Math.PI * f * t;
+        re += wnd[k] * Math.cos(ang); im -= wnd[k] * Math.sin(ang);
+      }
+      pts.push({ f, a: Math.hypot(re, im) * norm });
+    }
+    const mx = maxOf(pts) || 1;
+    const FLOOR = -60;                 // dB
+    const dB = pts.map((p) => ({
+      f: p.f, a: Math.max(FLOOR, 20 * Math.log(Math.max(p.a / mx, 1e-9)) / Math.LN10),
+    }));
+
+    const wB = contentWidth(b);
+    const cB = SEIS.fitCanvas(b, wB, h);
+    cB.clearRect(0, 0, wB, h);
+    const rB = boxOf(wB, h);
+    SEIS.frame(cB, rB);
+    series(cB, rB, dB.map((p) => p.f), dB.map((p) => p.a), 0, FMAX, FLOOR, 3, TEAL, 1.7);
+    SEIS.axisBottom(cB, rB, 0, FMAX, 'frequency (Hz)', (v) => v.toFixed(0), { ticks: 6 });
+    SEIS.axisLeft(cB, rB, FLOOR, 3, 'amplitude (dB)', (v) => v.toFixed(0), { ticks: 5 });
+    const Xt = rB.x + (TONE / FMAX) * rB.w;
+    SEIS.dashedLine(cB, Xt, rB.y, Xt, rB.y + rB.h, CRIM, [4, 3], 1.2);
+
+    /* Leakage is the highest SIDELOBE — the worst peak beyond the first null on
+       either side. Measuring outside a fixed distance instead compares a Hann
+       main-lobe skirt against a boxcar sidelobe, and reports the boxcar as the
+       cleaner window, which is the opposite of the truth. Walk out from the peak
+       to the first minimum on each side, then take the largest value beyond. */
+    let jp = 0;
+    for (let j = 1; j < pts.length; j++) if (pts[j].a > pts[jp].a) jp = j;
+    let jl = jp, jr = jp;
+    while (jl > 1 && pts[jl - 1].a < pts[jl].a) jl--;
+    while (jr < pts.length - 2 && pts[jr + 1].a < pts[jr].a) jr++;
+    let leak = 0;
+    for (let j = 0; j < pts.length; j++) {
+      if (j < jl || j > jr) leak = Math.max(leak, pts[j].a / mx);
+    }
+    const leakDb = 20 * Math.log(Math.max(leak, 1e-9)) / Math.LN10;
+    $('s5w').textContent = S.wshape === 'boxcar' ? 'boxcar' : (S.wshape === 'hann' ? 'Hann' : 'Gaussian');
+    $('s5leak').textContent = leak.toFixed(4) + '  (' + leakDb.toFixed(0) + ' dB)';
+    $('s5main').textContent = fwhm(pts.map((p) => p.f), pts.map((p) => p.a)).toFixed(1) + ' Hz';
+    $('s5pk').textContent = peakOf(pts).toFixed(1) + ' Hz';
+  }
+
+  /* =====================================================================
+     PLUMBING
+     ===================================================================== */
+  function syncLabels() {
+    $('faV').textContent = S.fa + ' Hz';
+    $('fbV').textContent = S.fb + ' Hz';
+    $('tbV').textContent = S.tb + ' ms';
+    $('winV').textContent = S.win + ' ms';
+    $('posV').textContent = S.pos + ' ms';
+    document.querySelectorAll('#segWin button').forEach((b) => {
+      b.setAttribute('aria-pressed', b.dataset.w === S.wshape);
+      b.classList.toggle('on', b.dataset.w === S.wshape);
+    });
+    ['fa', 'fb', 'tb', 'win', 'pos'].forEach((k) => {
+      const el = $(k);
+      if (el && String(S[k]) !== el.value) el.value = S[k];
+    });
+  }
+
+  function drawAll() {
+    const lab = document.querySelector('.labhead');
+    if (lab && !lab.hidden) drawHeader();
+    if (visible('p1')) drawStep1();
+    if (visible('p2')) drawStep2();
+    if (visible('p3')) drawStep3();
+    if (visible('p4')) drawStep4();
+    if (visible('p5')) drawStep5();
+  }
+
+  const PANES = ['p1', 'p2', 'p3', 'p4', 'p5', 'pw', 'pe', 'pk', 'pm'];
+  const STEPNAMES = {
+    p1: 'No location', p2: 'One window', p3: 'All windows', p4: 'The trade',
+    p5: 'Leakage', pw: 'Why it matters', pe: 'Exercises', pk: 'Key points', pm: 'Method',
+  };
+
+  function buildStepNav() {
+    PANES.forEach((id, i) => {
+      const pane = $(id);
+      if (!pane || pane.querySelector('.stepnav')) return;
+      const prev = PANES[i - 1], next = PANES[i + 1];
+      const nav = document.createElement('div');
+      nav.className = 'stepnav';
+      const mk = (target, text, ghost) => {
+        const b = document.createElement('button');
+        b.type = 'button';
+        b.className = 'btn' + (ghost ? ' ghost' : '') + ' small';
+        b.textContent = text;
+        b.addEventListener('click', () => {
+          showTab(target);
+          const t = document.querySelector('.tabhint');
+          if (t && t.scrollIntoView) t.scrollIntoView({ behavior: 'smooth', block: 'start' });
+        });
+        return b;
+      };
+      nav.appendChild(prev ? mk(prev, '\u2190 ' + STEPNAMES[prev], true)
+                           : document.createElement('span'));
+      const where = document.createElement('span');
+      where.className = 'where';
+      where.textContent = i < 5 ? 'step ' + (i + 1) + ' of 5' : STEPNAMES[id];
+      nav.appendChild(where);
+      nav.appendChild(next ? mk(next, STEPNAMES[next] + ' \u2192')
+                           : document.createElement('span'));
+      pane.appendChild(nav);
+    });
+  }
+
+  function showTab(id) {
+    PANES.forEach((q) => { const el = $(q); if (el) el.hidden = q !== id; });
+    document.querySelectorAll('#tabs button').forEach((b) => {
+      b.setAttribute('aria-selected', b.dataset.tab === id);
+    });
+    const lab = document.querySelector('.labhead');
+    // step 5 uses a pure tone, not the trace, so the header would only mislead
+    if (lab) lab.hidden = !(id === 'p1' || id === 'p2' || id === 'p3' || id === 'p4');
+    /* The forward link lives on the pager. Show it once the reader has reached
+       the exercises, not only on the two reference tabs — a student who works
+       the exercises and stops used to have no way on to the next module. */
+    const done = (id === 'pe' || id === 'pk' || id === 'pm');
+    if ($('nextup')) $('nextup').hidden = !(id === 'pk' || id === 'pm');
+    if ($('pager')) $('pager').hidden = !done;
+    S.tab = id;
+    drawAll();
+    saveState();
+  }
+  document.querySelectorAll('#tabs button').forEach((b) => {
+    b.addEventListener('click', () => showTab(b.dataset.tab));
+  });
+
+  document.querySelectorAll('#segWin button').forEach((b) => {
+    b.addEventListener('click', () => {
+      S.wshape = b.dataset.w;
+      syncLabels(); drawAll(); saveState();
+    });
+  });
+
+  document.addEventListener('input', (ev) => {
+    const t = ev.target;
+    if (!t || t.tagName !== 'INPUT') return;
+    const id = t.id;
+    if (!(id in DEF)) return;
+    S[id] = parseFloat(t.value);
+    syncLabels(); drawAll(); saveState();
+  });
+
+  let rt;
+  window.addEventListener('resize', () => { clearTimeout(rt); rt = setTimeout(drawAll, 140); });
+
+  buildStepNav();
+  syncLabels();
+  showTab(PANES.indexOf(S.tab) >= 0 ? S.tab : 'p1');
+})();
+</script>
+</body>
+</html>

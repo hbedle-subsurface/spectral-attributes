@@ -1,0 +1,1410 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Tuning, and what a thin bed does to amplitude | How Spectral Attributes Actually Work</title>
+<meta name="description" content="Where the notch in a thin-bed spectrum comes from, how to read a thickness out of it, why the amplitude tuning thickness and the spectral tuning thickness are different numbers, and where thickness stops being recoverable at all.">
+<link rel="stylesheet" href="../assets/fonts.css">
+<link rel="stylesheet" href="../assets/style.css">
+</head>
+<body>
+
+<div class="wrap">
+  <header class="masthead">
+    <a class="brand" href="../index.html"><span class="dot"></span>How spectral attributes <b>actually</b> work</a>
+    <nav>
+      <a href="../index.html">All modules</a>
+      <a href="components.html">← Module 03</a>
+      <a href="#notes">Method &amp; references</a>
+    </nav>
+  </header>
+
+  <div class="mod-head">
+    <p class="eyebrow">Module 04 &nbsp;·&nbsp; Spectral attributes</p>
+    <h1>Tuning, and what a thin bed does to amplitude</h1>
+    <p class="sub">Module 03 ended with a wedge that was brightest in a different place at every frequency, and a readout that kept tracking 1/(2<i>f</i>). This is where that relation comes from. A bed thinner than the wavelet returns one composite event rather than two reflections, and its amplitude, its apparent thickness and its spectrum all change in ways that can be read backwards into a thickness — over a limited range, which these five steps measure.</p>
+  </div>
+
+  <div class="labhead">
+    <div class="labgrid">
+      <div>
+        <p class="cap">The wedge <span>&mdash; thick on the left, pinching out to the right</span></p>
+        <canvas id="cHead" aria-label="A wedge model seismic section with the analysis trace marked"></canvas>
+      </div>
+      <div>
+        <p class="cap">Build the model <span>&mdash; every step updates as you drag</span></p>
+        <div class="controls" id="winControls">
+          <div class="ctl-col">
+            <h2>The wavelet</h2>
+            <div class="ctl">
+              <label for="fd">Wavelet peak frequency <span class="val" id="fdV">30 Hz</span></label>
+              <input type="range" data-key="fd" id="fd" min="12" max="70" step="1" value="30">
+            </div>
+            <div class="ctl">
+              <label for="noise">Noise <span class="val" id="noiseV">none</span></label>
+              <input type="range" data-key="noise" id="noise" min="0" max="60" step="2" value="0">
+            </div>
+          </div>
+          <div class="ctl-col">
+            <h2>The bed</h2>
+            <div class="ctl">
+              <label for="thick">Thickest end <span class="val" id="thickV">60 ms</span></label>
+              <input type="range" data-key="thick" id="thick" min="20" max="90" step="2" value="60">
+            </div>
+            <div class="ctl">
+              <label for="ix">Trace shown <span class="val" id="ixV">30 ms</span></label>
+              <input type="range" data-key="ix" id="ix" min="0" max="119" step="1" value="60">
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <p class="tabhint">Work through the five steps in order, <b>then try the exercises</b>.
+    Method and references are there when you want them.</p>
+  <nav class="tabs" id="tabs" role="tablist" aria-label="Module steps">
+    <button role="tab" data-tab="p1" aria-selected="false">1 · The wedge</button>
+    <button role="tab" data-tab="p2" aria-selected="false">2 · The notch</button>
+    <button role="tab" data-tab="p3" aria-selected="false">3 · Thickness</button>
+    <button role="tab" data-tab="p4" aria-selected="false">4 · Two tunings</button>
+    <button role="tab" data-tab="p5" aria-selected="false">5 · The limit</button>
+    <button role="tab" data-tab="pw" aria-selected="false">Why it matters</button>
+    <span class="gap"></span>
+    <button role="tab" data-tab="pe" aria-selected="false">Exercises</button>
+    <button role="tab" data-tab="pk" aria-selected="false">Key points</button>
+    <button role="tab" data-tab="pm" aria-selected="false">Method</button>
+  </nav>
+
+  <!-- =============================== STEP 1 =============================== -->
+  <section class="tabpane" id="p1" role="tabpanel" hidden>
+    <div class="plot-head" style="margin-bottom:14px">
+      <h3><span class="stepno">1</span>Amplitude and apparent thickness down a wedge</h3>
+      <span class="hint">Two curves that every interpreter should know by heart</span>
+    </div>
+    <p class="qbox"><b>Why this step is here.</b> A sand thins across a field. At what thickness do its top and base stop being two separate reflections, and what does the seismic show after that?</p>
+    <p class="lede">The two curves below are measured off that section, trace by trace. The upper one is the peak amplitude of the composite event. The lower one is the <b>apparent thickness</b>: the time between the peak and the trough, which is what picking both events and subtracting would give.</p>
+
+    <p class="lede"><b>Why the lower curve decides more than the upper one.</b> A net-pay map built from
+      a seismic isochron is built from the lower curve. Above the tuning thickness that curve is the true
+      thickness and the map is right. Below it the curve flattens: every bed thinner than tuning is
+      reported at very nearly the same thickness, so the map returns one value across the whole thin part
+      of the field. A volume computed from it is too large, and it is too large by an amount that grows
+      as the bed thins, which places the worst error exactly where the reservoir is most marginal and
+      the decision hardest.</p>
+
+    <p class="lede">The upper curve is what is left to work with. Below tuning the amplitude keeps
+      falling as the bed thins, so amplitude rather than picked thickness carries what remains of the
+      thickness information. Turning an amplitude into a thickness requires the impedance contrast to be
+      known independently, from a well or from an inversion, which is why below-tuning thickness work is
+      calibrated rather than measured.</p>
+
+    <div class="sec-row">
+      <div class="panel-col">
+        <p class="sublabel"><b>Amplitude</b> <span class="note">against true thickness</span></p>
+        <canvas id="c1a" aria-label="Composite amplitude against true bed thickness"></canvas>
+      </div>
+      <div class="panel-col">
+        <p class="sublabel"><b>Apparent thickness</b> <span class="note">what an interpreter would pick</span></p>
+        <canvas id="c1b" aria-label="Apparent thickness against true bed thickness"></canvas>
+      </div>
+    </div>
+    <p class="lede" style="margin-top:22px">The wedge above is a bed on its own, which is how tuning is
+      normally taught. The section below is the same bed thinning inside a stratigraphic package, with
+      beds above and below it, and with real velocities and densities rather than a chosen reflection
+      coefficient. The rock properties are the ones used in the seismic resolution modules. Dashed lines
+      mark where the top and base of the target bed actually are.</p>
+    <div class="ctl-col" style="max-width:520px;margin:0 0 12px">
+      <h2>The target bed</h2>
+      <div class="seg" id="segLith" role="group" aria-label="Target lithology">
+        <button type="button" data-lith="sandInShale">Sand in shale</button>
+        <button type="button" data-lith="gasInShale">Gas sand</button>
+        <button type="button" data-lith="coalInSand">Coal</button>
+        <button type="button" data-lith="limeInShale">Limestone</button>
+        <button type="button" data-lith="wetInShale">Wet sand</button>
+      </div>
+    </div>
+    <div class="plot">
+      <div class="plot-head">
+        <h3>The same bed thinning inside stratigraphy</h3>
+        <span class="hint">Dashed teal: the true top and base of the bed</span>
+      </div>
+      <canvas id="c1s" aria-label="A stratigraphic cross-section with the target bed thinning to a pinch-out"></canvas>
+    </div>
+    <div class="stats">
+      <div class="stat key"><span>Reflection coefficient</span><b id="s1rc">—</b></div>
+      <div class="stat"><span>Target bed</span><b id="s1lith">—</b></div>
+      <div class="stat"><span>Bed amplitude vs background</span><b id="s1contrast">—</b></div>
+      <div class="stat"><span>Visible to</span><b id="s1vis">—</b></div>
+      <div class="stat"><span>Bed traceable down to</span><b id="s1trace">—</b></div>
+    </div>
+    <div class="legend prose">
+      <span><b>The frequency and the noise decide how far the bed can be followed.</b> On a gas sand
+      with no noise, the bed stays above the bedding around it down to 4.5 ms of thickness at 18 Hz,
+      1.5 ms at 30 Hz and 1.1 ms at 45 Hz. Holding the wavelet at 30 Hz and adding noise moves the limit
+      the other way: 1.5 ms at 10% noise, 3.4 ms at 30% and 7.9 ms at 60%. Both sliders are on the header
+      while this panel is open, so the section can be taken through those states before any spectral
+      method is applied to it. Every module after this one operates on data with these limits already
+      built in.</span>
+    </div>
+    <div class="legend prose">
+      <span><b>The impedance contrast decides whether a bed is visible at all, before thickness enters
+      into it.</b> Measured against the background bedding on this section, a coal in sandstone reflects
+      at 5.32 times bedding strength and a limestone in shale at 4.56, so both stand out. A gas sand in
+      shale gives 2.81. A sand in shale gives 0.36, and a wet sand in shale 0.05, both weaker than the
+      bedding around them and not separable on the section at any thickness. The reflection coefficients
+      behind those figures are &minus;0.393, +0.337, &minus;0.207, +0.026 and +0.004, computed from the
+      velocities and densities in the seismic resolution modules. Tuning describes how a visible bed
+      behaves as it thins; it does not make an invisible bed appear.</span>
+    </div>
+    <div class="stats">
+      <div class="stat key"><span>True thickness here</span><b id="s1true">—</b></div>
+      <div class="stat"><span>Apparent thickness here</span><b id="s1app">—</b></div>
+      <div class="stat"><span>Amplitude peaks at</span><b id="s1tune">—</b></div>
+      <div class="stat"><span>Apparent thickness floor</span><b id="s1floor">—</b></div>
+    </div>
+    <div class="legend prose">
+      <span><b>Below the tuning thickness the apparent thickness stops responding.</b> With a 30 Hz
+      wavelet the amplitude peaks at 13.0 ms and the apparent thickness bottoms out at 11.1 ms. Above
+      that the two agree well — 44.9 ms picked against 44.9 ms true. Below it the pick stops
+      falling: where the bed is really 2.0 ms thick the pick still reads 11.2 ms, five and a half times
+      too thick, and there is nothing on the section to say so. The picks are clean, the horizons are
+      pickable, and the number is fiction. The amplitude curve has its own ambiguity: it rises to a
+      maximum and falls away again, so a bright composite can mean a bed at tuning or a thicker bed with
+      a stronger contrast. Neither curve recovers the thickness on its own. The spectrum can, over a
+      range, which is the next two steps.</span>
+    </div>
+  </section>
+
+  <!-- =============================== STEP 2 =============================== -->
+  <section class="tabpane" id="p2" role="tabpanel" hidden>
+    <div class="plot-head" style="margin-bottom:14px">
+      <h3><span class="stepno">2</span>Where the notch comes from</h3>
+      <span class="hint">Two reflections, arithmetic, one gap in the spectrum</span>
+    </div>
+    <p class="qbox"><b>Why this step is here.</b> The spectrum of a trace over a thin bed has holes in it at regular intervals. Is that noise, a processing artifact, or the bed?</p>
+    <p class="lede">The mechanism is one frequency at a time. The base reflection is delayed by T relative to the top and carries the opposite polarity. Those two facts together decide whether the pair adds or cancels at each frequency.</p>
+    <p class="lede">Where the delay is a whole number of cycles the two arrivals line up crest on crest, and the polarity flip then puts them exactly out of phase, so they cancel. Where the delay is half a cycle the polarity flip brings them into phase and they add. The spectrum therefore alternates between cancellation and reinforcement at a spacing set by T alone.</p>
+    <p class="lede">The result is the comb below: notches spaced 1/T apart starting at zero frequency, with the first peak at 1/(2T), halfway between the first two notches. The comb goes on repeating above that, and every one of its peaks is the same height &mdash; 3/(2T), 5/(2T) and so on. Only the wavelet decides which of them is the tallest on the measured spectrum, which is where module 09 picks the story up.</p>
+
+    <div class="plot">
+      <div class="plot-head">
+        <h3>The spectrum of the trace at the marker</h3>
+        <span class="hint">Teal: measured. Gray: the two-spike comb it comes from</span>
+      </div>
+      <canvas id="c2" aria-label="Amplitude spectrum of the thin-bed trace, with the doublet comb overlaid"></canvas>
+    </div>
+    <div class="stats">
+      <div class="stat key"><span>True thickness</span><b id="s2true">—</b></div>
+      <div class="stat"><span>First notch, predicted 1/T</span><b id="s2pred">—</b></div>
+      <div class="stat"><span>First notch, measured</span><b id="s2meas">—</b></div>
+      <div class="stat"><span>Spectral peak, 1/(2T)</span><b id="s2peak">—</b></div>
+    </div>
+    <div class="legend prose">
+      <span><b>The comb belongs to the bed; the envelope belongs to the wavelet.</b> The gray curve is
+      what a pair of spikes 
+      <i>T</i> apart would give on their own — pure interference, no wavelet involved. The teal curve is
+      the same comb seen through the wavelet's own spectrum, which is why the notches are only visible
+      where the wavelet had energy to remove. Push the wavelet's peak frequency down and the higher
+      notches disappear, not because the bed changed but because there was nothing there to notch. That is
+      the practical limit that matters most here: <b>a notch can only be measured if the recorded
+      bandwidth reaches it</b>. The measured notch tracks the prediction closely while it is inside the
+      band — 16.5 Hz against a predicted 18.2 on a 55 ms bed, 21.5 against 22.3 at 45 ms, 28.5 against
+      28.7 at 35 ms — and then, for beds thinner than about 25 ms, the readout says "out of band" rather
+      than guessing, because with a 30 Hz wavelet there is no energy left at 40 Hz for a notch to show
+      up in.</span>
+    </div>
+  </section>
+
+  <!-- =============================== STEP 3 =============================== -->
+  <section class="tabpane" id="p3" role="tabpanel" hidden>
+    <div class="plot-head" style="margin-bottom:14px">
+      <h3><span class="stepno">3</span>Reading thickness back out of a spectrum</h3>
+      <span class="hint">Two independent estimates, from the same curve</span>
+    </div>
+    <p class="qbox"><b>Why this step is here.</b> If the notch positions are set by the bed thickness, can the bed thickness be read back out of them?</p>
+    <p class="lede">The panel below tracks both estimates against the truth, all the way down the wedge. Neither works everywhere, and the two ranges over which they do work barely overlap.</p>
+
+    <p class="lede">Which method suits which target follows from the panel. Peak frequency sits at
+      1/(2<i>T</i>), so it stays inside the recorded band for beds near and somewhat above the tuning
+      thickness: a channel fill, a single amalgamated sand body, a thin carbonate. Notch spacing is
+      1/<i>T</i> and needs at least two notches inside the band, which requires a thicker interval:
+      a stacked turbidite lobe, a coal-bearing package with well-defined bounding surfaces, a
+      shale-encased sand tens of milliseconds thick. Between the two ranges lies a band of thicknesses
+      that neither method addresses, and a thickness quoted from within it has been extrapolated rather
+      than measured.</p>
+
+    <div class="plot">
+      <div class="plot-head">
+        <h3>Estimated thickness against true thickness</h3>
+        <span class="hint">Gray: the truth. Crimson: from peak frequency. Teal: from notch spacing</span>
+      </div>
+      <canvas id="c3" aria-label="Thickness estimated from peak frequency and notch spacing against the truth"></canvas>
+    </div>
+    <div class="stats">
+      <div class="stat key"><span>True thickness here</span><b id="s3true">—</b></div>
+      <div class="stat"><span>From peak frequency</span><b id="s3fp">—</b></div>
+      <div class="stat"><span>From notch spacing</span><b id="s3ns">—</b></div>
+      <div class="stat"><span>Works between</span><b id="s3lim">—</b></div>
+    </div>
+    <div class="legend prose">
+      <span><b>Each estimate has a working range, and the two ranges barely overlap.</b> The notch
+      estimate is good on thick beds — 52.6 ms read against 49.9 true, 35.1 against 34.8 — and gives up
+      below about 25 ms, where the notch has climbed out of the top of the band. Peak frequency is the
+      opposite: good between roughly 13 and 28 ms with this wavelet, and failing at both ends, because
+      too thick puts 1/(2<i>T</i>) below the wavelet's spectrum and too thin puts it above. Either way
+      the answer stops moving: on a thin bed the measured peak reverts to the wavelet's own peak,
+      and on a thick bed the next comb peak up, at 3/(2<i>T</i>), has moved into the band and is read
+      instead of the first one. Module 09 separates those two cases; here they fail the same way. Notice what
+      that means: <b>the range is a property of the wavelet, not of the earth</b>. A 20 Hz wavelet gives
+      19.2 to 42.9 ms; a 60 Hz wavelet gives 6.6 to 13.1 ms. Both are about one octave of thickness wide
+      — the range slides with the bandwidth but never gets much wider. Which is exactly why the next
+      module is about flattening the wavelet out of the way before any of this is attempted.</span>
+    </div>
+  </section>
+
+  <!-- =============================== STEP 4 =============================== -->
+  <section class="tabpane" id="p4" role="tabpanel" hidden>
+    <div class="plot-head" style="margin-bottom:14px">
+      <h3><span class="stepno">4</span>Two definitions of the tuning thickness</h3>
+      <span class="hint">And they are different numbers</span>
+    </div>
+    <p class="qbox"><b>Why this step is here.</b> Two sources give the tuning thickness of the same 30 Hz wavelet as 13 ms and as 17 ms. Which one is wrong?</p>
+    <ul class="lede" style="padding-left:20px">
+      <li><b>Amplitude tuning.</b> The thickness at which the composite reflection is brightest — the peak
+        of the upper curve in step 1. This is what most people mean when they say a bed is "at tuning."</li>
+      <li><b>Spectral tuning.</b> 1/(2<i>f</i>), the thickness implied by the peak of the spectrum. This is
+        what module 03's readout was tracking and what every spectral thickness estimate uses.</li>
+    </ul>
+    <p class="lede">Both are measured below as the wavelet's peak frequency changes. The gap between them is fixed.</p>
+
+    <div class="plot">
+      <div class="plot-head">
+        <h3>The two tuning thicknesses against wavelet frequency</h3>
+        <span class="hint">Crimson: amplitude tuning. Teal: 1/(2·f)</span>
+      </div>
+      <canvas id="c4" aria-label="Amplitude tuning thickness and spectral tuning thickness against wavelet peak frequency"></canvas>
+    </div>
+    <div class="stats">
+      <div class="stat"><span>Wavelet peak frequency</span><b id="s4f">—</b></div>
+      <div class="stat key"><span>Amplitude tuning</span><b id="s4amp">—</b></div>
+      <div class="stat"><span>Spectral tuning, 1/(2f)</span><b id="s4spec">—</b></div>
+      <div class="stat"><span>Ratio</span><b id="s4rat">—</b></div>
+      <div class="stat"><span>Spectral tuning as a wavelength</span><b id="s4wl">—</b></div>
+      <div class="stat"><span>Amplitude tuning as a wavelength</span><b id="s4wla">—</b></div>
+    </div>
+    <div class="legend prose">
+      <span><b>1/(2f) in two-way time is the quarter wavelength.</b> Introductory
+      courses give the tuning thickness as &lambda;/4, and this page has been giving it
+      as 1/(2f), without either statement mentioning the other. They are the same
+      number. A wavelength is v/f. A quarter of it is v/(4f), which is a length in the
+      ground. Seismic measures two-way time, so a bed v/(4f) thick delays the second
+      reflection by 2 &times; v/(4f) &divide; v = 1/(2f). The velocity cancels, which is
+      why the seismic version carries no velocity in it and the textbook version does.
+      The readouts above express both tuning thicknesses as fractions of a wavelength,
+      and the spectral one sits at a quarter whatever the frequency and whatever the
+      velocity.</span>
+    </div>
+    <div class="legend prose">
+      <span><b>They differ by a fixed ratio, and neither is wrong.</b> They are answers to two different
+      questions. Amplitude tuning asks where constructive interference between two wavelets is strongest,
+      which depends on the shape of the wavelet. Spectral tuning asks where the interference comb peaks,
+      which depends only on the bed. The second is independent of the wavelet, which is why it is the one
+      used for thickness estimation. It is also why two people can quote different tuning thicknesses
+      for the same bed, each convinced the other has made an arithmetic error. <b>The
+      measured ratio is 0.780</b>, and it holds there across the whole frequency range, because both
+      quantities scale as one over the wavelet frequency and their ratio depends only on the wavelet's
+      shape. So the disagreement is 22%, systematically, in the same direction every time — worse than a
+      random error, because it never averages out. A bed described as being at tuning is ambiguous until it is said which
+      tuning.</span>
+    </div>
+  </section>
+
+  <!-- =============================== STEP 5 =============================== -->
+  <section class="tabpane" id="p5" role="tabpanel" hidden>
+    <div class="plot-head" style="margin-bottom:14px">
+      <h3><span class="stepno">5</span>The floor, and what noise does to it</h3>
+      <span class="hint">Where the measurement stops being a measurement</span>
+    </div>
+    <p class="qbox"><b>Why this step is here.</b> A bed keeps thinning below the tuning thickness. What stops the seismic from following it further?</p>
+    <p class="lede">The two traces below are a bed of the chosen thickness and one half as thick, each scaled to the same peak. Taking the thickness down brings the two waveforms together, and the readouts measure how far apart they still are.</p>
+
+    <p class="lede"><b>Where a stratigraphic question stops being answerable.</b> Once two thicknesses
+      return the same waveform to within the noise, a single reflection is consistent with a bed of
+      either. Whole classes of unit sit permanently in that range: a coal seam, a transgressive lag, a
+      crevasse splay, the individual beds of a heterolithic tidal package. They are visible, often
+      strikingly so, because a large impedance contrast at small thickness still returns a strong
+      reflection. Their thickness is not measurable. Detection and measurement part company here, and
+      reading a strong event as a thick one is the specific error this floor produces.</p>
+
+    <div class="ctl" style="max-width:460px;margin:0 0 12px">
+      <label for="tthin">Thin bed thickness <span class="val" id="tthinV">6 ms</span></label>
+      <input type="range" id="tthin" min="1" max="30" step="1" value="6">
+    </div>
+    <div class="sec-row">
+      <div class="panel-col">
+        <p class="sublabel"><b>Two beds, one shape</b> <span class="note">normalized to the same peak</span></p>
+        <canvas id="c5a" aria-label="Two thin beds of different thickness, normalized"></canvas>
+      </div>
+      <div class="panel-col">
+        <p class="sublabel"><b>Their spectra</b> <span class="note">where the difference survives</span></p>
+        <canvas id="c5b" aria-label="Spectra of the two thin beds"></canvas>
+      </div>
+    </div>
+    <div class="stats">
+      <div class="stat key"><span>Waveform difference</span><b id="s5wf">—</b></div>
+      <div class="stat"><span>True amplitude ratio</span><b id="s5amp">—</b></div>
+      <div class="stat"><span>Peak frequency, thin bed</span><b id="s5pf">—</b></div>
+      <div class="stat"><span>Peak frequency, half as thick</span><b id="s5pf2">—</b></div>
+    </div>
+    <div class="legend prose">
+      <span><b>The shape and the spectrum give up together, and that is the real limit.</b> At 24 ms
+      against 12 ms the two waveforms differ by 126% and the peak frequencies are 24.9 and 33.2 Hz —
+      easily told apart by either route. Halve everything and the difference halves too: 78.5%, then
+      42.4%, then 21.6% at 3 ms against 1.5 ms, where the peak frequencies have converged to 36.7 and
+      36.8 Hz. A tenth of a hertz apart is not a measurement. Below this point the composite is simply
+      the derivative of the wavelet with a scale factor on it, and that scale factor is thickness times
+      impedance contrast — one number where there were two. A thin strong bed and a thinner stronger bed
+      are the same trace, and nothing recovers them separately. This is Widess's result, and no
+      processing has ever gotten around it.</span>
+    </div>
+  </section>
+
+  <!-- ============================ WHY IT MATTERS =========================== -->
+  <section class="tabpane" id="pw" role="tabpanel" hidden>
+    <div class="plot-head" style="margin-bottom:14px">
+      <h3>Why it matters</h3>
+      <span class="hint">Where this shows up in real work</span>
+    </div>
+    <p class="lede">This module is what turns spectral decomposition from a picture into a measurement, and marks the range over which the measurement holds.</p>
+    <ul class="lede" style="padding-left:20px">
+      <li><b>Mapping a reservoir too thin to pick.</b> A bed below the picking floor still puts its
+        thickness into the spectrum, and a thickness map made that way is a real deliverable — provided
+        the target sits inside the working range, which is the first thing to check rather than the
+        last.</li>
+      <li><b>Not over-reading an amplitude map.</b> A bright spot can be a thicker bed, a stronger
+        contrast, or a bed sitting at tuning. Step 1's amplitude curve is why those cannot be separated
+        from amplitude alone.</li>
+      <li><b>Knowing when a picked isochron is a floor rather than a measurement.</b> Below tuning, the
+        pick separation stops responding, and a thickness map made from picks flattens out at a value
+        that has nothing to do with the rocks.</li>
+      <li><b>Judging whether a survey can answer the question at all.</b> If 1/(2<i>T</i>) for the target
+        lies above the recorded bandwidth, no processing recovers it — that is an acquisition answer, not
+        a processing one.</li>
+      <li><b>Reading someone else's tuning number.</b> Two definitions are in use, and the ratio between
+        them is not small.</li>
+    </ul>
+    <p class="lede"><b>The errors with the largest consequences here.</b> The most damaging is treating a thickness derived from peak frequency as though it had the accuracy of a well tie. It has a working range about one octave of thickness wide, and outside that range it returns a number rather than a warning. The second is quoting a tuning thickness without saying which of the two definitions it is, since the two differ by a fixed ratio and a reader who assumes the other one is out by that much.</p>
+    <div class="legend prose">
+      <span>The seismic resolution modules approach the same limit from the other side, asking what can be separated rather than what can be measured. Their <b>tuning thickness</b> is the amplitude tuning thickness defined in step 4 here: they measure it at about 1/(2.6<i>f</i>), which is 12.8 ms for a 30 Hz wavelet against the 13.0 ms measured on this page. The two sets are consistent, and Kallweit and Wood (1982) is the source of that coefficient in both.</span>
+    </div>
+  </section>
+
+  <!-- ============================== EXERCISES ============================= -->
+  <section class="tabpane" id="pe" role="tabpanel" hidden>
+    <div class="tryit" style="max-width:none">
+      <h3>Exercises</h3>
+      <ol>
+        <li><b>Find the floor in the apparent thickness.</b>
+          <em class="point">Why: a picked isochron below this value is reporting the wavelet rather than the bed.</em>
+           In step 1, walk the trace slider down the
+          wedge from thick to thin, reading the true and apparent thickness at each stop.
+          <em class="predict">Before starting: as the bed thins toward its pinch-out, does the picked thickness follow it to zero, stop somewhere, or something else?</em>
+          <details class="reveal"><summary>Hint</summary><span class="ans">They track each other closely
+            down to about the tuning thickness — 44.9 ms against 44.9 at trace 30 — and then the apparent
+            value stops falling and settles on a floor of 11.1 ms. At trace 110, where the bed is really
+            4.5 ms, the pick reads 11.3 ms. Below the floor every bed reads the same thickness no matter
+            how thin it is. This is why a
+            thickness map made by picking a top and a base goes flat over the thin part of a reservoir and
+            gives no indication that anything has gone wrong — the picks are still perfectly pickable, and
+            the number they produce is meaningless. Raise the wavelet's peak frequency and the floor drops,
+            because the floor is a property of the wavelet rather than of the rocks.</span></details></li>
+        <li><b>Watch a notch move.</b>
+          <em class="point">Why: the notch spacing is set by the bed thickness alone, which is what makes it measurable.</em>
+           In step 2, take the trace slider across the wedge and watch the
+          first notch.
+          <details class="reveal"><summary>Hint</summary><span class="ans">The notch sits at 1/T, so it
+            moves up in frequency as the bed thins — slowly over the thick part of the wedge, then faster
+            and faster. The measured and predicted values agree closely while the notch is inside the
+            wavelet's bandwidth, and the measurement fails once it climbs out the top. Now drop the
+            wavelet's peak frequency to 15 Hz and watch how much of the wedge loses its notch entirely.
+            The bed has not changed at all. The bandwidth available to interrogate it has.</span></details></li>
+        <li><b>Find each estimate's working range.</b>
+          <em class="point">Why: each estimator returns a number everywhere and is right over about one octave of thickness.</em>
+           In step 3, read the working-range readout, then
+          change the wavelet's peak frequency and read it again.
+          <details class="reveal"><summary>Hint</summary><span class="ans">With a 30 Hz wavelet the
+            peak-frequency estimate is good between 13.1 and 27.7 ms. At 20 Hz that becomes 19.2 to
+            42.9 ms, at 45 Hz it is 8.6 to 18.2, and at 60 Hz it is 6.6 to 13.1. Two consequences. First,
+            the range slides with the wavelet but stays about one octave of thickness wide, so there is never
+            a wide range, only a differently placed one. Second, and more useful: the range is set
+            entirely by the wavelet, so it is a fact about the data rather than about the target. A reservoir
+            outside that range is not reached by any amount of care with the decomposition.
+            Meanwhile the notch estimate covers the thick end, where peak frequency fails. Neither is
+            general; together they cover more than either alone.</span></details></li>
+        <li><b>Measure the gap between the two tuning definitions.</b>
+          <em class="point">Why: a tuning thickness quoted without its definition is ambiguous by a fixed ratio.</em>
+           In step 4, take the wavelet peak
+          frequency across its range and read the ratio.
+          <details class="reveal"><summary>Hint</summary><span class="ans">The ratio stays essentially
+            constant while both numbers change by a factor of several — because both scale as one over the
+            wavelet frequency, so their ratio is a property of the wavelet's shape rather than of its
+            frequency. For a Ricker it is 0.780, and the readout holds at 0.780 from 15 Hz to 60 Hz. The practical consequence is that quoting "the"
+            tuning thickness without naming the definition introduces an error of the same size
+            as the ratio, systematically and in the same direction every time, which is worse than a random
+            error because it never averages out.</span></details></li>
+        <li><b>Find three explanations for one bright amplitude.</b>
+          <em class="point">Why: a bright amplitude has several causes, and naming one without testing the others is the commonest error in this module.</em>
+           In step 1, note the amplitude at
+          the tuning thickness. Then think about what else could produce that same brightness on a real
+          map, and use the sliders to produce each one.
+          <details class="reveal"><summary>Hint</summary><span class="ans">There are at least three. A bed
+            sitting at the tuning thickness is brightest by construction. A thicker bed with a larger
+            impedance contrast reaches the same amplitude because the reflection coefficients are larger —
+            the model here holds them at &plusmn;0.1, but on real data they vary with lithology and fluid.
+            And a bed thinner than tuning with a larger contrast does the same. Raise the wavelet's peak
+            frequency and the thickness that is brightest moves, without any bed changing at all, which is
+            a fourth. The amplitude of a composite reflection is a product of thickness and contrast, and
+            a single number cannot separate a product into its two factors. That is why an amplitude map
+            alone cannot be read as a thickness map, and how the spectral estimate in step 3 differs: it responds to thickness and not to contrast.</span></details></li>
+        <li><b>Fill a notch with noise.</b>
+          <em class="point">Why: a notch is an absence of energy, so added noise fills a real one in or leaves a gap where there is none, and the estimate comes back confidently wrong.</em>
+           Put the trace slider on a 25 ms bed with step 3 open, then
+          raise the noise slider from zero to 60%.
+          <details class="reveal"><summary>Hint</summary><span class="ans">The peak-frequency estimate
+            barely moves: 20.4 ms at no noise, 21.8 ms at 60%. The notch estimate does something worse
+            than degrade — at 30% noise it reports 153.8 ms for a 24.7 ms bed. It has not become vague, it
+            has found a dip in the noise and called it a notch, and it reports that with exactly the same
+            confidence as a correct answer. This is the difference between an estimator that depends on
+            where energy <em>is</em> and one that depends on where energy <em>is not</em>: noise is energy,
+            so it can only remove a real notch or manufacture a false one. It is the practical reason
+            production thickness estimation leans on peak frequency, even though notch spacing is the
+            cleaner idea and the easier one to explain.</span></details></li>
+      </ol>
+    </div>
+  </section>
+
+  <!-- ============================= KEY POINTS ============================= -->
+  <section class="tabpane" id="pk" role="tabpanel" hidden>
+    <div class="takeaway">
+      <h3>Key points</h3>
+      <ul>
+        <li><b>A thin bed puts a comb in the spectrum.</b> Notches at 1/T, 2/T, 3/T and a maximum at
+          1/(2T), produced by interference between the top and base reflections and by nothing else.</li>
+        <li><b>That comb is a thickness measurement.</b> Read the peak frequency and invert it, or measure
+          the notch spacing, and the bed's thickness falls out — with no need to separate the two
+          reflections.</li>
+        <li><b>Each estimator has a working range about one octave of thickness wide,</b> set by the
+          wavelet rather than by the earth. Peak frequency covers the middle, notch spacing covers thick
+          beds, and outside their ranges both report the wavelet's own tuning instead.</li>
+        <li><b>Amplitude tuning and spectral tuning are different numbers.</b> For a Ricker wavelet the
+          ratio is 0.780 and holds at every frequency, but it is a property of the wavelet's shape, so a
+          different wavelet gives a different ratio. Both are called the tuning thickness. Always ask
+          which one is meant.</li>
+        <li><b>Below tuning, picked thickness stops responding</b> and settles on a floor set by the
+          wavelet, with no indication on the section that anything is wrong.</li>
+        <li><b>Noise fills real notches and creates false ones.</b> A notch is an absence of
+          energy, so added noise either raises the floor inside a real one or leaves a gap where there is
+          none, and the answer comes back confident and wrong. Peak frequency is less sensitive to noise,
+          because it depends on where the energy is rather than on where it is missing.</li>
+      </ul>
+    </div>
+    <div class="takeaway" style="margin-top:18px">
+      <h3>Words introduced here</h3>
+      <dl class="terms">
+        <dt>wedge model</dt>
+        <dd>A bed of constant properties thinning steadily to a pinch-out. The standard test object for
+          this subject.</dd>
+        <dt>tuning</dt>
+        <dd>The interference between the top and base reflections of a bed once they are close enough in
+          time to overlap.</dd>
+        <dt>apparent thickness</dt>
+        <dd>The time between the peak and the trough of the composite event. What picking both events
+          would give, which stops responding below the tuning thickness.</dd>
+        <dt>amplitude tuning thickness</dt>
+        <dd>The bed thickness at which the composite amplitude is greatest. About 1/(2.6<i>f</i>), or
+          13.0 ms for a 30 Hz Ricker. This is the quantity the seismic resolution modules call the
+          tuning thickness.</dd>
+        <dt>quarter wavelength</dt>
+    <dd>The usual textbook statement of the tuning thickness. A quarter of
+      v/f in the ground, which is 1/(2f) in two-way time, so the two statements
+      are the same number and the velocity cancels out of the seismic one.</dd>
+    <dt>spectral tuning thickness</dt>
+        <dd>1/(2<i>f</i>), the thickness whose spectral peak sits at <i>f</i>. 16.7 ms at 30 Hz. Also
+          called the tuning thickness, and a different number.</dd>
+        <dt>notch</dt>
+        <dd>A frequency at which the top and base reflections cancel. Notches sit at 1/T, 2/T, 3/T for a
+          bed of two-way thickness T.</dd>
+        <dt>comb</dt>
+        <dd>The regular pattern of notches and peaks a thin bed imposes on the spectrum.</dd>
+        <dt>Widess limit</dt>
+        <dd>The thickness below which the composite waveform stops changing shape and only gets
+          quieter.</dd>
+      </dl>
+    </div>
+
+  </section>
+
+  <!-- =============================== METHOD =============================== -->
+  <section class="tabpane" id="pm" role="tabpanel" hidden>
+    <div class="plot-head" style="margin-bottom:14px">
+      <h3 id="notes">Method</h3>
+      <span class="hint">What is computed, and what is left out</span>
+    </div>
+    <p class="lede"><b>The wedge</b> is 120 traces, each a reflection coefficient of +0.1 at a fixed top
+      and &minus;0.1 at a base that steps down linearly to the pinch-out, convolved analytically with a
+      zero-phase Ricker. The reflection times are not rounded to the sample grid, so the tuning curves come
+      out smooth rather than stair-stepped — an early version that rounded them produced a visibly
+      terraced amplitude curve that looked like a real effect.</p>
+    <p class="lede"><b>The measured quantities in step 1</b> are read off each trace rather than derived.
+      Amplitude is the largest absolute value in the wedge interval. Apparent thickness is the time between
+      the maximum and the following minimum, located to sub-sample precision by fitting a parabola through
+      the three samples around each extremum, which is what stops the curve from stair-stepping.</p>
+    <p class="lede"><b>The spectra</b> are direct discrete Fourier transforms of the trace over a fixed
+      window around the wedge, with a Hann taper. The comb drawn in gray behind them is
+      2|sin(&pi;<i>fT</i>)|, the closed-form spectrum of two opposite-polarity spikes <i>T</i> apart,
+      scaled to the same peak. The first notch is located by walking up the spectrum to the first local
+      minimum below a fraction of the running peak, and interpolating.</p>
+    <p class="lede"><b>How the peak frequency is picked here, and why it differs from the rest of the
+      set.</b> This page takes the tallest maximum of the spectrum wherever it falls. Modules 05 through
+      09 instead take the lowest-frequency maximum reaching 70% of the tallest, which is the one that
+      inverts to the correct thickness and is what production software approximates with a frequency
+      search range. The unguarded version is used here on purpose: it is what lets step 3 show the
+      estimate leaving its working range at both ends and reporting a confident wrong number, which a
+      guarded picker would hide.</p>
+    <p class="lede"><b>Simplifications, stated plainly.</b> The bed is a clean doublet: two isolated
+      reflection coefficients, equal and opposite, in a constant background, with nothing above or below
+      to interfere. Real intervals have internal layering, gradational contacts, and neighbours close
+      enough to add their own interference, all of which put structure in the spectrum that this model
+      cannot produce. The wavelet is zero phase and stationary, so nothing here shows what a phase
+      rotation or attenuation does to a notch — module 09 returns to the second of those. There is no
+      spectral balancing applied anywhere in this module, which is deliberate: it lets module 05 show what
+      difference balancing makes by starting from exactly this state. And the noise is band-limited and
+      added after convolution, which is the friendliest form noise takes.</p>
+    <p class="lede"><b>Where this departs from production software.</b> Production thickness estimation
+      does not measure a notch on a single trace. It computes peak frequency at every sample of a
+      balanced volume, usually from a wavelet transform or matching pursuit rather than a windowed Fourier
+      transform, and maps 1/(2<i>f</i>) over an interval. The single-trace picture here is the mechanism
+      behind that, not the workflow. AASPI's <span class="k">thin_bed_decomposition</span> takes a
+      different route again, fitting doublets directly to the trace rather than inferring them from a
+      spectrum.</p>
+    <details class="reveal">
+      <summary>References</summary>
+      <ul class="lede" style="padding-left:20px">
+        <li>Widess, M. B., 1973, How thin is a thin bed?: <em>Geophysics</em>, <b>38</b>,
+          1176&ndash;1180.</li>
+        <li>Kallweit, R. S., and L. C. Wood, 1982, The limits of resolution of zero-phase wavelets:
+          <em>Geophysics</em>, <b>47</b>, 1035&ndash;1046.</li>
+        <li>Partyka, G., J. Gridley, and J. Lopez, 1999, Interpretational applications of spectral
+          decomposition in reservoir characterization: <em>The Leading Edge</em>, <b>18</b>,
+          353&ndash;360.</li>
+        <li>Marfurt, K. J., and R. L. Kirlin, 2001, Narrow-band spectral analysis and thin-bed tuning:
+          <em>Geophysics</em>, <b>66</b>, 1274&ndash;1283.</li>
+        <li>AASPI, <em>Spectral Attributes: Program spec_cwt</em>, University of Oklahoma — for the
+          tuning relation and the spectral response of a thin bed.</li>
+      </ul>
+    </details>
+  </section>
+
+  <section class="nextup" id="nextup" hidden>
+    <p class="eyebrow">Next up</p>
+    <h3>05 · Is that a map of the geology, or of the source wavelet?</h3>
+    <p>Every thickness in this module came from a peak frequency. On real data that peak frequency is
+      mostly a property of the source wavelet and the overburden, not of the bed — unless something is
+      done about it first.</p>
+    <a class="btn ghost" href="balancing.html">Module 05 →</a>
+  </section>
+
+  <div class="pager" id="pager" hidden>
+    <a class="btn ghost" href="components.html">← Module 03: what comes out of a decomposition</a>
+    <a class="btn ghost" href="../index.html">All modules</a>
+    <a class="btn ghost" href="balancing.html">Module 05: spectral balancing →</a>
+  </div>
+
+  <footer>
+    <div class="foot-grid">
+      <p>Built for teaching by Dr. Heather Bedle and Dr. April Moreno-Ward, University of Oklahoma, with
+        the <a href="https://www.ou.edu/mcee/labs/aaspi">AASPI</a> consortium.</p>
+      <p class="lic">To cite: H. Bedle and A. Moreno-Ward, 2026, <i>How Spectral Attributes Actually
+        Work: A Set of Browser-Based Interactive Modules</i>: SSRN working paper, University of Oklahoma.
+        <span class="k">SSRN: [article link to follow]</span></p>
+      <p class="lic">Licensed <a href="https://creativecommons.org/licenses/by-sa/4.0/">CC BY-SA 4.0</a>.
+        Free to use, adapt and share, including in teaching, provided the source is credited and any
+        adaptation is released under the same license. If you use it in a course or a talk, a credit line
+        and a link back are all that is asked.</p>
+      <p class="lic">Nothing you do in this module leaves your browser. The only thing recorded is that
+        the page was opened, so that the university can see these are being used &mdash; no cookie, no
+        account, nothing about you.</p>
+    </div>
+  </footer>
+</div>
+
+<script src="../assets/count.js"></script>
+<script src="../assets/popout.js"></script>
+<script src="../assets/panelout.js"></script>
+<script src="../assets/glossary.js"></script>
+<script src="../assets/seismic.js"></script>
+<script src="../assets/strata.js"></script>
+<script src="../assets/spectral.js"></script>
+<script>
+(function () {
+  'use strict';
+
+  if (typeof SEIS === 'undefined' || typeof SPEC === 'undefined') {
+    const missing = [];
+    if (typeof SEIS === 'undefined') missing.push('assets/seismic.js');
+    if (typeof SPEC === 'undefined') missing.push('assets/spectral.js');
+    const el = document.createElement('div');
+    el.setAttribute('style', 'background:#841617;color:#fff;padding:14px 18px;margin:16px 0;' +
+      'font:13px/1.6 ui-monospace,Menlo,monospace');
+    el.textContent = 'This module could not load ' + missing.join(' and ') +
+      '. It expects them one directory up, at ../assets/, and file names are ' +
+      'case-sensitive on GitHub Pages.';
+    const w = document.querySelector('.wrap');
+    (w || document.body).insertBefore(el, w ? w.firstChild : null);
+    return;
+  }
+
+  const $ = (id) => document.getElementById(id);
+  const clamp = (v, a, b) => Math.max(a, Math.min(b, v));
+  const visible = (id) => { const el = $(id); return el && !el.hidden; };
+  const CRIM = '#841617', TEAL = '#0B7285', SLATE = '#5C6670';
+
+  const DT = 0.0005;                 // 0.5 ms, so notches up to 1000 Hz are safe
+  const NT = 700;                    // 350 ms of record
+  const NX = 120;
+  const T0 = 0.100;                  // top of the bed, fixed
+  const RTOP = 0.1, RBOT = -0.1;
+  const FMAX = 160;                  // fixed frequency axis
+  const SFREQS = [];
+  for (let f = 1; f <= FMAX; f += 0.5) SFREQS.push(f);
+
+  const DEF = { fd: 30, noise: 0, thick: 60, ix: 60, tthin: 6, lith: 'sandInShale', tab: 'p1' };
+  let S = SEIS.readState(DEF);
+
+  const CAN_LINK = location.protocol !== 'file:';
+  const saveState = () => {
+    if (!CAN_LINK) return;
+    try { SEIS.writeState(S, DEF); } catch (e) { /* nothing shareable */ }
+  };
+
+  /* =====================================================================
+     THE WEDGE
+     Reflection times are analytic, never rounded to the sample grid: an
+     early version that rounded produced a visibly terraced tuning curve.
+     ===================================================================== */
+  let WEDGE = null, WKEY = '';
+  function wedge() {
+    const key = [S.fd, S.thick, S.noise].join('|');
+    if (WEDGE && WKEY === key) return WEDGE;
+    const wav = SEIS.makeWavelet({ type: 'ricker', f: S.fd });
+    const rnd = SEIS.mulberry32(1234);
+    const traces = [], thick = new Float64Array(NX);
+    for (let ix = 0; ix < NX; ix++) {
+      const T = (1 - ix / (NX - 1)) * (S.thick / 1000);
+      thick[ix] = T;
+      const tr = new Float64Array(NT);
+      for (let i = 0; i < NT; i++) {
+        const t = i * DT;
+        tr[i] = RTOP * wav.fn(t - T0) + RBOT * wav.fn(t - (T0 + T));
+      }
+      if (S.noise > 0) {
+        // band-limited noise, so it lives where the signal lives
+        const raw = new Float64Array(NT);
+        for (let i = 0; i < NT; i++) raw[i] = rnd() * 2 - 1;
+        const sm = new Float64Array(NT);
+        for (let i = 1; i < NT - 1; i++) {
+          sm[i] = (raw[i - 1] + raw[i] + raw[i + 1]) / 3;
+        }
+        let rms = 0;
+        for (let i = 0; i < NT; i++) rms += sm[i] * sm[i];
+        rms = Math.sqrt(rms / NT) || 1;
+        /* Scale to the reflection actually on the trace, not to the input spike.
+           Scaled to the spike, 30% noise was a fraction of that on a tuned
+           composite and never came close to filling a notch. */
+        let pk = 0;
+        for (let i = 0; i < NT; i++) pk = Math.max(pk, Math.abs(tr[i]));
+        const amp = (S.noise / 100) * (pk || Math.abs(RTOP));
+        for (let i = 0; i < NT; i++) tr[i] += (amp / rms) * sm[i];
+      }
+      traces.push(tr);
+    }
+    WEDGE = { traces, thick };
+    WKEY = key;
+    return WEDGE;
+  }
+  function traceAt(ix) { return wedge().traces[clamp(Math.round(ix), 0, NX - 1)]; }
+  function thickAt(ix) { return wedge().thick[clamp(Math.round(ix), 0, NX - 1)]; }
+
+  // the analysis window: the wedge interval plus a wavelet's worth either side
+  function winIdx() {
+    const pad = 1.6 / S.fd;
+    const a = Math.max(0, Math.round((T0 - pad) / DT));
+    const b = Math.min(NT, Math.round((T0 + S.thick / 1000 + pad) / DT));
+    return [a, b];
+  }
+
+  function spectrumOfTrace(tr) {
+    const [a, b] = winIdx();
+    const n = b - a;
+    const w = new Float64Array(n);
+    let wsum = 0;
+    for (let k = 0; k < n; k++) { w[k] = 0.5 * (1 - Math.cos(2 * Math.PI * k / (n - 1))); wsum += w[k]; }
+    const norm = wsum > 0 ? 2 / wsum : 0;
+    const out = [];
+    for (const f of SFREQS) {
+      let re = 0, im = 0;
+      for (let k = 0; k < n; k++) {
+        const t = (a + k) * DT;
+        const v = tr[a + k] * w[k];
+        const ang = 2 * Math.PI * f * t;
+        re += v * Math.cos(ang); im -= v * Math.sin(ang);
+      }
+      out.push({ f, a: Math.hypot(re, im) * norm });
+    }
+    return out;
+  }
+
+  function peakFreqOf(pts) {
+    let j = 0;
+    for (let k = 1; k < pts.length; k++) if (pts[k].a > pts[j].a) j = k;
+    if (j > 0 && j < pts.length - 1) {
+      const y0 = pts[j - 1].a, y1 = pts[j].a, y2 = pts[j + 1].a;
+      const den = y0 - 2 * y1 + y2;
+      if (Math.abs(den) > 1e-16) return pts[j].f + 0.5 * ((y0 - y2) / den) * 0.5;
+    }
+    return pts[j].f;
+  }
+
+  /* The lowest-frequency genuine notch.
+
+     An earlier version started at the spectral peak and walked upward. That is
+     wrong whenever the bed is thick: the measured peak is the WAVELET's peak,
+     which on a 55 ms bed already sits above the first notch at 18 Hz, so the
+     search skipped it and confidently reported the second notch instead — a
+     thickness exactly half the truth.
+
+     Instead, scan upward from the bottom and take the first local minimum that
+     is genuinely deep, meaning far below both of the local maxima flanking it,
+     with both of those maxima carrying real energy. */
+  function firstNotch(pts) {
+    let gmax = 0;
+    for (const p of pts) gmax = Math.max(gmax, p.a);
+    if (gmax <= 0) return null;
+    for (let k = 2; k < pts.length - 2; k++) {
+      if (!(pts[k].a < pts[k - 1].a && pts[k].a <= pts[k + 1].a)) continue;
+      // the flanking maxima
+      let lo = pts[k].a, hi = pts[k].a;
+      for (let j = k - 1; j >= 0; j--) { if (pts[j].a < pts[j + 1].a) break; lo = pts[j].a; }
+      for (let j = k + 1; j < pts.length; j++) { if (pts[j].a < pts[j - 1].a) break; hi = pts[j].a; }
+      const flank = Math.min(lo, hi);
+      if (flank < 0.12 * gmax) continue;          // no energy either side: not usable
+      if (pts[k].a < 0.35 * flank) return pts[k].f;
+    }
+    return null;
+  }
+
+  // sub-sample extremum by parabola through three points
+  function refine(tr, i) {
+    const y0 = tr[i - 1], y1 = tr[i], y2 = tr[i + 1];
+    const den = y0 - 2 * y1 + y2;
+    if (Math.abs(den) < 1e-16) return i * DT;
+    return (i + 0.5 * (y0 - y2) / den) * DT;
+  }
+
+  function traceStats(tr) {
+    const [a, b] = winIdx();
+    let iMax = a + 1, iMin = a + 1;
+    for (let i = a + 1; i < b - 1; i++) {
+      if (tr[i] > tr[iMax]) iMax = i;
+      if (tr[i] < tr[iMin]) iMin = i;
+    }
+    const amp = Math.max(Math.abs(tr[iMax]), Math.abs(tr[iMin]));
+    const tMax = refine(tr, iMax), tMin = refine(tr, iMin);
+    return { amp, apparent: Math.abs(tMin - tMax) };
+  }
+
+  /* Curves down the wedge, cached: several steps read the same ones. */
+  let CURVE = null, CKEY = '';
+  function curves() {
+    const key = [S.fd, S.thick, S.noise].join('|');
+    if (CURVE && CKEY === key) return CURVE;
+    const w = wedge();
+    const amp = [], app = [], fp = [], ns = [];
+    for (let ix = 0; ix < NX; ix++) {
+      const st = traceStats(w.traces[ix]);
+      amp.push(st.amp); app.push(st.apparent * 1000);
+      const sp = spectrumOfTrace(w.traces[ix]);
+      const pf = peakFreqOf(sp);
+      fp.push(pf > 0 ? 1000 / (2 * pf) : NaN);
+      const nf = firstNotch(sp);
+      ns.push(nf ? 1000 / nf : NaN);
+    }
+    CURVE = { amp, app, fp, ns, thick: w.thick };
+    CKEY = key;
+    return CURVE;
+  }
+
+  /* =====================================================================
+     DRAWING
+     ===================================================================== */
+  const M = { l: 56, r: 16, t: 16, b: 34 };
+  function boxOf(w, h) { return { x: M.l, y: M.t, w: w - M.l - M.r, h: h - M.t - M.b }; }
+  function contentWidth(el) {
+    const p = el.parentElement || el;
+    const cs = getComputedStyle(p);
+    return Math.max(240, p.clientWidth - parseFloat(cs.paddingLeft) - parseFloat(cs.paddingRight));
+  }
+  /* An estimate outside the plotted range is not a reading. series() clamps to
+     the axis, which would draw a wild value as though it were exactly 0 or
+     exactly TMAX and produce the flat-topped spikes that used to reach the
+     frame. Gapping the line says "no answer here", which is the truth. */
+  function onScale(ys, lo, hi) {
+    return ys.map((v) => (isFinite(v) && v >= lo && v <= hi ? v : NaN));
+  }
+  function series(ctx, rect, xs, ys, x0, x1, y0, y1, color, width, dash) {
+    ctx.save();
+    ctx.beginPath();
+    ctx.lineWidth = width || 1.7;
+    ctx.strokeStyle = color;
+    if (dash) ctx.setLineDash(dash);
+    let started = false;
+    for (let i = 0; i < xs.length; i++) {
+      if (!isFinite(ys[i]) || xs[i] < x0 || xs[i] > x1) { started = false; continue; }
+      const X = rect.x + ((xs[i] - x0) / (x1 - x0)) * rect.w;
+      const Y = rect.y + rect.h - ((clamp(ys[i], y0, y1) - y0) / (y1 - y0)) * rect.h;
+      if (!started) { ctx.moveTo(X, Y); started = true; } else ctx.lineTo(X, Y);
+    }
+    ctx.stroke();
+    ctx.restore();
+  }
+  function marker(ctx, rect, x, x0, x1, color) {
+    const X = rect.x + ((x - x0) / (x1 - x0)) * rect.w;
+    if (X < rect.x || X > rect.x + rect.w) return;
+    SEIS.dashedLine(ctx, X, rect.y, X, rect.y + rect.h, color, [4, 3], 1.2);
+  }
+  function drawField(ctx, rect, get, nx, ny, cmap) {
+    const off = document.createElement('canvas');
+    off.width = nx; off.height = ny;
+    const octx = off.getContext('2d');
+    const img = octx.createImageData(nx, ny);
+    for (let iy = 0; iy < ny; iy++) {
+      for (let ix = 0; ix < nx; ix++) {
+        const c = cmap(get(ix, iy));
+        const o = (iy * nx + ix) * 4;
+        img.data[o] = c[0]; img.data[o + 1] = c[1]; img.data[o + 2] = c[2]; img.data[o + 3] = 255;
+      }
+    }
+    octx.putImageData(img, 0, 0);
+    ctx.save();
+    ctx.imageSmoothingEnabled = true;
+    ctx.drawImage(off, rect.x, rect.y, rect.w, rect.h);
+    ctx.restore();
+    SEIS.frame(ctx, rect);
+  }
+
+  /* ------------------------------------------------------------- header */
+  function drawHeader() {
+    const el = $('cHead');
+    if (!el) return;
+    const w = contentWidth(el), h = 210;
+    const ctx = SEIS.fitCanvas(el, w, h);
+    ctx.clearRect(0, 0, w, h);
+    const rect = boxOf(w, h);
+    const wd = wedge();
+    const [a, b] = winIdx();
+    let mx = 0;
+    for (let ix = 0; ix < NX; ix++) {
+      for (let i = a; i < b; i++) mx = Math.max(mx, Math.abs(wd.traces[ix][i]));
+    }
+    mx = mx || 1;
+    drawField(ctx, rect, (ix, iy) => 0.5 + 0.5 * clamp(wd.traces[ix][a + iy] / mx, -1, 1),
+      NX, b - a, SEIS.COLORMAPS.gray);
+    SEIS.axisBottom(ctx, rect, 0, NX - 1, 'trace', (v) => v.toFixed(0), { ticks: 6 });
+    SEIS.axisLeft(ctx, rect, a * DT * 1000, b * DT * 1000, 'time (ms)', (v) => v.toFixed(0), { ticks: 5, down: true });
+    marker(ctx, rect, S.ix, 0, NX - 1, CRIM);
+  }
+
+  /* ------------------------------------------------------------- step 1 */
+  function drawStep1() {
+    const a = $('c1a'), b = $('c1b');
+    if (!a || !b) return;
+    const c = curves();
+    const xs = [];
+    for (let ix = 0; ix < NX; ix++) xs.push(c.thick[ix] * 1000);
+    const TMAX = S.thick;
+    const h = 260;
+
+    const wA = contentWidth(a);
+    const cA = SEIS.fitCanvas(a, wA, h);
+    cA.clearRect(0, 0, wA, h);
+    const rA = boxOf(wA, h);
+    let mxA = 0;
+    for (const v of c.amp) mxA = Math.max(mxA, v);
+    SEIS.frame(cA, rA);
+    series(cA, rA, xs, c.amp.map((v) => v / (mxA || 1)), 0, TMAX, 0, 1.1, CRIM, 2);
+    SEIS.axisBottom(cA, rA, 0, TMAX, 'true thickness (ms)', (v) => v.toFixed(0), { ticks: 6 });
+    SEIS.axisLeft(cA, rA, 0, 1.1, 'relative amplitude', (v) => v.toFixed(1), { ticks: 5 });
+    marker(cA, rA, thickAt(S.ix) * 1000, 0, TMAX, SLATE);
+
+    const wB = contentWidth(b);
+    const cB = SEIS.fitCanvas(b, wB, h);
+    cB.clearRect(0, 0, wB, h);
+    const rB = boxOf(wB, h);
+    SEIS.frame(cB, rB);
+    // the truth, for comparison: apparent should equal true above tuning
+    series(cB, rB, xs, xs, 0, TMAX, 0, TMAX, 'rgba(92,102,112,0.6)', 1.6, [4, 3]);
+    series(cB, rB, xs, onScale(c.app, 0, TMAX), 0, TMAX, 0, TMAX, TEAL, 2);
+    SEIS.axisBottom(cB, rB, 0, TMAX, 'true thickness (ms)', (v) => v.toFixed(0), { ticks: 6 });
+    SEIS.axisLeft(cB, rB, 0, TMAX, 'apparent (ms)', (v) => v.toFixed(0), { ticks: 5 });
+    marker(cB, rB, thickAt(S.ix) * 1000, 0, TMAX, SLATE);
+
+    /* Where the amplitude curve peaks, and where apparent thickness bottoms out.
+
+       The peak is refined by a parabola through the three traces around the
+       maximum, for the same reason the peak of a spectrum is: the wedge is a
+       grid of 120 traces, so its spacing is half a millisecond at the default
+       thickest end, and reporting the nearest node put the amplitude tuning
+       thickness of a 30 Hz Ricker at 13.1 ms when the true value is 13.0. The
+       readouts elsewhere in the set, and verify-volume.js, measure 13.0. */
+    let bi = 0;
+    for (let ix = 0; ix < NX; ix++) if (c.amp[ix] > c.amp[bi]) bi = ix;
+    let tuneMs = c.thick[bi] * 1000;
+    if (bi > 0 && bi < NX - 1) {
+      const y0 = c.amp[bi - 1], y1 = c.amp[bi], y2 = c.amp[bi + 1];
+      const den = y0 - 2 * y1 + y2;
+      if (Math.abs(den) > 1e-16) {
+        const d = 0.5 * (y0 - y2) / den;                       // in traces
+        tuneMs = (c.thick[bi] + d * (c.thick[bi + 1] - c.thick[bi])) * 1000;
+      }
+    }
+    /* Take the floor over traces that have a reflection in them. At the very
+       pinch-out the trace is identically zero, its maximum and minimum land on
+       the same sample, and the apparent thickness reads 0 ms — which is not a
+       floor, it is an absence. */
+    let amax = 0;
+    for (const v of c.amp) amax = Math.max(amax, v);
+    let floor = Infinity;
+    for (let ix = 0; ix < NX; ix++) {
+      if (c.amp[ix] < 0.02 * amax) continue;
+      if (isFinite(c.app[ix]) && c.app[ix] > 0) floor = Math.min(floor, c.app[ix]);
+    }
+    $('s1true').textContent = (thickAt(S.ix) * 1000).toFixed(1) + ' ms';
+    $('s1app').textContent = c.app[clamp(Math.round(S.ix), 0, NX - 1)].toFixed(1) + ' ms';
+    $('s1tune').textContent = tuneMs.toFixed(1) + ' ms';
+    $('s1floor').textContent = isFinite(floor) ? floor.toFixed(1) + ' ms' : '—';
+  }
+
+  /* RMS amplitude of the background bedding on a section, measured on the
+     traces in a window above the target rather than from the reflection
+     coefficients. It has to be an amplitude, in the same units as the noise
+     RMS, because the target is required to stand above whichever of the two is
+     larger. Comparing an amplitude against a raw reflection coefficient is what
+     made the traceability figure improve when noise was added. */
+  function bgOf(sec) {
+    const lo = Math.round(0.075 / sec.dt), hi = Math.round(0.115 / sec.dt);
+    let sum = 0, n = 0;
+    for (let ix = 0; ix < sec.nx; ix++) {
+      for (let i = lo; i < hi; i++) { const v = sec.traces[ix][i]; sum += v * v; n++; }
+    }
+    return Math.sqrt(sum / (n || 1));
+  }
+
+  /* The same thinning bed inside stratigraphy, built from the shared rock
+     table in assets/strata.js. The wedge above it is the clean two-reflector
+     case; this is what the same bed looks like with beds around it and with
+     the impedance contrast its lithology actually gives. */
+  function drawStrata() {
+    const el = $('c1s');
+    if (!el) return;
+    const sec = STRATA.buildSection({
+      nx: 160, nt: 700, dt: DT, f: S.fd, target: S.lith,
+      thickL: S.thick, thickR: 0, tTarget: 0.150, noise: S.noise,
+    });
+    const i0 = Math.round(0.070 / DT), i1 = Math.round((0.170 + S.thick / 1000) / DT);
+    const h = 280;
+    const w = contentWidth(el);
+    const ctx = SEIS.fitCanvas(el, w, h);
+    ctx.clearRect(0, 0, w, h);
+    const rect = boxOf(w, h);
+    SEIS.drawSectionPanel(ctx, sec.traces, rect, {
+      i0, i1, dt: DT, xlabel: 'bed thickness (ms)', xmin: S.thick, xmax: 0,
+    });
+    STRATA.markTarget(ctx, sec, rect, i0, i1, TEAL);
+
+    /* How the bed's own reflection compares with the bedding around it. Below
+       about 1 it cannot be picked out, whatever its thickness. */
+    let bg = 0;
+    for (const L of sec.layers) bg = Math.max(bg, Math.abs(L.r));
+    const strongest = Math.max(Math.abs(sec.rcTop), Math.abs(sec.rcBase));
+    const ratio = bg ? strongest / bg : Infinity;
+
+    $('s1rc').textContent = (sec.rcTop >= 0 ? '+' : '') + sec.rcTop.toFixed(3);
+    $('s1lith').textContent = sec.targetName + ' in ' + sec.hostName.toLowerCase();
+    $('s1contrast').textContent = isFinite(ratio) ? ratio.toFixed(2) + '×' : '—';
+    $('s1vis').textContent = ratio >= 2 ? 'clearly'
+      : ratio >= 1 ? 'about as strong as bedding' : 'weaker than bedding';
+
+    /* The thinnest part of the bed that can still be followed across the
+       section, as a signal-to-noise test.
+
+       A first attempt compared the peak amplitude in the target window against
+       the mean amplitude away from it, on the noisy section. That measure fails
+       under noise: noise raises the window peak as well as the background, and
+       a noise spike inside the window satisfies the test on its own. It
+       reported a buried bed as traceable everywhere, which is the opposite of
+       the truth. The test below separates the two properly by building the
+       section a second time with the same seed and no noise, so the difference
+       between the two is the noise itself, and the clean build is the signal. */
+    const clean = S.noise > 0 ? STRATA.buildSection({
+      nx: 160, nt: 700, dt: DT, f: S.fd, target: S.lith,
+      thickL: S.thick, thickR: 0, tTarget: 0.150, noise: 0,
+    }) : sec;
+
+    let nz = 0, nn = 0;
+    if (S.noise > 0) {
+      for (let ix = 0; ix < sec.nx; ix++) {
+        for (let i = 0; i < sec.nt; i++) {
+          const d = sec.traces[ix][i] - clean.traces[ix][i];
+          nz += d * d; nn++;
+        }
+      }
+      nz = Math.sqrt(nz / (nn || 1));
+    }
+
+    /* The bed has to stand above the bedding around it AND above the noise,
+       so the floor is whichever of the two is larger. */
+    const floor = 2 * Math.max(bgOf(clean), nz);
+    const wTop = Math.round(clean.targetTop / DT);
+    const pad = Math.round(0.008 / DT);
+    let thinnest = null;
+    for (let ix = 0; ix < clean.nx; ix++) {
+      const T = clean.thickness[ix];
+      const lo = Math.max(0, wTop - pad);
+      const hi = Math.min(clean.nt, wTop + Math.round(T / DT) + pad);
+      let sig = 0;
+      for (let i = lo; i < hi; i++) sig = Math.max(sig, Math.abs(clean.traces[ix][i]));
+      if (sig > floor) thinnest = T;
+    }
+    $('s1trace').textContent = thinnest === null ? 'not traceable'
+      : (thinnest * 1000).toFixed(1) + ' ms';
+  }
+
+  /* ------------------------------------------------------------- step 2 */
+  function drawStep2() {
+    const el = $('c2');
+    if (!el) return;
+    const w = contentWidth(el), h = 320;
+    const ctx = SEIS.fitCanvas(el, w, h);
+    ctx.clearRect(0, 0, w, h);
+    const rect = boxOf(w, h);
+    const tr = traceAt(S.ix), T = thickAt(S.ix);
+    const sp = spectrumOfTrace(tr);
+    let mx = 0;
+    for (const p of sp) mx = Math.max(mx, p.a);
+    mx = mx || 1;
+
+    SEIS.frame(ctx, rect);
+    // the pure interference comb, scaled to sit behind the measured spectrum
+    if (T > 0) {
+      const cf = [], cy = [];
+      for (const p of sp) { cf.push(p.f); cy.push(SPEC.doubletSpectrum(p.f, T) / 2); }
+      series(ctx, rect, cf, cy, 0, FMAX, 0, 1.1, 'rgba(92,102,112,0.55)', 1.5);
+    }
+    series(ctx, rect, sp.map((p) => p.f), sp.map((p) => p.a / mx), 0, FMAX, 0, 1.1, TEAL, 2);
+    SEIS.axisBottom(ctx, rect, 0, FMAX, 'frequency (Hz)', (v) => v.toFixed(0), { ticks: 8 });
+    SEIS.axisLeft(ctx, rect, 0, 1.1, 'relative amplitude', (v) => v.toFixed(1), { ticks: 5 });
+
+    if (T > 0) {
+      for (let n = 1; n <= 4; n++) {
+        const f = n / T;
+        if (f < FMAX) marker(ctx, rect, f, 0, FMAX, 'rgba(132,22,23,0.55)');
+      }
+      const fp = 1 / (2 * T);
+      if (fp < FMAX) {
+        marker(ctx, rect, fp, 0, FMAX, CRIM);
+        const X = rect.x + (fp / FMAX) * rect.w;
+        SEIS.tag(ctx, X + 5, rect.y + 6, '1/(2T)', CRIM);
+      }
+    }
+
+    const meas = firstNotch(sp);
+    $('s2true').textContent = (T * 1000).toFixed(1) + ' ms';
+    $('s2pred').textContent = T > 0 ? (1 / T).toFixed(1) + ' Hz' : '—';
+    $('s2meas').textContent = meas ? meas.toFixed(1) + ' Hz' : 'out of band';
+    $('s2peak').textContent = T > 0 ? (1 / (2 * T)).toFixed(1) + ' Hz' : '—';
+  }
+
+  /* ------------------------------------------------------------- step 3 */
+  function drawStep3() {
+    const el = $('c3');
+    if (!el) return;
+    const w = contentWidth(el), h = 320;
+    const ctx = SEIS.fitCanvas(el, w, h);
+    ctx.clearRect(0, 0, w, h);
+    const rect = boxOf(w, h);
+    const c = curves();
+    const xs = [];
+    for (let ix = 0; ix < NX; ix++) xs.push(c.thick[ix] * 1000);
+    const TMAX = S.thick;
+
+    SEIS.frame(ctx, rect);
+    series(ctx, rect, xs, xs, 0, TMAX, 0, TMAX, 'rgba(92,102,112,0.65)', 2.4, [5, 4]);
+    series(ctx, rect, xs, onScale(c.fp, 0, TMAX), 0, TMAX, 0, TMAX, CRIM, 2);
+    series(ctx, rect, xs, onScale(c.ns, 0, TMAX), 0, TMAX, 0, TMAX, TEAL, 2);
+    SEIS.axisBottom(ctx, rect, 0, TMAX, 'true thickness (ms)', (v) => v.toFixed(0), { ticks: 6 });
+    SEIS.axisLeft(ctx, rect, 0, TMAX, 'estimated (ms)', (v) => v.toFixed(0), { ticks: 5 });
+    marker(ctx, rect, thickAt(S.ix) * 1000, 0, TMAX, SLATE);
+
+    const ix = clamp(Math.round(S.ix), 0, NX - 1);
+    /* The estimate is good over a BAND of thicknesses, not below a limit. Too
+       thick and 1/(2T) drops out of the bottom of the wavelet's spectrum; too
+       thin and it climbs out of the top. Either way the measured peak reverts to
+       the wavelet's own peak and the answer stops moving. Report both ends. */
+    let thin = NaN, thick = NaN;
+    for (let k = NX - 1; k >= 0; k--) {
+      const t = c.thick[k] * 1000;
+      if (t <= 0) continue;
+      if (isFinite(c.fp[k]) && Math.abs(c.fp[k] - t) / t < 0.2) { thin = t; break; }
+    }
+    for (let k = 0; k < NX; k++) {
+      const t = c.thick[k] * 1000;
+      if (t <= 0) continue;
+      if (isFinite(c.fp[k]) && Math.abs(c.fp[k] - t) / t < 0.2) { thick = t; break; }
+    }
+    $('s3true').textContent = (thickAt(S.ix) * 1000).toFixed(1) + ' ms';
+    $('s3fp').textContent = isFinite(c.fp[ix]) ? c.fp[ix].toFixed(1) + ' ms' : '—';
+    $('s3ns').textContent = isFinite(c.ns[ix]) ? c.ns[ix].toFixed(1) + ' ms' : 'out of band';
+    $('s3lim').textContent = (isFinite(thin) && isFinite(thick))
+      ? thin.toFixed(1) + '\u2013' + thick.toFixed(1) + ' ms' : '—';
+  }
+
+  /* ------------------------------------------------------------- step 4 */
+  /* Amplitude tuning for one wavelet frequency: the thickness at which a
+     doublet response is brightest, found by scanning thickness directly. */
+  function ampTuning(fd) {
+    const wav = SEIS.makeWavelet({ type: 'ricker', f: fd });
+    let best = -1, bestT = 0;
+    for (let Tms = 0.5; Tms <= 60; Tms += 0.25) {
+      const T = Tms / 1000;
+      let mx = 0;
+      for (let t = T0 - 0.03; t <= T0 + T + 0.03; t += DT) {
+        const v = Math.abs(RTOP * wav.fn(t - T0) + RBOT * wav.fn(t - (T0 + T)));
+        if (v > mx) mx = v;
+      }
+      if (mx > best) { best = mx; bestT = Tms; }
+    }
+    return bestT;
+  }
+
+  function drawStep4() {
+    const el = $('c4');
+    if (!el) return;
+    const w = contentWidth(el), h = 320;
+    const ctx = SEIS.fitCanvas(el, w, h);
+    ctx.clearRect(0, 0, w, h);
+    const rect = boxOf(w, h);
+    const fs = [], ta = [], ts = [];
+    for (let f = 12; f <= 70; f += 2) {
+      fs.push(f); ta.push(ampTuning(f)); ts.push(1000 / (2 * f));
+    }
+    SEIS.frame(ctx, rect);
+    series(ctx, rect, fs, ta, 12, 70, 0, 45, CRIM, 2.2);
+    series(ctx, rect, fs, ts, 12, 70, 0, 45, TEAL, 2.2);
+    SEIS.axisBottom(ctx, rect, 12, 70, 'wavelet peak frequency (Hz)', (v) => v.toFixed(0), { ticks: 6 });
+    SEIS.axisLeft(ctx, rect, 0, 45, 'tuning thickness (ms)', (v) => v.toFixed(0), { ticks: 5 });
+    marker(ctx, rect, S.fd, 12, 70, SLATE);
+
+    const at = ampTuning(S.fd), st = 1000 / (2 * S.fd);
+    $('s4f').textContent = S.fd.toFixed(0) + ' Hz';
+    $('s4amp').textContent = at.toFixed(1) + ' ms';
+    $('s4spec').textContent = st.toFixed(1) + ' ms';
+    /* The same two thicknesses expressed as a fraction of a wavelength. A bed of
+       two-way thickness T at velocity v is v*T/2 long in the ground, and the
+       wavelength is v/f, so the fraction is f*T/2 and the velocity drops out. */
+    const frac = (ms) => (S.fd * (ms / 1000)) / 2;
+    $('s4wl').textContent = '\u03bb/' + (1 / frac(st)).toFixed(1);
+    $('s4wla').textContent = '\u03bb/' + (1 / frac(at)).toFixed(1);
+    $('s4rat').textContent = (at / st).toFixed(3);
+  }
+
+  /* ------------------------------------------------------------- step 5 */
+  function thinTrace(Tms) {
+    const wav = SEIS.makeWavelet({ type: 'ricker', f: S.fd });
+    const T = Tms / 1000;
+    const tr = new Float64Array(NT);
+    for (let i = 0; i < NT; i++) {
+      const t = i * DT;
+      tr[i] = RTOP * wav.fn(t - T0) + RBOT * wav.fn(t - (T0 + T));
+    }
+    return tr;
+  }
+
+  function drawStep5() {
+    const a = $('c5a'), b = $('c5b');
+    if (!a || !b) return;
+    const T1 = S.tthin, T2 = S.tthin / 2;
+    const trA = thinTrace(T1), trB = thinTrace(T2);
+    const nrm = (tr) => {
+      let mx = 0;
+      for (let i = 0; i < NT; i++) mx = Math.max(mx, Math.abs(tr[i]));
+      return { mx, v: Array.from(tr, (x) => x / (mx || 1)) };
+    };
+    const nA = nrm(trA), nB = nrm(trB);
+
+    const h = 260;
+    const wA = contentWidth(a);
+    const cA = SEIS.fitCanvas(a, wA, h);
+    cA.clearRect(0, 0, wA, h);
+    const rA = boxOf(wA, h);
+    const xs = [];
+    for (let i = 0; i < NT; i++) xs.push(i * DT * 1000);
+    SEIS.frame(cA, rA);
+    const Y0 = rA.y + rA.h / 2;
+    SEIS.dashedLine(cA, rA.x, Y0, rA.x + rA.w, Y0, 'rgba(92,102,112,0.45)', [3, 3], 1);
+    const t1 = (T0 - 0.05) * 1000, t2 = (T0 + 0.09) * 1000;
+    series(cA, rA, xs, nA.v, t1, t2, -1.15, 1.15, CRIM, 2.6);
+    series(cA, rA, xs, nB.v, t1, t2, -1.15, 1.15, TEAL, 1.6);
+    SEIS.axisBottom(cA, rA, t1, t2, 'time (ms)', (v) => v.toFixed(0), { ticks: 5 });
+    SEIS.axisLeft(cA, rA, -1.15, 1.15, 'normalized', (v) => v.toFixed(1), { ticks: 5 });
+
+    const spA = spectrumOfTrace(trA), spB = spectrumOfTrace(trB);
+    let mA = 0, mB = 0;
+    for (const p of spA) mA = Math.max(mA, p.a);
+    for (const p of spB) mB = Math.max(mB, p.a);
+    const wB = contentWidth(b);
+    const cB = SEIS.fitCanvas(b, wB, h);
+    cB.clearRect(0, 0, wB, h);
+    const rB = boxOf(wB, h);
+    SEIS.frame(cB, rB);
+    series(cB, rB, spA.map((p) => p.f), spA.map((p) => p.a / (mA || 1)), 0, FMAX, 0, 1.1, CRIM, 2.2);
+    series(cB, rB, spB.map((p) => p.f), spB.map((p) => p.a / (mB || 1)), 0, FMAX, 0, 1.1, TEAL, 1.7);
+    SEIS.axisBottom(cB, rB, 0, FMAX, 'frequency (Hz)', (v) => v.toFixed(0), { ticks: 6 });
+    SEIS.axisLeft(cB, rB, 0, 1.1, 'relative amplitude', (v) => v.toFixed(1), { ticks: 5 });
+
+    // how different are the two shapes, once amplitude is taken out of it
+    const [ia, ib] = winIdx();
+    let diff = 0;
+    for (let i = ia; i < ib; i++) diff = Math.max(diff, Math.abs(nA.v[i] - nB.v[i]));
+    $('s5wf').textContent = (100 * diff).toFixed(1) + '%';
+    $('s5amp').textContent = (nA.mx / (nB.mx || 1)).toFixed(2) + '×';
+    $('s5pf').textContent = peakFreqOf(spA).toFixed(1) + ' Hz';
+    $('s5pf2').textContent = peakFreqOf(spB).toFixed(1) + ' Hz';
+  }
+
+  /* =====================================================================
+     PLUMBING
+     ===================================================================== */
+  function syncLabels() {
+    $('fdV').textContent = S.fd + ' Hz';
+    $('noiseV').textContent = S.noise === 0 ? 'none' : S.noise + '%';
+    $('thickV').textContent = S.thick + ' ms';
+    $('ixV').textContent = (thickAt(S.ix) * 1000).toFixed(1) + ' ms';
+    $('tthinV').textContent = S.tthin + ' ms';
+    ['fd', 'noise', 'thick', 'ix', 'tthin'].forEach((k) => {
+      const el = $(k);
+      if (el && String(S[k]) !== el.value) el.value = S[k];
+    });
+    document.querySelectorAll('#segLith button').forEach((b) => {
+      const on = b.dataset.lith === S.lith;
+      b.setAttribute('aria-pressed', on);
+      b.classList.toggle('on', on);
+    });
+  }
+
+  function drawAll() {
+    const lab = document.querySelector('.labhead');
+    if (lab && !lab.hidden) drawHeader();
+    if (visible('p1')) { drawStep1(); drawStrata(); }
+    if (visible('p2')) drawStep2();
+    if (visible('p3')) drawStep3();
+    if (visible('p4')) drawStep4();
+    if (visible('p5')) drawStep5();
+  }
+
+  const PANES = ['p1', 'p2', 'p3', 'p4', 'p5', 'pw', 'pe', 'pk', 'pm'];
+  const STEPNAMES = {
+    p1: 'The wedge', p2: 'The notch', p3: 'Thickness', p4: 'Two tunings',
+    p5: 'The limit', pw: 'Why it matters', pe: 'Exercises', pk: 'Key points', pm: 'Method',
+  };
+
+  function buildStepNav() {
+    PANES.forEach((id, i) => {
+      const pane = $(id);
+      if (!pane || pane.querySelector('.stepnav')) return;
+      const prev = PANES[i - 1], next = PANES[i + 1];
+      const nav = document.createElement('div');
+      nav.className = 'stepnav';
+      const mk = (target, text, ghost) => {
+        const b = document.createElement('button');
+        b.type = 'button';
+        b.className = 'btn' + (ghost ? ' ghost' : '') + ' small';
+        b.textContent = text;
+        b.addEventListener('click', () => {
+          showTab(target);
+          const t = document.querySelector('.tabhint');
+          if (t && t.scrollIntoView) t.scrollIntoView({ behavior: 'smooth', block: 'start' });
+        });
+        return b;
+      };
+      nav.appendChild(prev ? mk(prev, '\u2190 ' + STEPNAMES[prev], true)
+                           : document.createElement('span'));
+      const where = document.createElement('span');
+      where.className = 'where';
+      where.textContent = i < 5 ? 'step ' + (i + 1) + ' of 5' : STEPNAMES[id];
+      nav.appendChild(where);
+      nav.appendChild(next ? mk(next, STEPNAMES[next] + ' \u2192')
+                           : document.createElement('span'));
+      pane.appendChild(nav);
+    });
+  }
+
+  function showTab(id) {
+    PANES.forEach((q) => { const el = $(q); if (el) el.hidden = q !== id; });
+    document.querySelectorAll('#tabs button').forEach((b) => {
+      b.setAttribute('aria-selected', b.dataset.tab === id);
+    });
+    const lab = document.querySelector('.labhead');
+    // steps 4 and 5 do not use the wedge, so the section would only mislead
+    if (lab) lab.hidden = !(id === 'p1' || id === 'p2' || id === 'p3' || id === 'p4' || id === 'p5');
+    /* The forward link lives on the pager. Show it once the reader has reached
+       the exercises, not only on the two reference tabs — a student who works
+       the exercises and stops used to have no way on to the next module. */
+    const done = (id === 'pe' || id === 'pk' || id === 'pm');
+    if ($('nextup')) $('nextup').hidden = !(id === 'pk' || id === 'pm');
+    if ($('pager')) $('pager').hidden = !done;
+    S.tab = id;
+    drawAll();
+    saveState();
+  }
+  document.querySelectorAll('#tabs button').forEach((b) => {
+    b.addEventListener('click', () => showTab(b.dataset.tab));
+  });
+
+  document.querySelectorAll('#segLith button').forEach((b) => {
+    b.addEventListener('click', () => {
+      S.lith = b.dataset.lith;
+      syncLabels(); drawAll(); saveState();
+    });
+  });
+
+  document.addEventListener('input', (ev) => {
+    const t = ev.target;
+    if (!t || t.tagName !== 'INPUT') return;
+    const id = t.id;
+    if (!(id in DEF)) return;
+    S[id] = parseFloat(t.value);
+    syncLabels(); drawAll(); saveState();
+  });
+
+  let rt;
+  window.addEventListener('resize', () => { clearTimeout(rt); rt = setTimeout(drawAll, 140); });
+
+  buildStepNav();
+  syncLabels();
+  showTab(PANES.indexOf(S.tab) >= 0 ? S.tab : 'p1');
+})();
+</script>
+</body>
+</html>

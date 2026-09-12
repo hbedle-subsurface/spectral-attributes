@@ -1,0 +1,1299 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>One trace, four answers | How Spectral Attributes Actually Work</title>
+<meta name="description" content="The short-time Fourier transform, the continuous wavelet transform, matching pursuit and a sparse inversion, run on the same trace. What each one assumes, where a model-based method beats the uncertainty bound, and where it invents structure instead.">
+<link rel="stylesheet" href="../assets/fonts.css">
+<link rel="stylesheet" href="../assets/style.css">
+</head>
+<body>
+
+<div class="wrap">
+  <header class="masthead">
+    <a class="brand" href="../index.html"><span class="dot"></span>How spectral attributes <b>actually</b> work</a>
+    <nav>
+      <a href="../index.html">All modules</a>
+      <a href="blending.html">← Module 07</a>
+      <a href="#notes">Method &amp; references</a>
+    </nav>
+  </header>
+
+  <div class="mod-head">
+    <p class="eyebrow">Module 08 &nbsp;·&nbsp; Spectral attributes</p>
+    <h1>One trace, four answers</h1>
+    <p class="sub">Every map in the last three modules came out of a decomposition, and the software offers several. They are not competing implementations of one calculation. Each begins by assuming something different about what a trace is made of, and each returns a different answer from the same data. The first three steps show that this happens, say why, and give the one thing worth doing about it. The last two are marked as advanced and hold the arithmetic behind the first three.</p>
+  </div>
+
+  <div class="labhead">
+    <div class="labgrid">
+      <div>
+        <p class="cap">The trace <span>&mdash; a thin bed, an isolated event, and a close pair</span></p>
+        <canvas id="cHead" aria-label="The synthetic trace used throughout this module"></canvas>
+      </div>
+      <div>
+        <p class="cap">Build the trace <span>&mdash; every step updates as you drag</span></p>
+        <div class="controls" id="winControls">
+          <div class="ctl-col">
+            <h2>The earth</h2>
+            <div class="ctl">
+              <label for="bed">Thin bed <span class="val" id="bedV">14 ms</span></label>
+              <input type="range" data-key="bed" id="bed" min="4" max="40" step="2" value="14">
+            </div>
+            <div class="ctl">
+              <label for="sep">Close pair separation <span class="val" id="sepV">28 ms</span></label>
+              <input type="range" data-key="sep" id="sep" min="8" max="60" step="2" value="28">
+            </div>
+            <div class="ctl">
+              <label for="noise">Noise <span class="val" id="noiseV">3%</span></label>
+              <input type="range" data-key="noise" id="noise" min="0" max="20" step="1" value="3">
+            </div>
+          </div>
+          <div class="ctl-col">
+            <h2>The analysis</h2>
+            <div class="ctl">
+              <label for="fd">Wavelet peak frequency <span class="val" id="fdV">30 Hz</span></label>
+              <input type="range" data-key="fd" id="fd" min="18" max="50" step="2" value="30">
+            </div>
+            <div class="ctl">
+              <label for="win">STFT window <span class="val" id="winV">60 ms</span></label>
+              <input type="range" data-key="win" id="win" min="20" max="160" step="10" value="60">
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <p class="tabhint">Steps 1 to 3 are the module. Steps 4 and 5 are marked as advanced: they hold the
+    arithmetic behind the first three, and nothing later in the set depends on either. <b>Then try the
+    exercises.</b>
+    Method and references are there when you want them.</p>
+  <nav class="tabs" id="tabs" role="tablist" aria-label="Module steps">
+    <button role="tab" data-tab="p1" aria-selected="false">1 · Three answers</button>
+    <button role="tab" data-tab="p2" aria-selected="false">2 · Why they differ</button>
+    <button role="tab" data-tab="p5" aria-selected="false">3 · What to do about it</button>
+    <button role="tab" data-tab="p3" aria-selected="false">4 · Advanced: the bound</button>
+    <button role="tab" data-tab="p4" aria-selected="false">5 · Advanced: greedy fits</button>
+    <button role="tab" data-tab="pw" aria-selected="false">Why it matters</button>
+    <span class="gap"></span>
+    <button role="tab" data-tab="pe" aria-selected="false">Exercises</button>
+    <button role="tab" data-tab="pk" aria-selected="false">Key points</button>
+    <button role="tab" data-tab="pm" aria-selected="false">Method</button>
+  </nav>
+
+  <!-- =============================== STEP 1 =============================== -->
+  <section class="tabpane" id="p1" role="tabpanel" hidden>
+    <div class="plot-head" style="margin-bottom:14px">
+      <h3><span class="stepno">1</span>One bed, three answers</h3>
+      <span class="hint">The same trace, three programs, three thicknesses</span>
+    </div>
+    <p class="qbox"><b>Why this step is here.</b> A project directory holds three spectral decomposition volumes of the same survey. Do they say the same thing?</p>
+
+    <p class="lede"><b>A 30 ms bed comes back as a 36 m sand or a 21 m sand, depending on which
+      file was opened.</b> The three programs report peak frequencies of 17.1, 22.9 and 29.7 Hz at that
+      bed. Turned into thickness through 1/(2<i>f</i>) those are 29, 22 and 17 ms, which at 2500 m/s are
+      36, 27 and 21 meters of rock. Nothing in the model changed between them. The trace is identical,
+      the bed is identical, and the numbers are not close.</p>
+
+    <p class="lede">None of the three is a mistake and none is a worse implementation of the other two.
+      They are three different measurements, and step 2 is about what makes them different. The three
+      names are worth having now, because they are what the files will be called: a <b>short-time
+      Fourier transform</b>, a <b>wavelet transform</b>, and <b>matching pursuit</b>.</p>
+
+    <p class="lede">The disagreement is largest on thick beds and smallest on thin ones: 12.6 Hz between
+      the methods at 30 ms and 5.3 Hz at 8 ms. That is the opposite of what most people expect, and it
+      matters before a thickness from one program is contoured beside a thickness from another.</p>
+
+    <p class="lede">The three panels below are how those numbers were produced: time down, frequency
+      across, brightness for how much energy the trace holds at each. They are the display module 03
+      introduced. Reading them is not necessary to take the point of this step, which is in the
+      readouts beneath them.</p>
+
+    <div class="plot">
+      <div class="plot-head">
+        <h3>Short-time Fourier, wavelet transform, matching pursuit</h3>
+        <span class="hint">Time down, frequency across, magnitude in color</span>
+      </div>
+      <canvas id="c1" aria-label="Three time-frequency panels of the same trace"></canvas>
+    </div>
+    <div class="stats">
+      <div class="stat key"><span>Peak frequency at the bed, STFT</span><b id="s1a">—</b></div>
+      <div class="stat"><span>Wavelet transform</span><b id="s1b">—</b></div>
+      <div class="stat"><span>Matching pursuit</span><b id="s1c">—</b></div>
+      <div class="stat"><span>Predicted, 1/(2T)</span><b id="s1p">—</b></div>
+    </div>
+    <div class="legend prose">
+      <span><b>Agreement between methods is not the same as being right.</b> On a 30 ms bed, where
+      1/(2<i>T</i>) predicts 16.7 Hz, the Fourier transform reports 17.1, the wavelet transform 22.9 and
+      matching pursuit 29.7. They disagree by 12.6 Hz and the Fourier answer is the one near the
+      prediction. Take the bed down to 8 ms, where 1/(2<i>T</i>) predicts 62.5 Hz, and the three read
+      36.8, 40.9 and 35.6: now they agree with each other to within 5.3 Hz and all three are more than
+      20 Hz below the right answer. Agreement has gone up while accuracy has collapsed, because the bed
+      has thinned past what the recorded band can express and every method is reporting the wavelet
+      instead. Three programs agreeing is evidence that they share an assumption, not that the
+      assumption holds.</span>
+    </div>
+  </section>
+
+  <!-- =============================== STEP 2 =============================== -->
+  <section class="tabpane" id="p2" role="tabpanel" hidden>
+    <div class="plot-head" style="margin-bottom:14px">
+      <h3><span class="stepno">2</span>What each method assumes</h3>
+      <span class="hint">The analysis element, drawn</span>
+    </div>
+    <p class="qbox"><b>Why this step is here.</b> Three methods analyze the same trace and disagree. What is each one assuming?</p>
+
+    <p class="lede">To measure a frequency, a method has to look at a piece of trace. The three
+      differ in which piece they look at, and that single choice is where the disagreement in step 1
+      comes from. The panel below draws it: each row is one frequency, and the shaded box is the
+      length of trace that method uses to measure it.</p>
+
+    <p class="lede"><b>Fixed window.</b> The short-time Fourier transform uses the same length of trace
+      at every frequency, set by one number the operator supplies. At 60 ms a 15 Hz component gets
+      barely one cycle to be measured in, and a 60 Hz component gets almost four. The same window
+      therefore treats the low end of the band much more coarsely than the high end.</p>
+
+    <p class="lede"><b>Fixed cycles.</b> The wavelet transform holds the number of cycles constant
+      instead, so its box is long at low frequency and short at high. Every frequency is measured over
+      the same number of cycles, which means the length of rock it averages over is roughly the same
+      at all of them. Time detail improves toward the high end and frequency detail toward the low.</p>
+
+    <p class="lede"><b>No window.</b> Matching pursuit does not cut out a piece of trace at all. It
+      holds one waveform, slides it along, and asks where in the trace that shape fits. The faint
+      copies in the third column are the same shape at other positions. Because nothing is being cut,
+      there is no window length to choose, and the assumption moves instead to the shape: whatever the
+      method holds is what it will find.</p>
+
+    <div class="plot">
+      <div class="plot-head">
+        <h3>What each method looks at, to measure one frequency</h3>
+        <span class="hint">One row per frequency; the shaded box is the piece of trace used</span>
+      </div>
+      <canvas id="c2a" aria-label="The length of trace each method uses at three frequencies, drawn to scale"></canvas>
+    </div>
+
+    <div class="plot">
+      <div class="plot-head">
+        <h3>The same thing as a number, at every frequency</h3>
+        <span class="hint">Crimson: fixed window. Teal: wavelet family</span>
+      </div>
+      <canvas id="c2b" aria-label="Analysis length against frequency for the fixed window and the wavelet family"></canvas>
+    </div>
+    <div class="stats">
+      <div class="stat key"><span>STFT length, at 20 and 60 Hz</span><b id="s2s">—</b></div>
+      <div class="stat"><span>Wavelet length, at 20 and 60 Hz</span><b id="s2w">—</b></div>
+      <div class="stat"><span>STFT frequency resolution</span><b id="s2sf">—</b></div>
+      <div class="stat"><span>Wavelet frequency resolution</span><b id="s2wf">—</b></div>
+    </div>
+    <div class="legend prose">
+      <span><b>Neither choice is better, and the difference is not small.</b> At a 60 ms setting the
+      fixed window is 60 ms at both 20 and 60 Hz. The wavelet family is 100 ms at 20 Hz and 33 ms at
+      60 Hz, so at the low end it averages over three times as much section as the fixed window and at
+      the high end over half as much. A target sitting low in the band is described by the two methods
+      over lengths of rock that differ by a factor of three, which is why they can report different
+      thicknesses for it. Which one suits a survey depends on where in the band the target sits, and
+      that is a decision about the geology rather than about the software.</span>
+    </div>
+  </section>
+
+  <!-- =============================== STEP 5 =============================== -->
+  <section class="tabpane" id="p5" role="tabpanel" hidden>
+    <div class="plot-head" style="margin-bottom:14px">
+      <h3><span class="stepno">3</span>What to do about it</h3>
+      <span class="hint">One wedge, measured three ways, across every thickness</span>
+    </div>
+    <p class="qbox"><b>Why this step is here.</b> Does the thickness extracted from a decomposition depend on which program produced it?</p>
+    <p class="lede">The three curves below are the same wedge measured by the three methods. At a 30 Hz
+      wavelet their mean errors are 25%, 35% and 37%, and at their worst they disagree with each other
+      by 23.4 ms on a 34 ms bed — an interval about two thirds of the bed itself.</p>
+
+    <p class="lede"><b>What to do with that in an interpretation.</b> Where the three agree, the
+      thickness is a property of the data and can be carried forward. Where they disagree, the spread is
+      a measurement of how much the answer depends on the assumption behind each method, and it belongs
+      with the number rather than being resolved by picking a favorite. Running two programs and mapping
+      the difference is a simpler uncertainty estimate than most, and it is the one thing the existence
+      of three programs makes easy.</p>
+
+    <p class="lede">Stated as a working rule: run the decomposition twice with different programs, map
+      the two results, and subtract one from the other. Where the difference map is near zero the
+      thickness is a property of the data. Where it is large, the number there depends on which
+      assumption was made, and the size of the difference is how much. That map goes alongside the
+      thickness map, not instead of it.</p>
+
+    <p class="lede">Steps 4 and 5 are the arithmetic behind this and are marked as advanced. Nothing
+      in the modules that follow depends on them.</p>
+
+
+    <div class="plot">
+      <div class="plot-head">
+        <h3>Estimated thickness against true thickness</h3>
+        <span class="hint">Gray: truth. Crimson: STFT. Teal: wavelet transform. Slate: matching pursuit</span>
+      </div>
+      <canvas id="c5" aria-label="Thickness estimated by three methods against the truth"></canvas>
+    </div>
+    <div class="stats">
+      <div class="stat key"><span>Mean error, STFT</span><b id="s5a">—</b></div>
+      <div class="stat"><span>Mean error, wavelet transform</span><b id="s5b">—</b></div>
+      <div class="stat"><span>Mean error, matching pursuit</span><b id="s5c">—</b></div>
+      <div class="stat"><span>Largest disagreement</span><b id="s5d">—</b></div>
+    </div>
+    <div class="legend prose">
+      <span><b>All three are wrong by comparable amounts, in different places.</b> Over the whole wedge the mean errors are 25% for the Fourier transform, 35% for the wavelet transform and 37% for matching pursuit. No method is accurate where the others are not; each is accurate over a different part of the wedge. The spread between them at one thickness is therefore an estimate of the uncertainty, and it requires no information the interpreter does not already have, since the second estimate comes from the same data.</span>
+    </div>
+  </section>
+
+  <!-- =============================== STEP 3 =============================== -->
+  <section class="tabpane" id="p3" role="tabpanel" hidden>
+    <div class="plot-head" style="margin-bottom:14px">
+      <h3><span class="stepno">4</span>Advanced concept: resolving past the uncertainty bound</h3>
+      <span class="hint">Two tones inside one short window</span>
+    </div>
+    <p class="qbox"><b>Why this step is here.</b> Module 02 measured a resolution bound that no window escapes. Some programs appear to beat it. How?</p>
+    <p class="lede">A sparse inversion is not bound by it, because it is not transforming. It asks which few frequencies, if present, would produce the data being seen. That is a model rather than a measurement, and it resolves detail no window could.</p>
+
+    <div class="ctl" style="max-width:460px;margin:0 0 12px">
+      <label for="gap">Tone separation <span class="val" id="gapV">8 Hz</span></label>
+      <input type="range" id="gap" min="2" max="30" step="1" value="8">
+    </div>
+    <div class="sec-row">
+      <div class="panel-col">
+        <p class="sublabel"><b>Two clean tones</b> <span class="note">a model the solver fits</span></p>
+        <canvas id="c3a" aria-label="Spectrum of two tones by Fourier transform and by sparse inversion"></canvas>
+      </div>
+      <div class="panel-col">
+        <p class="sublabel"><b>A broadband event</b> <span class="note">a model it does not fit</span></p>
+        <canvas id="c3b" aria-label="Spectrum of a broadband wavelet by Fourier transform and by sparse inversion"></canvas>
+      </div>
+    </div>
+    <div class="stats">
+      <div class="stat key"><span>Fourier limit, 1/T</span><b id="s3lim">—</b></div>
+      <div class="stat"><span>Fourier peaks found</span><b id="s3fp">—</b></div>
+      <div class="stat"><span>Sparse peaks found</span><b id="s3sp">—</b></div>
+      <div class="stat"><span>Sparse peaks on the broadband event</span><b id="s3bb">—</b></div>
+    </div>
+    <div class="legend prose">
+      <span><b>The same behavior that resolves two tones splits one broad event into several.</b> In a 40 ms window the Fourier limit is 25 Hz, and two tones 8 Hz apart are one blob to the transform and two peaks to the inversion. Given a broadband wavelet instead, which is one event and not several, the inversion returns a set of narrow spikes. It answers the question it was asked — which few frequencies explain this — and the answer is wrong because the premise was.</span>
+    </div>
+  </section>
+
+  <!-- =============================== STEP 4 =============================== -->
+  <section class="tabpane" id="p4" role="tabpanel" hidden>
+    <div class="plot-head" style="margin-bottom:14px">
+      <h3><span class="stepno">5</span>Advanced concept: matching pursuit at a tuned bed</h3>
+      <span class="hint">Fitting one event at a time to interfering events</span>
+    </div>
+    <p class="qbox"><b>Why this step is here.</b> Matching pursuit fits one event at a time and subtracts it. What happens when two events overlap?</p>
+    <p class="lede">The panels show the fit and the residual. The bed thickness slider in the header is the control that matters: taking it from well above tuning down through it changes what the algorithm does.</p>
+
+    <p class="lede"><b>What the residual panel is showing about the rock.</b> A dictionary of waveforms
+      fitted one at a time reproduces a well-separated top and base with two or three atoms. As the bed
+      thins through tuning the top and base stop being separable events, and the algorithm answers with
+      more atoms rather than fewer: seven land near the bed at 20 ms against two or three above and
+      below it. Those extra atoms have times and frequencies, they plot as points on a display, and none
+      of them corresponds to an interface in the model.</p>
+
+    <p class="lede">On real data the same thing happens wherever the section stops resembling the
+      dictionary: at a fault plane, across a rugose unconformity, through a heterolithic interval with
+      many closely spaced contrasts. The fit is forced, the residual stays small, and the excess atoms
+      are delivered as structure. A sparse result that looks unusually detailed over a stratigraphically
+      complicated interval is the case to check against the seismic rather than the case to trust.</p>
+
+    <div class="sec-row">
+      <div class="panel-col">
+        <p class="sublabel"><b>Trace, model and residual</b> <span class="note">gray, crimson, teal</span></p>
+        <canvas id="c4a" aria-label="The trace, the matching pursuit model and the residual"></canvas>
+      </div>
+      <div class="panel-col">
+        <p class="sublabel"><b>Where the atoms landed</b> <span class="note">against the true reflections</span></p>
+        <canvas id="c4b" aria-label="Fitted atom times and frequencies against the true reflection times"></canvas>
+      </div>
+    </div>
+    <div class="stats">
+      <div class="stat key"><span>Atoms fitted</span><b id="s4n">—</b></div>
+      <div class="stat"><span>Residual energy</span><b id="s4r">—</b></div>
+      <div class="stat"><span>Atoms near the bed</span><b id="s4b">—</b></div>
+      <div class="stat"><span>First atom frequency</span><b id="s4f">—</b></div>
+    </div>
+    <div class="legend prose">
+      <span><b>Below tuning the algorithm stops seeing the top and base as separate events.</b> On a 40 ms bed it places three atoms in the bed window and leaves 0.6% of the energy in the residual. The fit is excellent and the decomposition is wrong: the extra atoms are describing the interference pattern rather than reflectors. A small residual measures how well the model fits, not whether the model was the right one.</span>
+    </div>
+  </section>
+
+  <!-- ============================ WHY IT MATTERS =========================== -->
+  <section class="tabpane" id="pw" role="tabpanel" hidden>
+    <div class="plot-head" style="margin-bottom:14px">
+      <h3>Why it matters</h3>
+      <span class="hint">Choosing, and reading someone else's choice</span>
+    </div>
+    <p class="lede">The program name in a file header states what was assumed, and belongs with the frequency list and the balancing parameters when a volume is described.</p>
+    <ul class="lede" style="padding-left:20px">
+      <li><b>Choosing for a target.</b> Thin, high-frequency targets favor the wavelet transform, whose
+        time resolution improves where the target lives. A narrow-band question over a long interval
+        favors a fixed window.</li>
+      <li><b>Deciding whether extra detail is real.</b> A decomposition that resolves more than a
+        transform of the same data has supplied the difference from its own assumptions.</li>
+      <li><b>Interpreting near a tuned bed.</b> Matching pursuit's bias is largest exactly where thin-bed
+        work happens, which matters before building a thickness map from it.</li>
+      <li><b>Estimating uncertainty.</b> Two methods disagreeing gives an error bar that neither method provides on its own, and it requires no data beyond what has already been decomposed.</li>
+      <li><b>Reading a paper or a report.</b> Results that hold under one decomposition and not another
+        are results about the decomposition.</li>
+    </ul>
+    <p class="lede"><b>Mistakes made when choosing a method.</b> The most common is treating the sharpest picture as the most accurate. Sharpness in a time-frequency panel comes partly from the method's assumptions, and a model-based method returns sharp output whether or not its model fits. The second is reading agreement between two methods as confirmation, when methods agree wherever the data are simple enough for all of them.</p>
+    <div class="legend prose">
+      <span>The AASPI documentation describes <span class="k">spec_max_entropy</span> and <span class="k">spec_clssa</span> as though they were higher-resolution versions of the same measurement. They resolve detail a transform cannot, on the strength of an assumption about the data, and that assumption is what a reader should weigh.</span>
+    </div>
+  </section>
+
+  <!-- ============================== EXERCISES ============================= -->
+  <section class="tabpane" id="pe" role="tabpanel" hidden>
+    <div class="tryit" style="max-width:none">
+      <h3>Exercises</h3>
+      <ol>
+        <li><b>Find where the three pictures disagree.</b>
+          <em class="point">Why: methods agree wherever the data are simple, so the disagreement is where the choice of method matters.</em>
+           In step 1, read the three peak frequencies at
+          the bed, then take the bed thickness down toward its minimum.
+          <em class="predict">Before reading them: three methods, one trace, one true thickness. Should they agree? And if they converge as the bed thins, does that mean they are getting more reliable?</em>
+          <details class="reveal"><summary>Hint</summary><span class="ans">The result is the opposite of
+            what most people expect. On a 30 ms bed the three read 17.1, 22.9 and 29.7 Hz against a
+            prediction of 16.7 — a spread of 12.6 Hz, with only the Fourier transform close. On an 8 ms
+            bed they read 36.8, 40.9 and 35.6 against a prediction of 62.5 — a spread of only 5.3 Hz, and
+            all three wrong by a wide margin. The methods converge on the thin bed because none of them
+            can see the tuning peak any more, so all three fall back on the wavelet and give the same
+            wrong answer. Close agreement between decompositions is not evidence that the answer is
+            right; it can mean the measurement has failed the same way three times.</span></details></li>
+        <li><b>Compare the two windows.</b>
+          <em class="point">Why: a fixed-length window and a fixed-cycle window place the same resolution in different parts of the band.</em>
+           In step 2, read the analysis length at 20 Hz and at 60 Hz for
+          both methods, then change the STFT window slider.
+          <details class="reveal"><summary>Hint</summary><span class="ans">At a 60 ms setting the Fourier
+            window is 60 ms at both frequencies by construction, with 33.3 Hz of frequency resolution at
+            each. The wavelet family runs 100 ms at 20 Hz and 33 ms at 60 Hz, with 5.3 Hz and 15.9 Hz of
+            frequency resolution. The frequency resolution readouts show the consequence: the wavelet transform is much
+            coarser in frequency at 60 Hz than the fixed window is. Neither is better in general. The
+            wavelet distribution suits seismic because thin beds are brief and high-frequency, so the
+            method spends its time resolution where the short events are and its frequency resolution
+            where the long ones are.</span></details></li>
+        <li><b>Beat the bound, then break it.</b>
+          <em class="point">Why: a model-based method returns sharp output whether or not its model fits the data.</em>
+           In step 4, bring the tone separation below 1/T and count
+          the peaks each method finds. Then look at the right-hand panel.
+          <details class="reveal"><summary>Hint</summary><span class="ans">Below the Fourier limit the
+            transform reports one peak and the sparse solver reports two, in the right places. That is a
+            real gain and not a trick: the solver has extra information, namely the assumption that only a
+            few frequencies are present, and the data happen to satisfy it. The right-hand panel is the
+            same solver on a broadband wavelet, where the assumption is false, and it produces several
+            spikes where the truth is one smooth hump. A method cannot know which situation it is in, and
+            neither can a picture.</span></details></li>
+        <li><b>Break matching pursuit on a tuned bed.</b>
+          <em class="point">Why: a small residual measures how well the model fits, not whether it was the right model.</em>
+           In step 5, take the bed from 40 ms down to 4 ms,
+          watching the atom count and the residual.
+          <details class="reveal"><summary>Hint</summary><span class="ans">On a 40 ms bed it places
+            three atoms in the bed window and leaves 0.6% of the energy behind. At 6 ms it places two and
+            leaves 2.6%, and the strongest atom reads 36.8 Hz on data built with a 30 Hz wavelet. The top
+            and base have merged into a single composite peak and a greedy algorithm sees one event. The residual stops falling, and the frequency of that single atom belongs to the
+            composite rather than to either reflection. Everything downstream of that fit inherits the
+            error. This is the documented weakness of the greedy approach and the reason
+            <span class="k">spec_cmp</span> solves for its peaks simultaneously
+            instead.</span></details></li>
+        <li><b>Use the disagreement as an error bar.</b>
+          <em class="point">Why: running a second program gives an uncertainty estimate for a thickness map without acquiring anything further.</em>
+           In step 3, look at where the three curves
+          separate and compare with where each one departs from the truth.
+          <details class="reveal"><summary>Hint</summary><span class="ans">Mean errors of 25%, 35% and
+            37% put the three methods within reach of each other, so none is simply better. Their largest
+            disagreement is 23.4 ms and it sits at 34 ms of true thickness — the thick end, where the
+            tuning peak has fallen toward the bottom of the band, rather than the thin end where attention
+            usually goes. No single decomposition reports an uncertainty, and the temptation is to treat a
+            smooth attribute map as a confident one.
+            Computing the same attribute two ways and mapping the difference takes one extra run and gives
+            something no single volume contains: a map of where the answer depends on the method,
+            which is a map of where not to trust it.</span></details></li>
+              <li><b>Give one disagreement between methods three explanations.</b>
+          <em class="point">Why: a disagreement has several causes, and only one of them is that a method is broken.</em>
+           In step 1, find a bed
+          thickness where the three methods differ, then vary the noise and the wavelet.
+          <details class="reveal"><summary>Hint</summary><span class="ans">Methods disagree for reasons
+            that are not equally interesting. The signal may be outside the recorded band, in which case
+            all three are reporting the wavelet and the disagreement is about how each one fails, not
+            about the earth — that is what happens on the 8 ms bed. The events may be interfering, in
+            which case matching pursuit is biased in the specific way step 5 shows and the transforms
+            are not. The data may be noisy, in which case the model-based methods have more freedom to
+            fit the noise. Or one method's assumption may genuinely fit the earth better than the others,
+            which is the case worth acting on and the rarest of the four. Raising the noise separates the
+            third from the rest; changing the wavelet separates the first. Disagreement is information
+            about the measurement before it is information about the rock.</span></details></li>
+</ol>
+    </div>
+  </section>
+
+  <!-- ============================= KEY POINTS ============================= -->
+  <section class="tabpane" id="pk" role="tabpanel" hidden>
+    <div class="takeaway">
+      <h3>Key points</h3>
+      <ul>
+        <li><b>The programs compute different things,</b> because each assumes something different about
+          what a trace is made of: sines in a fixed window, scaled copies of one shape, a few discrete
+          wavelets, or a spectrum with few frequencies in it.</li>
+        <li><b>A fixed window spends its resolution evenly; a wavelet family spends it with
+          frequency.</b> A fixed window length against a fixed number of cycles is the whole difference between the first
+          two, and neither escapes module 02's product.</li>
+        <li><b>A model-based method can beat the uncertainty bound</b> when the data fit its model, which
+          is real and useful — two tones closer than 1/T come back separated.</li>
+        <li><b>The same mechanism invents structure when the model is wrong.</b> A sparse solver given a
+          broadband event returns spikes that were never in the data, and nothing in the output says so.</li>
+        <li><b>Greedy matching pursuit is biased at tuning,</b> exactly where thin-bed work happens,
+          because it fits the composite as one event. Simultaneous fitting reduces this and does not
+          remove it.</li>
+        <li><b>The disagreement between two methods is an error bar obtained from the data already in hand</b> — but note
+          that agreement is not evidence of accuracy. Three methods converge on a bed too thin for any of
+          them, and all three are wrong together.</li>
+      </ul>
+    </div>
+    <div class="takeaway" style="margin-top:18px">
+      <h3>Words introduced here</h3>
+      <dl class="terms">
+        <dt>short-time Fourier transform, STFT</dt>
+        <dd>One window length used at every frequency. The method module 02 built by hand.</dd>
+        <dt>continuous wavelet transform, CWT</dt>
+        <dd>A family of filters each holding the same number of cycles, so the window is long at low
+          frequency and short at high. What <span class="k">spec_cwt</span> uses.</dd>
+        <dt>matching pursuit</dt>
+        <dd>Fitting the largest event in the trace, subtracting it, and repeating on the remainder.</dd>
+        <dt>atom</dt>
+        <dd>One fitted wavelet in that process. Extra atoms at a tuned bed describe interference rather
+          than reflectors.</dd>
+        <dt>residual</dt>
+        <dd>What is left after the fitted atoms are subtracted. A small residual means the model fits,
+          not that the model was correct.</dd>
+        <dt>sparse inversion</dt>
+        <dd>Asking which few frequencies, if present, would produce the observed data. A model rather
+          than a measurement, and not bound by the window limit.</dd>
+        <dt>uncertainty bound</dt>
+        <dd>The floor under the product of time width and frequency width, measured in module 02. It
+          binds every fixed-window method and no model-based one.</dd>
+        <dt>greedy algorithm</dt>
+        <dd>One that takes the largest available fit at each step without revisiting earlier choices.
+          The bias at tuning follows from that.</dd>
+      </dl>
+    </div>
+
+  </section>
+
+  <!-- =============================== METHOD =============================== -->
+  <section class="tabpane" id="pm" role="tabpanel" hidden>
+    <div class="plot-head" style="margin-bottom:14px">
+      <h3 id="notes">Method</h3>
+      <span class="hint">What is computed, and what is left out</span>
+    </div>
+    <p class="lede"><b>All four methods come from <span class="k">assets/spectral.js</span></b> and each
+      was verified against a case with a known answer before this module was built: the Morlet family
+      against the closed-form Gaussian bandwidth, the short-time transform against a pure tone and its
+      window floor, matching pursuit against three planted atoms recovered to within 0.04 Hz, and the
+      sparse solver against two tones separated by less than the Fourier limit.</p>
+    <p class="lede"><b>The wavelet transform</b> uses a complex Morlet family built the way
+      <span class="k">spec_cwt</span> builds it, scaled from a mother wavelet at 1 Hz so that the ratio of
+      center frequency to bandwidth is constant. One departure from the documentation is worth recording:
+      its Figures 4 and 5 pair their quoted bandwidths with the opposite variances, and the quantity it
+      labels a half-bandwidth is numerically the full half-power bandwidth. The arithmetic here follows
+      the numbers rather than the captions.</p>
+    <p class="lede"><b>Matching pursuit</b> here is greedy — it locates envelope peaks above a threshold,
+      takes the instantaneous frequency at each, fits a complex Ricker atom, subtracts it and repeats.
+      <span class="k">spec_cmp</span> fits all peaks above its threshold simultaneously by solving a banded
+      system, which reduces the tuned-bed bias that step 5 demonstrates. One correction was needed to make
+      the documented recipe work: the instantaneous frequency at the envelope peak of a Ricker is 2/√π
+      times its peak frequency, about 13% high, and taking the instruction literally fits every atom with
+      a wavelet too short and leaves several percent of the input energy in the residual.</p>
+    <p class="lede"><b>The sparse spectrum</b> stands in for <span class="k">spec_max_entropy</span>. It
+      solves the same underdetermined problem with an iteratively reweighted model norm rather than the
+      constrained least-squares formulation in the literature, which is a simpler solver reaching a
+      similar answer. It is computed only in step 4, on single windows, because a solve at every sample is
+      too slow for a page that redraws on a slider.</p>
+    <p class="lede"><b>Simplifications, stated plainly.</b> Every transform here is normalized so that a
+      cosine of amplitude A at the analysis frequency returns magnitude A, which AASPI does not do — so
+      shapes and ratios are comparable with production output and absolute magnitudes are not. There is no
+      balancing anywhere in this module, deliberately, so the comparison is between methods rather than
+      between processing choices. The S-transform is not included: none of the AASPI programs use it, and
+      it would be a fourth comparison point rather than a fourth program.</p>
+    <details class="reveal">
+      <summary>References</summary>
+      <ul class="lede" style="padding-left:20px">
+        <li>Mallat, S., and Z. Zhang, 1993, Matching pursuits with time-frequency dictionaries:
+          <em>IEEE Transactions on Signal Processing</em>, <b>41</b>, 3397&ndash;3415.</li>
+        <li>Sinha, S., P. Routh, P. Anno, and J. Castagna, 2005, Spectral decomposition of seismic data
+          with continuous-wavelet transform: <em>Geophysics</em>, <b>70</b>, P19&ndash;P25.</li>
+        <li>Portniaguine, O., and J. Castagna, 2004, Inverse spectral decomposition:
+          <em>SEG Technical Program Expanded Abstracts</em>, 1786&ndash;1789.</li>
+        <li>Castagna, J. P., and S. Sun, 2006, Comparison of spectral decomposition methods:
+          <em>First Break</em>, <b>24</b>, 75&ndash;79.</li>
+        <li>Liu, J., and K. J. Marfurt, 2007, Instantaneous spectral attributes to detect channels:
+          <em>Geophysics</em>, <b>72</b>, P23&ndash;P31.</li>
+        <li>AASPI, <em>Spectral Attributes: Programs spec_cwt, spec_cmp and spec_max_entropy</em>,
+          University of Oklahoma.</li>
+      </ul>
+    </details>
+  </section>
+
+  <section class="nextup" id="nextup" hidden>
+    <p class="eyebrow">Next up</p>
+    <h3>09 · Three ways to make a low-frequency anomaly, and one to miss a reservoir</h3>
+    <p>The last module in the set, and the one to read before presenting anything: the several things
+      other than the target that produce a spectral anomaly, and how to tell them apart.</p>
+    <a class="btn ghost" href="shadows.html">Module 09 →</a>
+  </section>
+
+  <div class="pager" id="pager" hidden>
+    <a class="btn ghost" href="blending.html">← Module 07: blending, and its traps</a>
+    <a class="btn ghost" href="../index.html">All modules</a>
+    <a class="btn ghost" href="shadows.html">Module 09: when a change isn't the reservoir →</a>
+  </div>
+
+  <footer>
+    <div class="foot-grid">
+      <p>Built for teaching by Dr. Heather Bedle and Dr. April Moreno-Ward, University of Oklahoma, with
+        the <a href="https://www.ou.edu/mcee/labs/aaspi">AASPI</a> consortium.</p>
+      <p class="lic">To cite: H. Bedle and A. Moreno-Ward, 2026, <i>How Spectral Attributes Actually
+        Work: A Set of Browser-Based Interactive Modules</i>: SSRN working paper, University of Oklahoma.
+        <span class="k">SSRN: [article link to follow]</span></p>
+      <p class="lic">Licensed <a href="https://creativecommons.org/licenses/by-sa/4.0/">CC BY-SA 4.0</a>.
+        Free to use, adapt and share, including in teaching, provided the source is credited and any
+        adaptation is released under the same license. If you use it in a course or a talk, a credit line
+        and a link back are all that is asked.</p>
+      <p class="lic">Nothing you do in this module leaves your browser. The only thing recorded is that
+        the page was opened, so that the university can see these are being used &mdash; no cookie, no
+        account, nothing about you.</p>
+    </div>
+  </footer>
+</div>
+
+<script src="../assets/count.js"></script>
+<script src="../assets/popout.js"></script>
+<script src="../assets/panelout.js"></script>
+<script src="../assets/glossary.js"></script>
+<script src="../assets/seismic.js"></script>
+<script src="../assets/spectral.js"></script>
+<script>
+(function () {
+  'use strict';
+
+  if (typeof SEIS === 'undefined' || typeof SPEC === 'undefined') {
+    const missing = [];
+    if (typeof SEIS === 'undefined') missing.push('assets/seismic.js');
+    if (typeof SPEC === 'undefined') missing.push('assets/spectral.js');
+    const el = document.createElement('div');
+    el.setAttribute('style', 'background:#841617;color:#fff;padding:14px 18px;margin:16px 0;' +
+      'font:13px/1.6 ui-monospace,Menlo,monospace');
+    el.textContent = 'This page could not load ' + missing.join(' and ') +
+      '. It expects them one directory up, at ../assets/, and file names are ' +
+      'case-sensitive on GitHub Pages.';
+    const w = document.querySelector('.wrap');
+    (w || document.body).insertBefore(el, w ? w.firstChild : null);
+    return;
+  }
+
+  const $ = (id) => document.getElementById(id);
+  const clamp = (v, a, b) => Math.max(a, Math.min(b, v));
+  const visible = (id) => { const el = $(id); return el && !el.hidden; };
+  const CRIM = '#841617', TEAL = '#0B7285', SLATE = '#5C6670';
+
+  const DT = 0.001, NT = 512;
+  const T_ISO = 0.080;                 // an isolated reflection
+  const T_BED = 0.200;                 // the thin bed, top
+  const T_PAIR = 0.340;                // the close pair, first event
+  const FMAX = 100;
+  const FREQS = [];
+  for (let f = 6; f <= FMAX; f += 2) FREQS.push(f);
+
+  const DEF = { bed: 14, sep: 28, noise: 3, fd: 30, win: 60, gap: 8, tab: 'p1' };
+  let S = SEIS.readState(DEF);
+
+  const CAN_LINK = location.protocol !== 'file:';
+  const saveState = () => {
+    if (!CAN_LINK) return;
+    try { SEIS.writeState(S, DEF); } catch (e) { /* nothing shareable */ }
+  };
+
+  /* ------------------------------------------------------------ the trace */
+  let TRACE = null, TKEY = '';
+  function trace() {
+    const key = [S.bed, S.sep, S.noise, S.fd].join('|');
+    if (TRACE && TKEY === key) return TRACE;
+    const wav = SEIS.makeWavelet({ type: 'ricker', f: S.fd });
+    const T = S.bed / 1000, P = S.sep / 1000;
+    const tr = new Float64Array(NT);
+    for (let i = 0; i < NT; i++) {
+      const t = i * DT;
+      tr[i] = 0.12 * wav.fn(t - T_ISO)
+            + 0.10 * wav.fn(t - T_BED) - 0.10 * wav.fn(t - (T_BED + T))
+            + 0.09 * wav.fn(t - T_PAIR) + 0.07 * wav.fn(t - (T_PAIR + P));
+    }
+    if (S.noise > 0) {
+      const rnd = SEIS.mulberry32(77);
+      const amp = (S.noise / 100) * 0.12;
+      let prev = 0;
+      for (let i = 0; i < NT; i++) {
+        const r = rnd() * 2 - 1;
+        tr[i] += amp * 0.5 * (r + prev); prev = r;
+      }
+    }
+    TRACE = tr;
+    TKEY = key;
+    return TRACE;
+  }
+
+  /* --------------------------------------------------- the decompositions */
+  let PANELS = null, PKEY = '';
+  function panels() {
+    const key = [S.bed, S.sep, S.noise, S.fd, S.win].join('|');
+    if (PANELS && PKEY === key) return PANELS;
+    const tr = trace();
+    const st = SPEC.stft(tr, DT, FREQS, { winLen: S.win / 1000, window: 'hann' });
+    const cw = SPEC.cwt(tr, DT, FREQS, { sigma: 1.0, t0: 0 });
+    const mp = SPEC.matchingPursuit(tr, DT, {
+      fmin: 6, fmax: 100, beta: 0.35, maxIter: 10, freqs: FREQS,
+    });
+    PANELS = { st, cw, mp };
+    PKEY = key;
+    return PANELS;
+  }
+
+  /* Lowest strong lobe, as modules 05 and 06 use. A tuned bed's comb has maxima
+     at 1/(2T), 3/(2T), 5/(2T), all much the same height, and taking the global
+     maximum lets the answer jump between them — on a 30 ms bed the wavelet
+     transform reported 47.5 Hz against a predicted 16.7, which is the second
+     lobe rather than an error in the transform. */
+  function peakAt(mag, iSample) {
+    let g = 0;
+    for (let j = 0; j < FREQS.length; j++) g = Math.max(g, mag[j][iSample]);
+    let jb = -1;
+    for (let j = 1; j < FREQS.length - 1; j++) {
+      if (mag[j][iSample] >= mag[j - 1][iSample] && mag[j][iSample] > mag[j + 1][iSample]
+          && mag[j][iSample] > 0.7 * g) { jb = j; break; }
+    }
+    if (jb < 0) { jb = 0; for (let j = 1; j < FREQS.length; j++) if (mag[j][iSample] > mag[jb][iSample]) jb = j; }
+    if (jb > 0 && jb < FREQS.length - 1) {
+      const y0 = mag[jb - 1][iSample], y1 = mag[jb][iSample], y2 = mag[jb + 1][iSample];
+      const den = y0 - 2 * y1 + y2;
+      if (Math.abs(den) > 1e-18) return FREQS[jb] + 0.5 * ((y0 - y2) / den) * 2;
+    }
+    return FREQS[jb];
+  }
+
+  /* =====================================================================
+     DRAWING
+     ===================================================================== */
+  const M = { l: 52, r: 14, t: 14, b: 32 };
+  function contentWidth(el) {
+    const p = el.parentElement || el;
+    const cs = getComputedStyle(p);
+    return Math.max(240, p.clientWidth - parseFloat(cs.paddingLeft) - parseFloat(cs.paddingRight));
+  }
+  function boxOf(w, h) { return { x: M.l, y: M.t, w: w - M.l - M.r, h: h - M.t - M.b }; }
+  /* A curve drawn with the vertical axis increasing downward: values across,
+     time down. Used where a trace sits beside a panel that has time on its
+     vertical axis, so the two read the same way. */
+  function seriesDown(ctx, rect, vals, times, v0, v1, t0, t1, color, lw, dash) {
+    ctx.save();
+    ctx.strokeStyle = color; ctx.lineWidth = lw || 1.6;
+    if (dash) ctx.setLineDash(dash);
+    ctx.beginPath();
+    let started = false;
+    for (let i = 0; i < vals.length; i++) {
+      const t = times[i];
+      if (t < t0 || t > t1) continue;
+      const X = rect.x + ((vals[i] - v0) / (v1 - v0)) * rect.w;
+      const Y = rect.y + ((t - t0) / (t1 - t0)) * rect.h;
+      started ? ctx.lineTo(X, Y) : ctx.moveTo(X, Y);
+      started = true;
+    }
+    ctx.stroke();
+    ctx.restore();
+  }
+
+  function series(ctx, rect, xs, ys, x0, x1, y0, y1, color, width, dash) {
+    ctx.save();
+    ctx.beginPath();
+    ctx.lineWidth = width || 1.8;
+    ctx.strokeStyle = color;
+    if (dash) ctx.setLineDash(dash);
+    let st = false;
+    for (let i = 0; i < xs.length; i++) {
+      if (!isFinite(ys[i]) || xs[i] < x0 || xs[i] > x1) { st = false; continue; }
+      const X = rect.x + ((xs[i] - x0) / (x1 - x0)) * rect.w;
+      const Y = rect.y + rect.h - ((clamp(ys[i], y0, y1) - y0) / (y1 - y0)) * rect.h;
+      if (!st) { ctx.moveTo(X, Y); st = true; } else ctx.lineTo(X, Y);
+    }
+    ctx.stroke();
+    ctx.restore();
+  }
+  function drawTF(ctx, rect, mag, mx, label, col) {
+    const off = document.createElement('canvas');
+    off.width = FREQS.length; off.height = NT;
+    const octx = off.getContext('2d');
+    const img = octx.createImageData(FREQS.length, NT);
+    for (let i = 0; i < NT; i++) {
+      for (let j = 0; j < FREQS.length; j++) {
+        const c = SEIS.SEQMAPS.viridis(clamp(mag[j][i] / mx, 0, 1));
+        const o = (i * FREQS.length + j) * 4;
+        img.data[o] = c[0]; img.data[o + 1] = c[1]; img.data[o + 2] = c[2]; img.data[o + 3] = 255;
+      }
+    }
+    octx.putImageData(img, 0, 0);
+    ctx.save();
+    ctx.imageSmoothingEnabled = true;
+    ctx.drawImage(off, rect.x, rect.y, rect.w, rect.h);
+    ctx.restore();
+    SEIS.frame(ctx, rect);
+    SEIS.tag(ctx, rect.x + 5, rect.y + 5, label, col || CRIM);
+  }
+  function seqBar(ctx, rect, lo, hi, label) {
+    const n = Math.max(2, Math.round(rect.w));
+    for (let i = 0; i < n; i++) {
+      const c = SEIS.SEQMAPS.viridis(i / (n - 1));
+      ctx.fillStyle = 'rgb(' + c[0] + ',' + c[1] + ',' + c[2] + ')';
+      ctx.fillRect(rect.x + i * (rect.w / n), rect.y, rect.w / n + 1, rect.h);
+    }
+    ctx.save();
+    ctx.strokeStyle = 'rgba(22,25,28,.45)'; ctx.lineWidth = 1;
+    ctx.strokeRect(rect.x + 0.5, rect.y + 0.5, rect.w, rect.h);
+    ctx.font = '9.5px "IBM Plex Mono", monospace';
+    ctx.fillStyle = SLATE; ctx.textBaseline = 'top';
+    ctx.textAlign = 'left'; ctx.fillText(lo, rect.x, rect.y + rect.h + 4);
+    ctx.textAlign = 'right'; ctx.fillText(hi, rect.x + rect.w, rect.y + rect.h + 4);
+    ctx.textAlign = 'center'; ctx.fillText(label, rect.x + rect.w / 2, rect.y + rect.h + 4);
+    ctx.restore();
+  }
+
+  /* ------------------------------------------------------------- header */
+  function drawHeader() {
+    const el = $('cHead');
+    if (!el) return;
+    const w = contentWidth(el), h = 210;
+    const ctx = SEIS.fitCanvas(el, w, h);
+    ctx.clearRect(0, 0, w, h);
+    const rect = boxOf(w, h);
+    const tr = trace();
+    const xs = [], ys = [];
+    for (let i = 0; i < NT; i++) { xs.push(i * DT * 1000); ys.push(tr[i]); }
+    SEIS.frame(ctx, rect);
+    const Y0 = rect.y + rect.h / 2;
+    SEIS.dashedLine(ctx, rect.x, Y0, rect.x + rect.w, Y0, 'rgba(92,102,112,0.45)', [3, 3], 1);
+    series(ctx, rect, xs, ys, 0, NT * DT * 1000, -0.2, 0.2, CRIM, 1.7);
+    SEIS.axisBottom(ctx, rect, 0, NT * DT * 1000, 'time (ms)', (v) => v.toFixed(0), { ticks: 6 });
+    SEIS.axisLeft(ctx, rect, -0.2, 0.2, 'amplitude', (v) => v.toFixed(2), { ticks: 5 });
+    [[T_ISO, 'isolated'], [T_BED, 'thin bed'], [T_PAIR, 'close pair']].forEach(([t, lab]) => {
+      const X = rect.x + (t * 1000 / (NT * DT * 1000)) * rect.w;
+      SEIS.dashedLine(ctx, X, rect.y, X, rect.y + rect.h, 'rgba(11,114,133,0.5)', [4, 3], 1);
+      SEIS.tag(ctx, X + 4, rect.y + 6, lab, TEAL);
+    });
+  }
+
+  /* ------------------------------------------------------------- step 1 */
+  function drawStep1() {
+    const el = $('c1');
+    if (!el) return;
+    const w = contentWidth(el), h = 360;
+    const ctx = SEIS.fitCanvas(el, w, h);
+    ctx.clearRect(0, 0, w, h);
+    const p = panels();
+    const gap = 16;
+    const bw = (w - M.l - M.r - 2 * gap) / 3;
+    const bh = h - M.t - M.b - 24;
+    const mags = [p.st.mag, p.cw.mag, p.mp.tf ? p.mp.tf.mag : p.st.mag];
+    const labs = ['short-time Fourier', 'wavelet transform', 'matching pursuit'];
+    mags.forEach((mag, k) => {
+      let mx = 0;
+      for (let j = 0; j < FREQS.length; j++) for (let i = 0; i < NT; i++) mx = Math.max(mx, mag[j][i]);
+      const rect = { x: M.l + k * (bw + gap), y: M.t, w: bw, h: bh };
+      drawTF(ctx, rect, mag, mx || 1, labs[k], k === 1 ? TEAL : CRIM);
+      SEIS.axisBottom(ctx, rect, FREQS[0], FMAX, k === 1 ? 'frequency (Hz)' : '',
+        (v) => v.toFixed(0), { ticks: 3 });
+      if (k === 0) SEIS.axisLeft(ctx, rect, 0, NT * DT * 1000, 'time (ms)', (v) => v.toFixed(0), { ticks: 5, down: true });
+    });
+    seqBar(ctx, { x: M.l, y: M.t + bh + 24, w: Math.min(160, bw), h: 8 }, '0', 'max', 'magnitude');
+
+    const iBed = Math.round((T_BED + S.bed / 2000) / DT);
+    $('s1a').textContent = peakAt(p.st.mag, iBed).toFixed(1) + ' Hz';
+    $('s1b').textContent = peakAt(p.cw.mag, iBed).toFixed(1) + ' Hz';
+    $('s1c').textContent = p.mp.tf ? peakAt(p.mp.tf.mag, iBed).toFixed(1) + ' Hz' : '—';
+    $('s1p').textContent = (1000 / (2 * S.bed)).toFixed(1) + ' Hz';
+  }
+
+  /* ------------------------------------------------------------- step 2 */
+  /* Step 2's main panel: the piece of trace each method looks at, drawn.
+
+     This replaced a pair of resolution-against-frequency curves. Those are the
+     right quantities and they are a signal processing display: a reader who has
+     not met the uncertainty relation has no way to look at them and understand
+     what the three programs are doing differently. A window is a length of
+     trace, so it is drawn as a length of trace. */
+  const F_ROWS = [15, 30, 60];
+  const T_SPAN = 200;                    // ms across each column
+
+  function drawStep2() {
+    const A = $('c2a'), B = $('c2b');
+    if (!A || !B) return;
+
+    const fs = [];
+    for (let f = 10; f <= 90; f += 2) fs.push(f);
+    const stLen = fs.map(() => S.win);
+    const cwLen = fs.map((f) => 1000 * 2 * 1.0 / f);        // +/- one sigma, in ms
+    const stRes = fs.map(() => 2000 / S.win);               // about 2/T, from module 02
+    const cwRes = fs.map((f) => SPEC.morletBandwidth(1.0) * f);
+
+    /* ---------------------------------------------- the drawn comparison */
+    const w = contentWidth(A);
+    const rowH = 78, headH = 30, footH = 44;
+    const h = headH + F_ROWS.length * rowH + footH;
+    const ctx = SEIS.fitCanvas(A, w, h);
+    ctx.clearRect(0, 0, w, h);
+
+    const labW = 52, gap = 18;
+    const colW = (w - labW - 2 * gap - 12) / 3;
+    const cols = [
+      { name: 'Fixed window', note: 'short-time Fourier', color: CRIM },
+      { name: 'Fixed cycles', note: 'wavelet transform', color: TEAL },
+      { name: 'No window', note: 'matching pursuit', color: SLATE },
+    ];
+
+    ctx.save();
+    ctx.font = '10px "IBM Plex Mono", monospace';
+    ctx.textAlign = 'center'; ctx.textBaseline = 'top';
+    cols.forEach((c, k) => {
+      const x = labW + k * (colW + gap);
+      ctx.fillStyle = c.color;
+      ctx.fillText(c.name.toUpperCase(), x + colW / 2, 2);
+      ctx.fillStyle = SLATE;
+      ctx.fillText(c.note, x + colW / 2, 15);
+    });
+
+    const ricker = (t, f) => {
+      const a = Math.PI * Math.PI * f * f * t * t;
+      return (1 - 2 * a) * Math.exp(-a);
+    };
+
+    F_ROWS.forEach((f, r) => {
+      const yc = headH + r * rowH + rowH / 2;
+      ctx.fillStyle = SLATE;
+      ctx.textAlign = 'right'; ctx.textBaseline = 'middle';
+      ctx.fillText(f + ' Hz', labW - 10, yc);
+
+      cols.forEach((c, k) => {
+        const x = labW + k * (colW + gap);
+        const mid = x + colW / 2;
+        const pxPerMs = colW / T_SPAN;
+        const amp = rowH * 0.30;
+
+        /* the shaded piece of trace each method uses */
+        let half = 0;
+        if (k === 0) half = (S.win / 2) * pxPerMs;
+        else if (k === 1) half = (1000 / f) * pxPerMs;      // +/- one sigma
+        if (half > 0) {
+          ctx.fillStyle = k === 0 ? 'rgba(132,22,23,0.10)' : 'rgba(11,114,133,0.10)';
+          ctx.fillRect(mid - half, yc - rowH * 0.40, 2 * half, rowH * 0.80);
+          ctx.strokeStyle = k === 0 ? 'rgba(132,22,23,0.5)' : 'rgba(11,114,133,0.5)';
+          ctx.lineWidth = 1;
+          ctx.strokeRect(mid - half + 0.5, yc - rowH * 0.40 + 0.5, 2 * half - 1, rowH * 0.80);
+        }
+
+        /* what sits inside it */
+        ctx.save();
+        ctx.beginPath();
+        ctx.rect(x, yc - rowH / 2, colW, rowH);
+        ctx.clip();
+        ctx.beginPath();
+        ctx.strokeStyle = c.color;
+        ctx.lineWidth = 1.4;
+        for (let px = 0; px <= colW; px += 1) {
+          const tms = (px / pxPerMs) - T_SPAN / 2;
+          let v;
+          if (k === 2) v = ricker(tms / 1000, f);
+          else {
+            const inside = Math.abs(px - colW / 2) <= half;
+            v = inside ? Math.cos(2 * Math.PI * f * tms / 1000) : 0;
+          }
+          const X = x + px, Y = yc - v * amp;
+          px === 0 ? ctx.moveTo(X, Y) : ctx.lineTo(X, Y);
+        }
+        ctx.stroke();
+
+        /* matching pursuit does not window: the same shape is tried at every
+           position, so two faint copies stand beside the solid one */
+        if (k === 2) {
+          ctx.strokeStyle = 'rgba(92,102,112,0.30)';
+          ctx.lineWidth = 1.1;
+          for (const shift of [-46, 46]) {
+            ctx.beginPath();
+            for (let px = 0; px <= colW; px += 1) {
+              const tms = (px / pxPerMs) - T_SPAN / 2 - shift;
+              const Y = yc - ricker(tms / 1000, f) * amp;
+              px === 0 ? ctx.moveTo(x + px, Y) : ctx.lineTo(x + px, Y);
+            }
+            ctx.stroke();
+          }
+        }
+        ctx.restore();
+      });
+    });
+
+    /* one time scale, under the first column, in milliseconds of trace */
+    const rulerY = headH + F_ROWS.length * rowH + 8;
+    SEIS.axisBottom(ctx, { x: labW, y: rulerY, w: colW, h: 0 },
+      -T_SPAN / 2, T_SPAN / 2, 'milliseconds of trace', (v) => v.toFixed(0), { ticks: 3 });
+    ctx.restore();
+
+    /* ------------------------------- the same thing as a number, per frequency */
+    const wB = contentWidth(B), hB = 260;
+    const cB = SEIS.fitCanvas(B, wB, hB);
+    cB.clearRect(0, 0, wB, hB);
+    const rB = boxOf(wB, hB);
+    SEIS.frame(cB, rB);
+    series(cB, rB, fs, stLen, 10, 90, 0, 220, CRIM, 2.2);
+    series(cB, rB, fs, cwLen, 10, 90, 0, 220, TEAL, 2.2);
+    SEIS.axisBottom(cB, rB, 10, 90, 'frequency (Hz)', (v) => v.toFixed(0), { ticks: 5 });
+    SEIS.axisLeft(cB, rB, 0, 220, 'analysis length (ms)', (v) => v.toFixed(0), { ticks: 5 });
+    SEIS.tag(cB, rB.x + 6, rB.y + 6, 'fixed window', CRIM);
+    SEIS.tag(cB, rB.x + 6, rB.y + 24, 'wavelet family', TEAL);
+
+    const at = (arr, f) => arr[fs.indexOf(f)];
+    $('s2s').textContent = at(stLen, 20).toFixed(0) + ' and ' + at(stLen, 60).toFixed(0) + ' ms';
+    $('s2w').textContent = at(cwLen, 20).toFixed(0) + ' and ' + at(cwLen, 60).toFixed(0) + ' ms';
+    $('s2sf').textContent = at(stRes, 20).toFixed(1) + ' and ' + at(stRes, 60).toFixed(1) + ' Hz';
+    $('s2wf').textContent = at(cwRes, 20).toFixed(1) + ' and ' + at(cwRes, 60).toFixed(1) + ' Hz';
+  }
+
+  /* ------------------------------------------------------------- step 3 */
+  const SEG_MS = 40;
+  function countPeaks(mag, thr) {
+    let c = 0;
+    for (let j = 1; j < mag.length - 1; j++) {
+      if (mag[j] > mag[j - 1] && mag[j] >= mag[j + 1] && mag[j] > thr) c++;
+    }
+    return c;
+  }
+  function step3Data() {
+    const n = SEG_MS + 1;
+    const f1 = 30 - S.gap / 2, f2 = 30 + S.gap / 2;
+    const seg = new Float64Array(n), bb = new Float64Array(n);
+    const wav = SEIS.makeWavelet({ type: 'ricker', f: 30 });
+    for (let i = 0; i < n; i++) {
+      const t = (i - (n - 1) / 2) * DT;
+      seg[i] = Math.cos(2 * Math.PI * f1 * t) + Math.cos(2 * Math.PI * f2 * t);
+      bb[i] = wav.fn(t);
+    }
+    const fr = [];
+    for (let f = 5; f <= 70; f += 0.5) fr.push(f);
+    const dft = (x) => {
+      const out = [];
+      let wsum = 0;
+      const w = new Float64Array(n);
+      for (let k = 0; k < n; k++) { w[k] = 0.5 * (1 - Math.cos(2 * Math.PI * k / (n - 1))); wsum += w[k]; }
+      for (const f of fr) {
+        let re = 0, im = 0;
+        for (let k = 0; k < n; k++) {
+          const t = (k - (n - 1) / 2) * DT;
+          const a = 2 * Math.PI * f * t;
+          re += x[k] * w[k] * Math.cos(a); im -= x[k] * w[k] * Math.sin(a);
+        }
+        out.push(Math.hypot(re, im) * 2 / wsum);
+      }
+      return out;
+    };
+    return {
+      fr, f1, f2,
+      dSeg: dft(seg), sSeg: Array.from(SPEC.sparseSpectrum(seg, DT, fr, { iters: 8, alpha: 0.005 }).mag),
+      dBB: dft(bb), sBB: Array.from(SPEC.sparseSpectrum(bb, DT, fr, { iters: 8, alpha: 0.005 }).mag),
+    };
+  }
+  function drawStep3() {
+    const A = $('c3a'), B = $('c3b');
+    if (!A || !B) return;
+    const d = step3Data();
+    const h = 260;
+    const draw = (el, dft, sp, marks) => {
+      const w = contentWidth(el);
+      const ctx = SEIS.fitCanvas(el, w, h);
+      ctx.clearRect(0, 0, w, h);
+      const rect = boxOf(w, h);
+      const md = Math.max.apply(null, dft) || 1, ms = Math.max.apply(null, sp) || 1;
+      SEIS.frame(ctx, rect);
+      series(ctx, rect, d.fr, dft.map((v) => v / md), 5, 70, 0, 1.1, 'rgba(92,102,112,0.8)', 2.4);
+      series(ctx, rect, d.fr, sp.map((v) => v / ms), 5, 70, 0, 1.1, CRIM, 1.9);
+      (marks || []).forEach((f) => {
+        const X = rect.x + ((f - 5) / 65) * rect.w;
+        SEIS.dashedLine(ctx, X, rect.y, X, rect.y + rect.h, TEAL, [4, 3], 1.2);
+      });
+      SEIS.axisBottom(ctx, rect, 5, 70, 'frequency (Hz)', (v) => v.toFixed(0), { ticks: 6 });
+      SEIS.axisLeft(ctx, rect, 0, 1.1, 'relative', (v) => v.toFixed(1), { ticks: 5 });
+    };
+    draw(A, d.dSeg, d.sSeg, [d.f1, d.f2]);
+    draw(B, d.dBB, d.sBB, []);
+
+    const md = Math.max.apply(null, d.dSeg) || 1, ms = Math.max.apply(null, d.sSeg) || 1;
+    const mb = Math.max.apply(null, d.sBB) || 1;
+    $('s3lim').textContent = (1000 / SEG_MS).toFixed(1) + ' Hz';
+    $('s3fp').textContent = String(countPeaks(d.dSeg, 0.3 * md));
+    $('s3sp').textContent = String(countPeaks(d.sSeg, 0.3 * ms));
+    $('s3bb').textContent = String(countPeaks(d.sBB, 0.2 * mb));
+  }
+
+  /* ------------------------------------------------------------- step 4 */
+  function drawStep4() {
+    const A = $('c4a'), B = $('c4b');
+    if (!A || !B) return;
+    const tr = trace();
+    const mp = SPEC.matchingPursuit(tr, DT, { fmin: 6, fmax: 100, beta: 0.35, maxIter: 10 });
+    const h = 260;
+
+    const wA = contentWidth(A);
+    const cA = SEIS.fitCanvas(A, wA, h);
+    cA.clearRect(0, 0, wA, h);
+    const rA = boxOf(wA, h);
+    const xs = [];
+    for (let i = 0; i < NT; i++) xs.push(i * DT * 1000);
+    SEIS.frame(cA, rA);
+    const t1 = (T_BED - 0.06) * 1000, t2 = (T_BED + 0.10) * 1000;
+
+    /* The trace is drawn vertically, time increasing downward, so that it runs
+       the same way as the atom panel beside it and a reflection can be followed
+       straight across from one to the other. Drawn horizontally it forced the
+       reader to rotate one panel mentally before the two could be compared. */
+    const Xz = rA.x + rA.w / 2;
+    SEIS.dashedLine(cA, Xz, rA.y, Xz, rA.y + rA.h, 'rgba(92,102,112,0.45)', [3, 3], 1);
+    seriesDown(cA, rA, Array.from(tr), xs, -0.2, 0.2, t1, t2, 'rgba(92,102,112,0.8)', 3);
+    seriesDown(cA, rA, Array.from(mp.modeled), xs, -0.2, 0.2, t1, t2, CRIM, 1.8);
+    seriesDown(cA, rA, Array.from(mp.residual), xs, -0.2, 0.2, t1, t2, TEAL, 1.6);
+    SEIS.axisBottom(cA, rA, -0.2, 0.2, 'amplitude', (v) => v.toFixed(2), { ticks: 5 });
+    SEIS.axisLeft(cA, rA, t1, t2, 'time (ms)', (v) => v.toFixed(0), { ticks: 5, down: true });
+
+    /* the same two guide lines that mark the bed on the atom panel */
+    [T_BED * 1000, (T_BED + S.bed / 1000) * 1000].forEach((t) => {
+      const Y = rA.y + ((t - t1) / (t2 - t1)) * rA.h;
+      if (Y >= rA.y && Y <= rA.y + rA.h) {
+        SEIS.dashedLine(cA, rA.x, Y, rA.x + rA.w, Y, 'rgba(11,114,133,0.6)', [4, 3], 1.2);
+      }
+    });
+
+    const wB = contentWidth(B);
+    const cB = SEIS.fitCanvas(B, wB, h);
+    cB.clearRect(0, 0, wB, h);
+    const rB = boxOf(wB, h);
+    SEIS.frame(cB, rB);
+    // atoms, plotted as time against frequency, with the true reflections marked
+    [T_BED * 1000, (T_BED + S.bed / 1000) * 1000].forEach((t) => {
+      const Y = rB.y + ((t - t1) / (t2 - t1)) * rB.h;
+      if (Y >= rB.y && Y <= rB.y + rB.h) {
+        SEIS.dashedLine(cB, rB.x, Y, rB.x + rB.w, Y, 'rgba(11,114,133,0.6)', [4, 3], 1.2);
+      }
+    });
+    cB.save();
+    cB.fillStyle = CRIM;
+    for (const a of mp.atoms) {
+      const tm = a.t * 1000;
+      if (tm < t1 || tm > t2) continue;
+      const X = rB.x + ((a.f - FREQS[0]) / (FMAX - FREQS[0])) * rB.w;
+      const Y = rB.y + ((tm - t1) / (t2 - t1)) * rB.h;
+      cB.beginPath();
+      cB.arc(X, Y, 3 + 9 * Math.min(1, a.amp / 0.12), 0, Math.PI * 2);
+      cB.fill();
+    }
+    cB.restore();
+    SEIS.axisBottom(cB, rB, FREQS[0], FMAX, 'atom frequency (Hz)', (v) => v.toFixed(0), { ticks: 5 });
+    SEIS.axisLeft(cB, rB, t1, t2, 'time (ms)', (v) => v.toFixed(0), { ticks: 5, down: true });
+
+    /* Residual measured over the bed window only. Over the whole trace it is
+       dominated by the isolated event, which every setting fits perfectly, and
+       the number stops responding to the thing the step is about. */
+    const iA = Math.round((T_BED - 0.03) / DT), iB = Math.round((T_BED + S.bed / 1000 + 0.05) / DT);
+    let r2 = 0, d2 = 0;
+    for (let i = iA; i < Math.min(NT, iB); i++) {
+      r2 += mp.residual[i] * mp.residual[i]; d2 += tr[i] * tr[i];
+    }
+    const near = mp.atoms.filter((a) => Math.abs(a.t - T_BED - S.bed / 2000) < 0.030);
+    near.sort((a, b) => b.amp - a.amp);
+    $('s4n').textContent = String(mp.atoms.length);
+    $('s4r').textContent = (100 * r2 / (d2 || 1)).toFixed(1) + '%';
+    $('s4b').textContent = String(near.length);
+    $('s4f').textContent = near.length ? near[0].f.toFixed(1) + ' Hz' : '—';
+  }
+
+  /* ------------------------------------------------------------- step 5 */
+  const NXW = 48, TMAXW = 44;
+  let WEDGE = null, WKEY = '';
+  function wedgeEstimates() {
+    const key = [S.fd, S.noise, S.win].join('|');
+    if (WEDGE && WKEY === key) return WEDGE;
+    const wav = SEIS.makeWavelet({ type: 'ricker', f: S.fd });
+    const nt = 256, t0 = 0.080;
+    const th = [], a = [], b = [], c = [];
+    const rnd = SEIS.mulberry32(31);
+    for (let ix = 0; ix < NXW; ix++) {
+      const T = (TMAXW - (TMAXW - 4) * ix / (NXW - 1)) / 1000;
+      th.push(T * 1000);
+      const tr = new Float64Array(nt);
+      for (let i = 0; i < nt; i++) {
+        const t = i * DT;
+        tr[i] = 0.1 * wav.fn(t - t0) - 0.1 * wav.fn(t - (t0 + T));
+      }
+      if (S.noise > 0) {
+        const amp = (S.noise / 100) * 0.1;
+        let prev = 0;
+        for (let i = 0; i < nt; i++) { const r = rnd() * 2 - 1; tr[i] += amp * 0.5 * (r + prev); prev = r; }
+      }
+      const iC = Math.round((t0 + T / 2) / DT);
+      const st = SPEC.stft(tr, DT, FREQS, { winLen: S.win / 1000, window: 'hann' });
+      const cw = SPEC.cwt(tr, DT, FREQS, { sigma: 1.0, t0: 0 });
+      const mp = SPEC.matchingPursuit(tr, DT, { fmin: 6, fmax: 100, beta: 0.35, maxIter: 6, freqs: FREQS });
+      const pk = (mag) => peakAt(mag, iC);
+      a.push(1000 / (2 * pk(st.mag)));
+      b.push(1000 / (2 * pk(cw.mag)));
+      c.push(mp.tf ? 1000 / (2 * pk(mp.tf.mag)) : NaN);
+    }
+    WEDGE = { th, a, b, c };
+    WKEY = key;
+    return WEDGE;
+  }
+  function drawStep5() {
+    const el = $('c5');
+    if (!el) return;
+    const w = contentWidth(el), h = 330;
+    const ctx = SEIS.fitCanvas(el, w, h);
+    ctx.clearRect(0, 0, w, h);
+    const rect = boxOf(w, h);
+    const d = wedgeEstimates();
+    SEIS.frame(ctx, rect);
+    series(ctx, rect, d.th, d.th, 0, TMAXW, 0, TMAXW, 'rgba(92,102,112,0.65)', 2.6, [5, 4]);
+    series(ctx, rect, d.th, d.a, 0, TMAXW, 0, TMAXW, CRIM, 1.9);
+    series(ctx, rect, d.th, d.b, 0, TMAXW, 0, TMAXW, TEAL, 1.9);
+    series(ctx, rect, d.th, d.c, 0, TMAXW, 0, TMAXW, SLATE, 1.9);
+    SEIS.axisBottom(ctx, rect, 0, TMAXW, 'true thickness (ms)', (v) => v.toFixed(0), { ticks: 6 });
+    SEIS.axisLeft(ctx, rect, 0, TMAXW, 'estimated (ms)', (v) => v.toFixed(0), { ticks: 5 });
+
+    const err = (arr) => {
+      let e = 0, n = 0;
+      for (let i = 0; i < arr.length; i++) {
+        const t = d.th[i];
+        if (t < 8 || t > TMAXW - 2 || !isFinite(arr[i])) continue;
+        e += Math.abs(arr[i] - t) / t; n++;
+      }
+      return n ? 100 * e / n : NaN;
+    };
+    let spread = 0, at = 0;
+    for (let i = 0; i < d.th.length; i++) {
+      const vs = [d.a[i], d.b[i], d.c[i]].filter(isFinite);
+      if (vs.length < 2) continue;
+      const s = Math.max.apply(null, vs) - Math.min.apply(null, vs);
+      if (s > spread) { spread = s; at = d.th[i]; }
+    }
+    $('s5a').textContent = err(d.a).toFixed(0) + '%';
+    $('s5b').textContent = err(d.b).toFixed(0) + '%';
+    $('s5c').textContent = err(d.c).toFixed(0) + '%';
+    $('s5d').textContent = spread.toFixed(1) + ' ms at ' + at.toFixed(0) + ' ms';
+  }
+
+  /* =====================================================================
+     PLUMBING
+     ===================================================================== */
+  function syncLabels() {
+    $('bedV').textContent = S.bed + ' ms';
+    $('sepV').textContent = S.sep + ' ms';
+    $('noiseV').textContent = S.noise === 0 ? 'none' : S.noise + '%';
+    $('fdV').textContent = S.fd + ' Hz';
+    $('winV').textContent = S.win + ' ms';
+    $('gapV').textContent = S.gap + ' Hz';
+    ['bed', 'sep', 'noise', 'fd', 'win', 'gap'].forEach((k) => {
+      const el = $(k);
+      if (el && String(S[k]) !== el.value) el.value = S[k];
+    });
+  }
+  function drawAll() {
+    const lab = document.querySelector('.labhead');
+    if (lab && !lab.hidden) drawHeader();
+    if (visible('p1')) drawStep1();
+    if (visible('p2')) drawStep2();
+    if (visible('p3')) drawStep3();
+    if (visible('p4')) drawStep4();
+    if (visible('p5')) drawStep5();
+  }
+
+  /* Reading order, not id order. Steps 3 and 4 hold the arithmetic of the
+     methods and are placed after the step that says what to do with them,
+     because nothing in the set depends on either. */
+  const PANES = ['p1', 'p2', 'p5', 'p3', 'p4', 'pw', 'pe', 'pk', 'pm'];
+  const STEPNAMES = {
+    p1: 'Three answers', p2: 'Why they differ', p5: 'What to do about it',
+    p3: 'Advanced: the bound', p4: 'Advanced: greedy fits',
+    pw: 'Why it matters', pe: 'Exercises', pk: 'Key points', pm: 'Method',
+  };
+  function buildStepNav() {
+    PANES.forEach((id, i) => {
+      const pane = $(id);
+      if (!pane || pane.querySelector('.stepnav')) return;
+      const prev = PANES[i - 1], next = PANES[i + 1];
+      const nav = document.createElement('div');
+      nav.className = 'stepnav';
+      const mk = (target, text, ghost) => {
+        const b = document.createElement('button');
+        b.type = 'button';
+        b.className = 'btn' + (ghost ? ' ghost' : '') + ' small';
+        b.textContent = text;
+        b.addEventListener('click', () => {
+          showTab(target);
+          const t = document.querySelector('.tabhint');
+          if (t && t.scrollIntoView) t.scrollIntoView({ behavior: 'smooth', block: 'start' });
+        });
+        return b;
+      };
+      nav.appendChild(prev ? mk(prev, '\u2190 ' + STEPNAMES[prev], true)
+                           : document.createElement('span'));
+      const where = document.createElement('span');
+      where.className = 'where';
+      where.textContent = i < 5 ? 'step ' + (i + 1) + ' of 5' : STEPNAMES[id];
+      nav.appendChild(where);
+      nav.appendChild(next ? mk(next, STEPNAMES[next] + ' \u2192')
+                           : document.createElement('span'));
+      pane.appendChild(nav);
+    });
+  }
+  function showTab(id) {
+    PANES.forEach((q) => { const el = $(q); if (el) el.hidden = q !== id; });
+    document.querySelectorAll('#tabs button').forEach((b) => {
+      b.setAttribute('aria-selected', b.dataset.tab === id);
+    });
+    const lab = document.querySelector('.labhead');
+    // steps 3 and 5 use their own signals, not the header trace
+    if (lab) lab.hidden = !(id === 'p1' || id === 'p2' || id === 'p3' || id === 'p4' || id === 'p5');
+    /* The forward link lives on the pager. Show it once the reader has reached
+       the exercises, not only on the two reference tabs — a student who works
+       the exercises and stops used to have no way on to the next module. */
+    const done = (id === 'pe' || id === 'pk' || id === 'pm');
+    if ($('nextup')) $('nextup').hidden = !(id === 'pk' || id === 'pm');
+    if ($('pager')) $('pager').hidden = !done;
+    S.tab = id;
+    drawAll();
+    saveState();
+  }
+  document.querySelectorAll('#tabs button').forEach((b) => {
+    b.addEventListener('click', () => showTab(b.dataset.tab));
+  });
+  document.addEventListener('input', (ev) => {
+    const t = ev.target;
+    if (!t || t.tagName !== 'INPUT') return;
+    const id = t.id;
+    if (!(id in DEF)) return;
+    S[id] = parseFloat(t.value);
+    syncLabels(); drawAll(); saveState();
+  });
+  let rt;
+  window.addEventListener('resize', () => { clearTimeout(rt); rt = setTimeout(drawAll, 140); });
+
+  buildStepNav();
+  syncLabels();
+  showTab(PANES.indexOf(S.tab) >= 0 ? S.tab : 'p1');
+})();
+</script>
+</body>
+</html>

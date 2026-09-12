@@ -1,0 +1,1280 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Peak frequency, peak magnitude, and the maps they make | How Spectral Attributes Actually Work</title>
+<meta name="description" content="Turning a spectrum at every sample into a map: peak frequency, peak magnitude, mean frequency and peak magnitude above average, what each one shows on a channel, and why a peak frequency map is meaningless where the magnitude is small.">
+<link rel="stylesheet" href="../assets/fonts.css">
+<link rel="stylesheet" href="../assets/style.css">
+</head>
+<body>
+
+<div class="wrap">
+  <header class="masthead">
+    <a class="brand" href="../index.html"><span class="dot"></span>How spectral attributes <b>actually</b> work</a>
+    <nav>
+      <a href="../index.html">All modules</a>
+      <a href="balancing.html">← Module 05</a>
+      <a href="#notes">Method &amp; references</a>
+    </nav>
+  </header>
+
+  <div class="mod-head">
+    <p class="eyebrow">Module 06 &nbsp;·&nbsp; Spectral attributes</p>
+    <h1>Peak frequency, peak magnitude, and the maps they make</h1>
+    <p class="sub">A decomposition produces a whole spectrum at every sample of every trace, which is more than anyone can look at. The standard answer is to reduce each spectrum to a single number and map that. These five steps cover which numbers are used, what each one tracks, where the maps carry values that mean nothing, and what a delivered thickness map gets wrong.</p>
+  </div>
+
+  <div class="labhead">
+    <div class="labgrid">
+      <div>
+        <p class="cap">The channel <span>&mdash; in map view and in section; drag the analysis point</span></p>
+        <div class="headpair">
+          <div><canvas id="cHead" aria-label="Thickness map of the channel model, with a draggable analysis point"></canvas></div>
+          <div><canvas id="cHeadSec" aria-label="Seismic section along the inline through the analysis point"></canvas></div>
+        </div>
+      </div>
+      <div>
+        <p class="cap">Set up the survey <span>&mdash; maps recompute when these change</span></p>
+        <div class="controls" id="winControls">
+          <div class="ctl-col">
+            <h2>The data</h2>
+            <div class="ctl">
+              <label for="fd">Wavelet peak frequency <span class="val" id="fdV">30 Hz</span></label>
+              <input type="range" data-key="fd" id="fd" min="18" max="50" step="2" value="30">
+            </div>
+            <div class="ctl">
+              <label for="noise">Noise <span class="val" id="noiseV">4%</span></label>
+              <input type="range" data-key="noise" id="noise" min="0" max="20" step="1" value="4">
+            </div>
+            <div class="seg" id="segBal" role="group" aria-label="Balancing">
+              <button type="button" data-b="raw">Unbalanced</button>
+              <button type="button" data-b="bal">Balanced</button>
+            </div>
+          </div>
+          <div class="ctl-col">
+            <h2>The analysis point</h2>
+            <div class="ctl">
+              <label for="px">Crossline <span class="val" id="pxV">60</span></label>
+              <input type="range" data-key="px" id="px" min="2" max="93" step="1" value="35">
+            </div>
+            <div class="ctl">
+              <label for="py">Inline <span class="val" id="pyV">40</span></label>
+              <input type="range" data-key="py" id="py" min="2" max="77" step="1" value="40">
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <p class="tabhint">Work through the five steps in order, <b>then try the exercises</b>.
+    Method and references are there when you want them.</p>
+  <nav class="tabs" id="tabs" role="tablist" aria-label="Module steps">
+    <button role="tab" data-tab="p1" aria-selected="false">1 · The numbers</button>
+    <button role="tab" data-tab="p2" aria-selected="false">2 · Two maps</button>
+    <button role="tab" data-tab="p3" aria-selected="false">3 · Where it fails</button>
+    <button role="tab" data-tab="p4" aria-selected="false">4 · Peak vs mean</button>
+    <button role="tab" data-tab="p5" aria-selected="false">5 · The map</button>
+    <button role="tab" data-tab="pw" aria-selected="false">Why it matters</button>
+    <span class="gap"></span>
+    <button role="tab" data-tab="pe" aria-selected="false">Exercises</button>
+    <button role="tab" data-tab="pk" aria-selected="false">Key points</button>
+    <button role="tab" data-tab="pm" aria-selected="false">Method</button>
+  </nav>
+
+  <!-- =============================== STEP 1 =============================== -->
+  <section class="tabpane" id="p1" role="tabpanel" hidden>
+    <div class="plot-head" style="margin-bottom:14px">
+      <h3><span class="stepno">1</span>One spectrum, reduced to five numbers</h3>
+      <span class="hint">Move the analysis point and watch them move</span>
+    </div>
+    <p class="qbox"><b>Why this step is here.</b> A volume arrives holding peak frequency and another holding peak magnitude. What does each one measure?</p>
+    <p class="lede">Moving the analysis point from the channel axis out toward a margin changes the spectrum, and the five numbers change with it. Some move together and some move apart.</p>
+
+    <div class="plot">
+      <div class="plot-head">
+        <h3>The spectrum at the analysis point</h3>
+        <span class="hint">Crimson: peak. Teal: mean. Gray: the trimmed average level</span>
+      </div>
+      <canvas id="c1" aria-label="Spectrum at the analysis point with peak, mean and trimmed mean marked"></canvas>
+    </div>
+    <div class="stats">
+      <div class="stat key"><span>Peak frequency</span><b id="s1pf">—</b></div>
+      <div class="stat"><span>Peak magnitude</span><b id="s1pm">—</b></div>
+      <div class="stat"><span>Mean frequency</span><b id="s1mf">—</b></div>
+      <div class="stat"><span>Peak above average</span><b id="s1pa">—</b></div>
+      <div class="stat"><span>True fill here</span><b id="s1true">—</b></div>
+    </div>
+    <div class="legend prose">
+      <span><b>Peak magnitude and peak frequency measure different properties of one spectrum.</b> Magnitude measures how much energy is present; frequency measures where in the band that energy sits. Walking the analysis point from the channel axis to a margin lowers the magnitude and raises the frequency, because the fill is thinning. Away from the channel both readouts still return numbers, and only the magnitude indicates that there is nothing there.</span>
+    </div>
+  </section>
+
+  <!-- =============================== STEP 2 =============================== -->
+  <section class="tabpane" id="p2" role="tabpanel" hidden>
+    <div class="plot-head" style="margin-bottom:14px">
+      <h3><span class="stepno">2</span>The same reduction, everywhere</h3>
+      <span class="hint">Two volumes out of one decomposition</span>
+    </div>
+    <p class="qbox"><b>Why this step is here.</b> A peak frequency map of a channel looks like a thickness map. Is it one?</p>
+    <p class="lede">The section in the header is cut along the inline through the analysis point, and
+      the point is the crimson line on it. Every number on this page was measured on a trace like the
+      ones drawn there, in a window around the top of the fill. The maps are a reduction of those
+      traces to one number each, and the section is what was reduced.</p>
+
+    <p class="lede">The workflow that makes one of these a thickness map runs as follows. The channel fill has a top and a base, so it returns two reflections separated by the fill thickness. Those two interfere, putting a peak in the spectrum at 1/(2T). Measuring where that peak sits therefore measures T. Every step has to hold for the map to mean a thickness.</p>
+    <p class="lede">Peak magnitude rests on no such sequence. It measures how much energy is present, which depends on the size of the impedance contrasts, on how close the fill is to tuning, and on the local noise. It is useful for locating a feature, and its value cannot be inverted for a thickness the way peak frequency can.</p>
+
+    <p class="lede"><b>Where the workflow breaks in real rock.</b> Each step is an assumption about the
+      geology, and each one fails in a recognizable setting. A single top and base require the fill to be
+      one acoustic unit; an incised valley with three stacked fills separated by flooding surfaces
+      returns six reflections rather than two, and the spectrum holds the spacing of all of them. The
+      interference peak has to be the lowest strong maximum; where a thin bed sits directly above the
+      target, its own peak can be the taller one. And the peak has to lie inside the recorded band,
+      which fails once the fill is thick enough to put 1/(2<i>T</i>) below the low cut. A peak frequency
+      map over an amalgamated valley fill 60 ms thick is measuring something, and it is not the
+      thickness of the fill.</p>
+
+    <div class="sec-row">
+      <div class="panel-col">
+        <p class="sublabel"><b>Peak frequency</b> <span class="note">high where the fill is thin</span></p>
+        <canvas id="c2a" aria-label="Peak frequency map of the channel"></canvas>
+      </div>
+      <div class="panel-col">
+        <p class="sublabel"><b>Peak magnitude</b> <span class="note">high where the reflection is strong</span></p>
+        <canvas id="c2b" aria-label="Peak magnitude map of the channel"></canvas>
+      </div>
+    </div>
+    <div class="stats">
+      <div class="stat key"><span>Peak frequency, thalweg</span><b id="s2ft">—</b></div>
+      <div class="stat"><span>Peak frequency, margin</span><b id="s2fm">—</b></div>
+      <div class="stat"><span>Correlation with thickness</span><b id="s2cf">—</b></div>
+      <div class="stat"><span>Magnitude correlation</span><b id="s2cm">—</b></div>
+    </div>
+    <div class="legend prose">
+      <span><b>Peak frequency tracks thickness; peak magnitude does not.</b> Measured against the true fill over the whole channel, peak frequency correlates at &minus;0.99 and peak magnitude at 0.21. The sign on the first is negative because thicker fill tunes lower. The second is near zero because magnitude is brightest at the tuning thickness and falls away on both sides of it, so one magnitude value corresponds to two thicknesses.</span>
+    </div>
+  </section>
+
+  <!-- =============================== STEP 3 =============================== -->
+  <section class="tabpane" id="p3" role="tabpanel" hidden>
+    <div class="plot-head" style="margin-bottom:14px">
+      <h3><span class="stepno">3</span>Where a peak frequency map has no signal</h3>
+      <span class="hint">Off the channel there is nothing to measure</span>
+    </div>
+    <p class="qbox"><b>Why this step is here.</b> A peak frequency map has a value at every point on the survey, including where there is no reflection. What are those values?</p>
+    <p class="lede">The left map is peak frequency as computed. The right map is the same thing with every point below a magnitude threshold blanked. The difference between them is how much of the first map was describing nothing.</p>
+
+    <p class="lede"><b>Both halves of this have a geological consequence.</b> Left ungated, the floodplain
+      either side of the channel carries frequencies drawn from whatever noise is present, and those
+      values contour smoothly and form patterns. Interpreters have mapped crevasse splays and levee
+      wedges out of them. Gated hard, the parts of the body with the weakest reflection disappear, and
+      those are the margins and the downstream thin reach: the very parts a stratigrapher wants in order
+      to place the channel edge, judge connectivity to the next body, and decide whether a splay is
+      attached. Raising the threshold from 10% to 40% here takes the on-channel share of the surviving
+      map from 88% to 100% and removes a fifth of what was kept.</p>
+
+    <p class="lede">The threshold is therefore a mapping decision rather than a display setting, and the
+      map's outline moves with it. Two interpreters given the same volume and different thresholds will
+      draw different channel margins. Module 07 shows the display that avoids choosing a threshold at
+      all.</p>
+
+    <div class="ctl" style="max-width:460px;margin:0 0 12px">
+      <label for="gate">Magnitude threshold <span class="val" id="gateV">20%</span></label>
+      <input type="range" id="gate" min="0" max="60" step="2" value="20">
+    </div>
+    <div class="sec-row">
+      <div class="panel-col">
+        <p class="sublabel"><b>Peak frequency, as computed</b> <span class="note">every point has a value</span></p>
+        <canvas id="c3a" aria-label="Raw peak frequency map"></canvas>
+      </div>
+      <div class="panel-col">
+        <p class="sublabel"><b>Blanked below the threshold</b> <span class="note">what is left</span></p>
+        <canvas id="c3b" aria-label="Peak frequency map with low magnitude blanked"></canvas>
+      </div>
+    </div>
+    <div class="stats">
+      <div class="stat key"><span>Map area kept</span><b id="s3keep">—</b></div>
+      <div class="stat"><span>Of the kept area, on channel</span><b id="s3on">—</b></div>
+      <div class="stat"><span>Off-channel error, raw</span><b id="s3raw">—</b></div>
+      <div class="stat"><span>Off-channel error, gated</span><b id="s3gate">—</b></div>
+    </div>
+    <div class="legend prose">
+      <span><b>Most of an ungated peak frequency map describes noise.</b> With no threshold the map covers 100% of its area and only 45% of that area has any channel under it. The remaining 55% carries frequency values computed from whatever was in the window, and they are as colorful and as smooth as the real ones. Modulating frequency by magnitude, which is the standard display, is how that area is made visibly absent rather than invisibly wrong.</span>
+    </div>
+  </section>
+
+  <!-- =============================== STEP 4 =============================== -->
+  <section class="tabpane" id="p4" role="tabpanel" hidden>
+    <div class="plot-head" style="margin-bottom:14px">
+      <h3><span class="stepno">4</span>Peak, mean, and peak above average</h3>
+      <span class="hint">Three statistics, three maps, one dataset</span>
+    </div>
+    <p class="qbox"><b>Why this step is here.</b> Three volumes of the same data report different frequencies at the same point. Which is correct?</p>
+    <p class="lede">The three maps below are one dataset reduced three ways. They disagree, and none of them is wrong.</p>
+
+    <p class="lede">The crimson circle on each map is the analysis point, which can be dragged on the
+      header map or set with the sliders. It marks the same place on all three panels, and the spectrum
+      that place produced is the curve drawn in step 1 with these same statistics marked on it. Moving
+      the point along the channel axis and then out onto the floodplain shows where the three agree and
+      where they part company.</p>
+
+    <div class="plot">
+      <div class="plot-head">
+        <h3>Peak frequency, mean frequency, and peak above average</h3>
+        <span class="hint">Same decomposition, three reductions</span>
+      </div>
+      <canvas id="c4" aria-label="Peak frequency, mean frequency and peak-above-average maps side by side"></canvas>
+    </div>
+    <div class="stats">
+      <div class="stat key"><span>Peak / mean at the analysis point</span><b id="s4pt">—</b></div>
+      <div class="stat"><span>Peak vs mean, mean difference</span><b id="s4diff">—</b></div>
+      <div class="stat"><span>Peak, correlation with thickness</span><b id="s4cp">—</b></div>
+      <div class="stat"><span>Mean, correlation with thickness</span><b id="s4cm">—</b></div>
+      <div class="stat"><span>Peak above average, correlation</span><b id="s4ca">—</b></div>
+    </div>
+    <div class="legend prose">
+      <span><b>Mean frequency reads above peak frequency almost everywhere, by 4.2 Hz on average here.</b> A seismic spectrum has a longer tail on the high side than on the low, so the amplitude-weighted average is pulled above the mode. That is the same 1.128 ratio module 01 measured on a Ricker, appearing on real spectra. Mean frequency is steadier under noise because it uses the whole spectrum; peak frequency is sharper on a clean tuned bed because it uses only the mode.</span>
+    </div>
+  </section>
+
+  <!-- =============================== STEP 5 =============================== -->
+  <section class="tabpane" id="p5" role="tabpanel" hidden>
+    <div class="plot-head" style="margin-bottom:14px">
+      <h3><span class="stepno">5</span>The delivered thickness map, and its error</h3>
+      <span class="hint">Peak frequency, inverted, gated, compared with the truth</span>
+    </div>
+    <p class="qbox"><b>Why this step is here.</b> A thickness map is delivered from peak frequency. How wrong is it, and is it wrong in a pattern?</p>
+    <p class="lede">The left panel is that map. The right panel is its error against the truth, which would not be available on real data and which is the reason for testing on a model where it is.</p>
+
+    <p class="lede"><b>The error has a shape, and the shape follows the body.</b> It is not scattered.
+      With a 30 Hz wavelet the map is 4.2 ms out on average and is at its best around 16 ms of fill,
+      within 0.6 ms of the truth. It is at its worst on the thinnest fill, 9.3 ms out at 4 ms, where the
+      interference peak has moved above the recorded band. Changing the wavelet moves the good part of
+      the map rather than improving it: at 40 Hz the best thickness becomes 12 ms and the worst becomes
+      the thick fill, 20.8 ms out at 32 ms of fill.</p>
+
+    <p class="lede">For an interpretation this matters more than the average error does. A thickness map
+      whose error is organized like the channel will place its own thickest values slightly off the
+      thalweg, and will taper differently from the way the body tapers. Contoured and handed on, it
+      produces a geologically plausible picture whose relief is partly the wavelet. The one check that
+      is always available is to remake the map from a different wavelet or a different frequency and see
+      which parts of it move.</p>
+
+    <div class="sec-row">
+      <div class="panel-col">
+        <p class="sublabel"><b>Thickness from peak frequency</b> <span class="note">gated, in ms</span></p>
+        <canvas id="c5a" aria-label="Thickness map derived from peak frequency"></canvas>
+      </div>
+      <div class="panel-col">
+        <p class="sublabel"><b>Error against the truth</b> <span class="note">estimated minus true</span></p>
+        <canvas id="c5b" aria-label="Error of the derived thickness map"></canvas>
+      </div>
+    </div>
+    <div class="stats">
+      <div class="stat key"><span>Mean absolute error</span><b id="s5err">—</b></div>
+      <div class="stat"><span>Bias</span><b id="s5bias">—</b></div>
+      <div class="stat"><span>Best where fill is</span><b id="s5best">—</b></div>
+      <div class="stat"><span>Worst where fill is</span><b id="s5worst">—</b></div>
+    </div>
+    <div class="legend prose">
+      <span><b>The error is a bias with a pattern rather than scatter.</b> With a 30 Hz wavelet the map is 4.2 ms out on average, and that average conceals the structure: thick fill reads too thin and thin fill reads too thick, because both ends fall outside the working range module 04 measured. A map of the error would show the channel axis and the margins in opposite senses, which is a pattern an interpreter could easily read as geology.</span>
+    </div>
+  </section>
+
+  <!-- ============================ WHY IT MATTERS =========================== -->
+  <section class="tabpane" id="pw" role="tabpanel" hidden>
+    <div class="plot-head" style="margin-bottom:14px">
+      <h3>Why it matters</h3>
+      <span class="hint">What these maps are used for</span>
+    </div>
+    <p class="lede">Peak frequency and peak magnitude are the two most commonly delivered spectral attributes. Most of the errors made with them come from treating one as though it answered the other's question.</p>
+    <ul class="lede" style="padding-left:20px">
+      <li><b>Reservoir thickness mapping.</b> Peak frequency inverted through 1/(2<i>f</i>), tied to a
+        well, is the standard route to a thickness map for a bed too thin to pick.</li>
+      <li><b>Finding a feature versus measuring it.</b> Magnitude finds the channel because it responds to
+        reflection strength; frequency measures the fill because it responds to thickness. Using
+        magnitude as a thickness proxy is a common error, and it carries into any volume estimate built on the map.</li>
+      <li><b>Deciding where a map can be interpreted.</b> Step 3 is the whole argument for displaying
+        frequency modulated by magnitude rather than on its own.</li>
+      <li><b>Reading someone else's volume.</b> Peak and mean frequency maps look alike and read
+        differently by several hertz, which is several milliseconds of inferred thickness.</li>
+      <li><b>Quality control on a decomposition.</b> A peak frequency map that is flat at the wavelet's
+        own peak over most of the survey means the balancing in module 05 was not done, or not done well.
+        Balancing is not automatically an improvement either — on data with one stationary wavelet it
+        reduces accuracy rather than adding it, as the toggle in step 2 shows.</li>
+    </ul>
+    <p class="lede"><b>How a peak frequency map gets over-read.</b> The commonest error is interpreting it where the peak magnitude is near zero, which produces a confident-looking value computed from noise. The second is inverting it to a thickness outside the working range, where the answer is biased rather than absent. Both produce maps that look like geology.</p>
+    <div class="legend prose">
+      <span>The first question to ask of a spectral attribute map is what was done about the low-magnitude areas. If nothing was, most of the map's area is describing whatever was in the window.</span>
+    </div>
+  </section>
+
+  <!-- ============================== EXERCISES ============================= -->
+  <section class="tabpane" id="pe" role="tabpanel" hidden>
+    <div class="tryit" style="max-width:none">
+      <h3>Exercises</h3>
+      <ol>
+        <li><b>Walk the analysis point off the channel.</b>
+          <em class="point">Why: both readouts return a number off the channel, and only one of them shows that nothing is there.</em>
+           In step 1, move the crossline slider from the
+          channel axis out past the margin, watching peak magnitude and peak frequency.
+          <em class="predict">Before moving it: off the channel entirely there is no reflection to measure. What should the peak frequency readout do?</em>
+          <details class="reveal"><summary>Hint</summary><span class="ans">Magnitude falls steadily as the
+            fill thins and the top and base reflections start cancelling each other. Peak frequency climbs
+            as it should, tracking the thinning, and then off the channel it does not stop having a value
+            — it jumps around, because there is no reflection left and the highest point of a noise
+            spectrum is wherever the noise happens to be highest. That behavior is the whole of step 3.
+            Notice how little warning there is on the readout itself: the frequency is reported to a tenth
+            of a hertz whether or not there is anything to measure.</span></details></li>
+        <li><b>Check which map tracks the geology.</b>
+          <em class="point">Why: the two attributes are routinely delivered together, and only one of them measures thickness.</em>
+           In step 2, read the two correlation numbers, then
+          change the wavelet frequency and read them again.
+          <details class="reveal"><summary>Hint</summary><span class="ans">Peak frequency correlates
+            &minus;0.99 with fill thickness — thin fill, high frequency — and holds at &minus;0.98 with a
+            22 Hz wavelet. Peak magnitude runs +0.73, +0.21 and &minus;0.17 at 22, 30 and 40 Hz: weak, and
+            not even stable in sign. With a low-frequency wavelet the thick axis is bright and the
+            correlation is positive; with a high-frequency wavelet the margins are bright and it
+            flips. A magnitude map is a picture of tuning, not of
+            thickness, and its relationship to the geology is not even consistent in
+            sign.</span></details></li>
+        <li><b>Find how much of the map is noise.</b>
+          <em class="point">Why: this is the fraction of a delivered map that should not be interpreted at all.</em>
+           In step 3, take the magnitude threshold from zero
+          upward and watch the two area readouts.
+          <details class="reveal"><summary>Hint</summary><span class="ans">At a threshold of zero the map
+            keeps 100% of its area and 45% of that is channel. At 10% it keeps 51% of the area and 88% is
+            channel; at 20%, 48% and 94%; at 40%, 43% and 100%. Almost all of the area thrown away in the
+            first step was noise, which is why the on-channel share jumps so far for so little lost. The
+            spread readouts make the same point: 10.3 ms of scatter off the channel ungated, 3.1 ms among
+            the points that survive. Gating removes bad values rather than improving them. There is no
+            correct threshold — too high removes the thin margins, which are usually the part of
+            most interest — but there is no case for zero.</span></details></li>
+        <li><b>Compare the three reductions under noise.</b>
+          <em class="point">Why: the choice between peak and mean frequency is a choice about noise, not about correctness.</em>
+           In step 4, read the three correlations with
+          no noise, then at the maximum noise setting.
+          <details class="reveal"><summary>Hint</summary><span class="ans">Peak frequency correlates
+            &minus;0.99 with clean data and &minus;0.98 at 20% noise. Mean frequency manages &minus;0.81
+            and &minus;0.77 over the same range. The usual argument for mean frequency is that it averages
+            over the band and should therefore be steadier in noise, and on this model that advantage
+            does not appear: peak frequency stays ahead throughout, and both degrade by about the same
+            small amount. The reason is that mean frequency's averaging includes the parts of the band
+            that carry no thickness information at all, and that degrades the estimate more than the noise does. The gap
+            between mean and peak also widens slightly with noise, from 4.1 to 4.9 Hz, so a mean frequency
+            map read as a peak frequency map gets worse on worse data.</span></details></li>
+        <li><b>Give one dark patch three explanations.</b>
+          <em class="point">Why: a dark patch on a magnitude map has several causes, and naming one without testing the others is the error this module exists to prevent.</em>
+           In step 2, find a place where the peak
+          magnitude map is dark, then work out what could put it there.
+          <details class="reveal"><summary>Hint</summary><span class="ans">Dark on a magnitude map means
+            little energy at the frequency that was strongest, and several things produce that. Off the
+            channel there is no reflection at all. Over the thalweg the fill is too thick to tune with the
+            wavelet, so the two reflections are separating and neither is reinforced. At the very margins
+            the fill is so thin that the top and base reflections nearly cancel. On real data add two
+            more: a sand whose impedance happens to match the shale gives a small reflection coefficient
+            whatever its thickness, and an absorbing body above the target removes the high frequencies
+            before they arrive. Five causes, one appearance. The peak frequency map distinguishes some of
+            them — thick fill reads low, thin fill reads high, and no reflection reads noise — which is
+            the practical reason the two maps are interpreted together rather than separately.</span></details></li>
+        <li><b>See the working range in map form.</b>
+          <em class="point">Why: module 04's working range appears here as a spatial pattern in the error, which reads as geology.</em>
+           In step 5, look at where the error map is worst and
+          compare with the best and worst fill readouts.
+          <details class="reveal"><summary>Hint</summary><span class="ans">With a 30 Hz wavelet the best
+            fill thickness is 16 ms, where the map is 0.6 ms out, and the worst is 4 ms, where it is 9.3
+            ms out. At 40 Hz the sweet spot moves to 12 ms and the worst case becomes 32 ms fill at 20.8
+            ms out. The error is small over a band of fill thicknesses and grows at both ends — thick fill
+            where 1/(2f) has dropped below the recorded band, and thin fill where it has climbed out of
+            the top. That is module 04's working
+            range, seen from above instead of in profile. Two consequences for a real deliverable. The
+            error is a bias rather than scatter, so it does not average away with more traces. And a
+            single-point well tie corrects it only near the thickness of that well, which is why thickness
+            maps calibrated at a thick well tend to be wrong at the thin edge of the same
+            body.</span></details></li>
+      </ol>
+    </div>
+  </section>
+
+  <!-- ============================= KEY POINTS ============================= -->
+  <section class="tabpane" id="pk" role="tabpanel" hidden>
+    <div class="takeaway">
+      <h3>Key points</h3>
+      <ul>
+        <li><b>Each attribute reduces a whole spectrum to one number,</b> and which number decides what
+          the map can show. Peak frequency, peak magnitude, mean frequency and peak-above-average are
+          four different questions asked of the same data.</li>
+        <li><b>Peak frequency tracks thickness; peak magnitude tracks tuning.</b> Magnitude finds the
+          feature, frequency measures it, and using magnitude as a thickness proxy fails in a way that is
+          not even consistent in sign.</li>
+        <li><b>A peak frequency map has a value everywhere, including where there is no signal.</b> Off
+          the feature it reports the highest point of a noise spectrum, to a tenth of a hertz, with no
+          indication that anything is wrong.</li>
+        <li><b>Frequency should be displayed modulated by magnitude,</b> or at least gated by it. There is
+          no correct threshold, and there is no case for none at all.</li>
+        <li><b>Mean frequency reads about 4 Hz higher than peak frequency</b> here, because seismic
+          spectra have a longer tail on the high side. The two maps look alike and imply thicknesses
+          around 2 ms apart, everywhere and in the same direction.</li>
+        <li><b>Thickness error from a peak frequency map is a bias, not scatter.</b> It grows at both ends
+          of the working range, does not average away, and is only partly fixed by a single-well
+          calibration.</li>
+      </ul>
+    </div>
+    <div class="takeaway" style="margin-top:18px">
+      <h3>Words introduced here</h3>
+      <dl class="terms">
+        <dt>peak frequency</dt>
+        <dd>The frequency at which the spectrum is highest, computed at every sample. Tracks bed
+          thickness through 1/(2T), within the working range of module 04.</dd>
+        <dt>peak magnitude</dt>
+        <dd>The height of that peak. Measures how much energy is present, and is brightest at the tuning
+          thickness rather than at the greatest thickness.</dd>
+        <dt>mean frequency</dt>
+        <dd>The amplitude-weighted average across the spectrum. Reads about 4 Hz above peak frequency on
+          these data, and is steadier under noise.</dd>
+        <dt>peak above average</dt>
+        <dd>How far the peak stands above the mean level of its own spectrum. A measure of how sharply
+          tuned a spectrum is rather than of where it is tuned.</dd>
+        <dt>magnitude gating, or blanking</dt>
+        <dd>Removing points where the magnitude is too low for the frequency to mean anything. Without
+          it, most of a map's area is computed from noise.</dd>
+        <dt>modulated display</dt>
+        <dd>Showing frequency as color and magnitude as brightness in one image, so low-magnitude areas
+          go dark instead of showing a confident color.</dd>
+        <dt>bias</dt>
+        <dd>An error with a pattern rather than scatter. The thickness error here is a bias, and it has
+          the shape of the channel.</dd>
+      </dl>
+    </div>
+
+  </section>
+
+  <!-- =============================== METHOD =============================== -->
+  <section class="tabpane" id="pm" role="tabpanel" hidden>
+    <div class="plot-head" style="margin-bottom:14px">
+      <h3 id="notes">Method</h3>
+      <span class="hint">What is computed, and what is left out</span>
+    </div>
+    <p class="lede"><b>The model</b> is the channel from module 00 on a 96 by 80 grid: a sinuous axis, a
+      cosine cross section thinning to zero at the margins, and a downstream taper. At each grid point the
+      fill is a pair of reflection coefficients convolved with a zero-phase Ricker, plus band-limited
+      noise scaled to the local reflection strength.</p>
+    <p class="lede"><b>The spectra</b> are direct discrete Fourier transforms of a Hann-tapered window
+      around the channel interval, computed at every grid point. The cosine and sine tables are built once
+      per frequency and reused across all points, which is what makes seven thousand spectra per redraw
+      practical in a browser.</p>
+        <p class="lede"><b>A convention used throughout this set.</b> A tuned bed produces maxima in its
+      spectrum at 1/(2<i>T</i>), 3/(2<i>T</i>), 5/(2<i>T</i>) and so on, all of similar height once the
+      wavelet has been divided out. Taking the tallest of them makes a thickness estimate jump between
+      lobes as the bed changes. Every module here that picks a peak frequency therefore takes the
+      lowest-frequency maximum that reaches 70% of the tallest, which is the one that inverts to the
+      correct thickness. Production software achieves the same thing by asking for a frequency search
+      range.</p>
+    <p class="lede"><b>The statistics</b> follow the definitions in the AASPI documentation. Peak
+      frequency is the mode, refined by fitting a parabola through the three samples around it. Mean
+      frequency is the magnitude-weighted average over the band. The range-trimmed mean is the average
+      magnitude between the 15th and 85th percentiles of the cumulative spectrum, and peak magnitude above
+      average is the peak minus that. Correlations are ordinary Pearson coefficients between an attribute
+      and the true fill thickness, computed over points where fill exists.</p>
+    <p class="lede"><b>Balancing</b>, when switched on, averages the power spectrum over all grid points
+      and applies the same operator everywhere, with the prewhitening and band taper from module 05. It is
+      stationary — one operator for the whole map — where production balancing is time-variant.</p>
+    <p class="lede"><b>Simplifications, stated plainly.</b> The channel is flat, so the extraction window
+      is the same everywhere and the interval is known exactly; in real work the extraction geometry is
+      usually the largest source of error and it is absent here entirely. The fill has one uniform
+      impedance, which makes every point a clean two-reflector bed. There is no dip, no compaction and no
+      lateral velocity change. The error map in step 5 uses a truth that no real survey has.</p>
+    <p class="lede"><b>Where this departs from production software.</b> AASPI computes these attributes
+      from a wavelet transform or matching pursuit at every sample of a 3D volume, then extracts along an
+      interpreted horizon or within a stratal slab; here the analysis window is fixed by the model. AASPI
+      also computes peak phase, spectral bandwidth, slope, roughness, skewness and kurtosis from the same
+      spectra, none of which are shown here — the landing page lists them.</p>
+    <details class="reveal">
+      <summary>References</summary>
+      <ul class="lede" style="padding-left:20px">
+        <li>Partyka, G., J. Gridley, and J. Lopez, 1999, Interpretational applications of spectral
+          decomposition in reservoir characterization: <em>The Leading Edge</em>, <b>18</b>,
+          353&ndash;360.</li>
+        <li>Marfurt, K. J., and R. L. Kirlin, 2001, Narrow-band spectral analysis and thin-bed tuning:
+          <em>Geophysics</em>, <b>66</b>, 1274&ndash;1283.</li>
+        <li>Chopra, S., and K. J. Marfurt, 2007, <em>Seismic Attributes for Prospect Identification and
+          Reservoir Characterization</em>: SEG Geophysical Development Series, 11.</li>
+        <li>AASPI, <em>Spectral Attributes: Programs spec_cwt and spec_cmp</em>, University of Oklahoma —
+          for the peak, mean, trimmed-mean and peak-above-average definitions.</li>
+      </ul>
+    </details>
+  </section>
+
+  <section class="nextup" id="nextup" hidden>
+    <p class="eyebrow">Next up</p>
+    <h3>07 · The colored channel image, taken apart</h3>
+    <p>Three of these maps at once, in color — including the display that modulates peak frequency by
+      peak magnitude, which is step 3's problem solved properly.</p>
+    <a class="btn ghost" href="blending.html">Module 07 →</a>
+  </section>
+
+  <div class="pager" id="pager" hidden>
+    <a class="btn ghost" href="balancing.html">← Module 05: spectral balancing</a>
+    <a class="btn ghost" href="../index.html">All modules</a>
+    <a class="btn ghost" href="blending.html">Module 07: blending, and its traps →</a>
+  </div>
+
+  <footer>
+    <div class="foot-grid">
+      <p>Built for teaching by Dr. Heather Bedle and Dr. April Moreno-Ward, University of Oklahoma, with
+        the <a href="https://www.ou.edu/mcee/labs/aaspi">AASPI</a> consortium.</p>
+      <p class="lic">To cite: H. Bedle and A. Moreno-Ward, 2026, <i>How Spectral Attributes Actually
+        Work: A Set of Browser-Based Interactive Modules</i>: SSRN working paper, University of Oklahoma.
+        <span class="k">SSRN: [article link to follow]</span></p>
+      <p class="lic">Licensed <a href="https://creativecommons.org/licenses/by-sa/4.0/">CC BY-SA 4.0</a>.
+        Free to use, adapt and share, including in teaching, provided the source is credited and any
+        adaptation is released under the same license. If you use it in a course or a talk, a credit line
+        and a link back are all that is asked.</p>
+      <p class="lic">Nothing you do in this module leaves your browser. The only thing recorded is that
+        the page was opened, so that the university can see these are being used &mdash; no cookie, no
+        account, nothing about you.</p>
+    </div>
+  </footer>
+</div>
+
+<script src="../assets/count.js"></script>
+<script src="../assets/popout.js"></script>
+<script src="../assets/panelout.js"></script>
+<script src="../assets/glossary.js"></script>
+<script src="../assets/seismic.js"></script>
+<script src="../assets/spectral.js"></script>
+<script>
+(function () {
+  'use strict';
+
+  if (typeof SEIS === 'undefined' || typeof SPEC === 'undefined') {
+    const missing = [];
+    if (typeof SEIS === 'undefined') missing.push('assets/seismic.js');
+    if (typeof SPEC === 'undefined') missing.push('assets/spectral.js');
+    const el = document.createElement('div');
+    el.setAttribute('style', 'background:#841617;color:#fff;padding:14px 18px;margin:16px 0;' +
+      'font:13px/1.6 ui-monospace,Menlo,monospace');
+    el.textContent = 'This page could not load ' + missing.join(' and ') +
+      '. It expects them one directory up, at ../assets/, and file names are ' +
+      'case-sensitive on GitHub Pages.';
+    const w = document.querySelector('.wrap');
+    (w || document.body).insertBefore(el, w ? w.firstChild : null);
+    return;
+  }
+
+  const $ = (id) => document.getElementById(id);
+  const clamp = (v, a, b) => Math.max(a, Math.min(b, v));
+  const visible = (id) => { const el = $(id); return el && !el.hidden; };
+  const CRIM = '#841617', TEAL = '#0B7285', SLATE = '#5C6670';
+
+  const NXG = 96, NYG = 80;
+  const DT = 0.001;
+  const T0 = 0.060;
+  const RTOP = 0.1, RBOT = -0.1;
+  const THALWEG = 34, WIDE = 56, TAPER = 50;     // the channel, fixed here
+  const NW = 128;                                // analysis window, samples
+  const FREQS = [];
+  for (let f = 6; f <= 92; f += 2) FREQS.push(f);
+  const NF = FREQS.length;
+
+  /* The analysis point starts on the channel axis. It used to start at
+     (60, 40), which is off the channel at that inline: the fill there is 0.9 ms,
+     the spectrum is noise, and the first panel a reader saw was a measurement
+     of nothing. */
+  const DEF = { fd: 30, noise: 4, px: 35, py: 40, gate: 20, bal: 'raw', tab: 'p1' };
+  let S = SEIS.readState(DEF);
+  if (S.bal !== 'raw' && S.bal !== 'bal') S.bal = 'raw';
+
+  const CAN_LINK = location.protocol !== 'file:';
+  const saveState = () => {
+    if (!CAN_LINK) return;
+    try { SEIS.writeState(S, DEF); } catch (e) { /* nothing shareable */ }
+  };
+
+  /* The Hann window and the transform tables, built once. Rebuilding the trig
+     inside the point loop turns seven thousand spectra from a fifth of a second
+     into something visible on screen. */
+  const HANN = new Float64Array(NW);
+  const COS = [], SIN = [];
+  (function () {
+    for (let k = 0; k < NW; k++) HANN[k] = 0.5 * (1 - Math.cos(2 * Math.PI * k / (NW - 1)));
+    for (let j = 0; j < NF; j++) {
+      const c = new Float64Array(NW), s = new Float64Array(NW);
+      for (let k = 0; k < NW; k++) {
+        const a = 2 * Math.PI * FREQS[j] * k * DT;
+        c[k] = Math.cos(a); s[k] = Math.sin(a);
+      }
+      COS.push(c); SIN.push(s);
+    }
+  })();
+
+  /* ------------------------------------------------------------ the model */
+  let THICK = null;
+  function thickness() {
+    if (THICK) return THICK;
+    const g = new Float64Array(NXG * NYG);
+    const halfW = WIDE / 2;
+    for (let iy = 0; iy < NYG; iy++) {
+      const axis = NXG / 2 + 18 * Math.sin(2 * Math.PI * iy / 63) + 8 * Math.sin(2 * Math.PI * iy / 27);
+      const down = 1 - (TAPER / 100) * (iy / (NYG - 1));
+      for (let ix = 0; ix < NXG; ix++) {
+        const d = Math.abs(ix - axis) / halfW;
+        g[iy * NXG + ix] = d >= 1 ? 0 : (THALWEG / 1000) * down * 0.5 * (1 + Math.cos(Math.PI * d));
+      }
+    }
+    THICK = g;
+    return THICK;
+  }
+
+  /* The trace at one point of the grid. The noise generator is seeded from the
+     point rather than run once across the whole survey, so the trace drawn in a
+     section is the same trace the map's spectrum was measured on. Run as one
+     sequence, the noise at a point depended on the order the grid happened to
+     be visited in, and a section could not be reproduced from it. */
+  function traceAt(i, out) {
+    const g = thickness();
+    const wav = SEIS.makeWavelet({ type: 'ricker', f: S.fd });
+    const T = g[i];
+    const tr = out || new Float64Array(NW);
+    for (let k = 0; k < NW; k++) {
+      const t = k * DT;
+      tr[k] = RTOP * wav.fn(t - T0) +
+        (T > 0 ? RBOT * wav.fn(t - (T0 + T)) : -RTOP * wav.fn(t - T0));
+    }
+    if (S.noise > 0) {
+      const rnd = SEIS.mulberry32(4242 + i * 7919);
+      const amp = (S.noise / 100) * Math.abs(RTOP);
+      let prev = 0;
+      for (let k = 0; k < NW; k++) {
+        const r = rnd() * 2 - 1;
+        const v = 0.5 * (r + prev); prev = r;
+        tr[k] += amp * v;
+      }
+    }
+    return tr;
+  }
+
+  /* ------------------------------------------- spectra and the attributes */
+  let ATTR = null, AKEY = '';
+  function attributes() {
+    const key = [S.fd, S.noise, S.bal].join('|');
+    if (ATTR && AKEY === key) return ATTR;
+    const g = thickness();
+    const n = NXG * NYG;
+    const spec = new Float64Array(n * NF);
+    const tr = new Float64Array(NW);
+    const win = new Float64Array(NW);
+
+    for (let i = 0; i < n; i++) {
+      traceAt(i, tr);
+      for (let k = 0; k < NW; k++) win[k] = tr[k] * HANN[k];
+      for (let j = 0; j < NF; j++) {
+        const c = COS[j], s = SIN[j];
+        let re = 0, im = 0;
+        for (let k = 0; k < NW; k++) { re += win[k] * c[k]; im -= win[k] * s[k]; }
+        spec[i * NF + j] = Math.hypot(re, im);
+      }
+    }
+
+    /* Balancing, when asked for: one operator from the average of every
+       spectrum on the map, exactly as module 05 builds it. */
+    if (S.bal === 'bal') {
+      const avg = new Float64Array(NF);
+      for (let i = 0; i < n; i++) for (let j = 0; j < NF; j++) avg[j] += spec[i * NF + j] / n;
+      const op = SPEC.balanceOperator(avg, FREQS, { alpha: 0.01, beta: 0 });
+      let pk = 0;
+      for (const v of avg) pk = Math.max(pk, v);
+      for (let j = 0; j < NF; j++) if (avg[j] < 0.03 * pk) op[j] = 0;
+      for (let i = 0; i < n; i++) for (let j = 0; j < NF; j++) spec[i * NF + j] *= op[j];
+    }
+
+    const pf = new Float64Array(n), pm = new Float64Array(n);
+    const mf = new Float64Array(n), pa = new Float64Array(n);
+    const buf = new Float64Array(NF);
+    for (let i = 0; i < n; i++) {
+      for (let j = 0; j < NF; j++) buf[j] = spec[i * NF + j];
+      // peak, taking the lowest strong lobe as module 05 does
+      let gmx = 0;
+      for (const v of buf) gmx = Math.max(gmx, v);
+      let jp = 0;
+      for (let j = 1; j < NF - 1; j++) {
+        if (buf[j] >= buf[j - 1] && buf[j] > buf[j + 1] && buf[j] > 0.7 * gmx) { jp = j; break; }
+      }
+      if (!jp) { for (let j = 1; j < NF; j++) if (buf[j] > buf[jp]) jp = j; }
+      let f = FREQS[jp];
+      if (jp > 0 && jp < NF - 1) {
+        const y0 = buf[jp - 1], y1 = buf[jp], y2 = buf[jp + 1];
+        const den = y0 - 2 * y1 + y2;
+        if (Math.abs(den) > 1e-18) f += 0.5 * ((y0 - y2) / den) * 2;
+      }
+      pf[i] = f; pm[i] = buf[jp];
+      let sum = 0, fs = 0;
+      for (let j = 0; j < NF; j++) { sum += buf[j]; fs += buf[j] * FREQS[j]; }
+      mf[i] = sum > 0 ? fs / sum : 0;
+      // range-trimmed mean between the 15th and 85th percentiles
+      let run = 0, jlo = 0, jhi = NF - 1;
+      const tot = sum || 1;
+      for (let j = 0; j < NF; j++) { run += buf[j]; if (run / tot >= 0.15) { jlo = j; break; } }
+      run = 0;
+      for (let j = 0; j < NF; j++) { run += buf[j]; if (run / tot > 0.85) { jhi = j; break; } }
+      let rs = 0, rn = 0;
+      for (let j = jlo; j <= jhi; j++) { rs += buf[j]; rn++; }
+      pa[i] = pm[i] - (rn ? rs / rn : 0);
+    }
+    ATTR = { pf, pm, mf, pa, spec };
+    AKEY = key;
+    return ATTR;
+  }
+
+  function specAt(i) {
+    const a = attributes();
+    const out = new Float64Array(NF);
+    for (let j = 0; j < NF; j++) out[j] = a.spec[i * NF + j];
+    return out;
+  }
+  const idx = () => clamp(Math.round(S.py), 0, NYG - 1) * NXG + clamp(Math.round(S.px), 0, NXG - 1);
+  const maxOf = (a) => { let m = 0; for (const v of a) m = Math.max(m, v); return m; };
+
+  function pearson(a, b, mask) {
+    let n = 0, sa = 0, sb = 0;
+    for (let i = 0; i < a.length; i++) { if (!mask(i)) continue; sa += a[i]; sb += b[i]; n++; }
+    if (n < 3) return NaN;
+    const ma = sa / n, mb = sb / n;
+    let num = 0, da = 0, db = 0;
+    for (let i = 0; i < a.length; i++) {
+      if (!mask(i)) continue;
+      const x = a[i] - ma, y = b[i] - mb;
+      num += x * y; da += x * x; db += y * y;
+    }
+    return (da > 0 && db > 0) ? num / Math.sqrt(da * db) : NaN;
+  }
+  const onChannel = (i) => thickness()[i] > 0.003;
+
+  /* =====================================================================
+     DRAWING
+     ===================================================================== */
+  const M = { l: 46, r: 14, t: 14, b: 32 };
+  function contentWidth(el) {
+    const p = el.parentElement || el;
+    const cs = getComputedStyle(p);
+    return Math.max(240, p.clientWidth - parseFloat(cs.paddingLeft) - parseFloat(cs.paddingRight));
+  }
+  /* Canvas height that lets a map fill the width it has been given. The maps are
+     aspect-locked to the grid, so passing a fixed canvas height left them
+     floating in the middle of a much wider panel with empty space either side —
+     278 px of map in a 560 px panel. maxH caps the result so a very wide panel
+     does not produce an absurdly tall canvas. */
+  function mapHeight(w, maxH) {
+    const availW = w - M.l - M.r;
+    const h = availW * (NYG / NXG) + M.t + M.b + 22;
+    return Math.round(Math.min(h, maxH || 440));
+  }
+
+  function mapBox(w, h) {
+    const availW = w - M.l - M.r, availH = h - M.t - M.b - 22;
+    const aspect = NYG / NXG;
+    let bw = availW, bh = bw * aspect;
+    if (bh > availH) { bh = availH; bw = bh / aspect; }
+    return { x: M.l + (availW - bw) / 2, y: M.t, w: bw, h: bh };
+  }
+  function drawField(ctx, rect, get, cmap) {
+    const off = document.createElement('canvas');
+    off.width = NXG; off.height = NYG;
+    const octx = off.getContext('2d');
+    const img = octx.createImageData(NXG, NYG);
+    for (let iy = 0; iy < NYG; iy++) {
+      for (let ix = 0; ix < NXG; ix++) {
+        const v = get(ix, iy);
+        const o = (iy * NXG + ix) * 4;
+        if (v === null) {
+          img.data[o] = 246; img.data[o + 1] = 245; img.data[o + 2] = 241;
+        } else {
+          const c = cmap(v);
+          img.data[o] = c[0]; img.data[o + 1] = c[1]; img.data[o + 2] = c[2];
+        }
+        img.data[o + 3] = 255;
+      }
+    }
+    octx.putImageData(img, 0, 0);
+    ctx.save();
+    ctx.imageSmoothingEnabled = true;
+    ctx.drawImage(off, rect.x, rect.y, rect.w, rect.h);
+    ctx.restore();
+    SEIS.frame(ctx, rect);
+  }
+  function bar(ctx, rect, cmap, lo, hi, label) {
+    const n = Math.max(2, Math.round(rect.w));
+    for (let i = 0; i < n; i++) {
+      const c = cmap(i / (n - 1));
+      ctx.fillStyle = 'rgb(' + c[0] + ',' + c[1] + ',' + c[2] + ')';
+      ctx.fillRect(rect.x + i * (rect.w / n), rect.y, rect.w / n + 1, rect.h);
+    }
+    ctx.save();
+    ctx.strokeStyle = 'rgba(22,25,28,.45)'; ctx.lineWidth = 1;
+    ctx.strokeRect(rect.x + 0.5, rect.y + 0.5, rect.w, rect.h);
+    ctx.font = '9.5px "IBM Plex Mono", monospace';
+    ctx.fillStyle = SLATE; ctx.textBaseline = 'top';
+    ctx.textAlign = 'left'; ctx.fillText(lo, rect.x, rect.y + rect.h + 4);
+    ctx.textAlign = 'right'; ctx.fillText(hi, rect.x + rect.w, rect.y + rect.h + 4);
+    ctx.textAlign = 'center'; ctx.fillText(label, rect.x + rect.w / 2, rect.y + rect.h + 4);
+    ctx.restore();
+  }
+  /* Every map on this page carries a color bar with its real range on it, so
+     that two maps drawn side by side can be compared rather than guessed at. */
+  function drawMap(el, get, cmap, lo, hi, label, h, mark) {
+    const w = contentWidth(el);
+    const ctx = SEIS.fitCanvas(el, w, h);
+    ctx.clearRect(0, 0, w, h);
+    const rect = mapBox(w, h);
+    drawField(ctx, rect, get, cmap);
+    SEIS.axisBottom(ctx, rect, 0, NXG, 'crossline', (v) => v.toFixed(0), { ticks: 5 });
+    SEIS.axisLeft(ctx, rect, 0, NYG, 'inline', (v) => v.toFixed(0), { ticks: 4, down: true });
+    bar(ctx, { x: rect.x, y: rect.y + rect.h + 22, w: Math.min(170, rect.w), h: 8 },
+      cmap, lo, hi, label);
+    if (mark) {
+      const X = rect.x + (S.px / NXG) * rect.w, Y = rect.y + (S.py / NYG) * rect.h;
+      ctx.save();
+      ctx.strokeStyle = CRIM; ctx.lineWidth = 1.6;
+      ctx.beginPath(); ctx.arc(X, Y, 5, 0, Math.PI * 2); ctx.stroke();
+      ctx.restore();
+    }
+    return { ctx, rect };
+  }
+  function series(ctx, rect, xs, ys, x0, x1, y0, y1, color, width) {
+    ctx.save();
+    ctx.beginPath();
+    ctx.lineWidth = width || 1.8;
+    ctx.strokeStyle = color;
+    let st = false;
+    for (let i = 0; i < xs.length; i++) {
+      if (xs[i] < x0 || xs[i] > x1) { st = false; continue; }
+      const X = rect.x + ((xs[i] - x0) / (x1 - x0)) * rect.w;
+      const Y = rect.y + rect.h - ((clamp(ys[i], y0, y1) - y0) / (y1 - y0)) * rect.h;
+      if (!st) { ctx.moveTo(X, Y); st = true; } else ctx.lineTo(X, Y);
+    }
+    ctx.stroke();
+    ctx.restore();
+  }
+
+  const FLO = 6, FHI = 92;
+  const pfCol = SEIS.SEQMAPS.structure, pmCol = SEIS.SEQMAPS.viridis;
+
+  /* ------------------------------------------------------------- header */
+  let HEADRECT = null;
+
+  function drawHeader() {
+    const el = $('cHead');
+    if (!el) return;
+    const g = thickness();
+    const mx = maxOf(g) || 1;
+    const r = drawMap(el, (ix, iy) => g[iy * NXG + ix] / mx, SEIS.SEQMAPS.cividis,
+      '0', (mx * 1000).toFixed(0) + ' ms', 'fill thickness', 260, true);
+    HEADRECT = r.rect;
+    /* the inline the section beside this map is cut along */
+    const Y = r.rect.y + (S.py / NYG) * r.rect.h;
+    const ctx = r.ctx;
+    ctx.save();
+    ctx.strokeStyle = 'rgba(132,22,23,0.55)'; ctx.lineWidth = 1;
+    ctx.setLineDash([4, 4]);
+    ctx.beginPath();
+    ctx.moveTo(r.rect.x, Y); ctx.lineTo(r.rect.x + r.rect.w, Y);
+    ctx.stroke();
+    ctx.restore();
+  }
+
+  /* The seismic along the inline through the analysis point. Every panel in
+     this module is a map, and a map of a frequency is two steps away from
+     anything a reader has picked before: the section is what the numbers were
+     measured on. */
+  function drawHeaderSection() {
+    const el = $('cHeadSec');
+    if (!el) return;
+    const w = contentWidth(el), h = 260;
+    const ctx = SEIS.fitCanvas(el, w, h);
+    ctx.clearRect(0, 0, w, h);
+    const rect = { x: M.l, y: M.t, w: w - M.l - M.r, h: h - M.t - M.b - 26 };
+
+    const iy = clamp(Math.round(S.py), 0, NYG - 1);
+    const g = thickness();
+    const traces = [];
+    let clip = 0;
+    for (let ix = 0; ix < NXG; ix++) {
+      const tr = traceAt(iy * NXG + ix);
+      traces.push(tr);
+      for (let k = 0; k < NW; k++) clip = Math.max(clip, Math.abs(tr[k]));
+    }
+    clip = clip || 1;
+    SEIS.drawSectionPanel(ctx, traces, rect, { i0: 0, i1: NW, clip: clip });
+    SEIS.frame(ctx, rect);
+    SEIS.axisLeft(ctx, rect, 0, NW * DT * 1000, 'two-way time (ms)', (v) => v.toFixed(0),
+      { ticks: 4, down: true });
+    SEIS.axisBottom(ctx, rect, 0, NXG, 'crossline', (v) => v.toFixed(0), { ticks: 5 });
+
+    /* top and base of the fill, and the trace the readouts come from */
+    const yOf = (t) => rect.y + (t / (NW * DT)) * rect.h;
+    ctx.save();
+    ctx.strokeStyle = TEAL; ctx.lineWidth = 1.4; ctx.setLineDash([5, 4]);
+    for (const which of [0, 1]) {
+      ctx.beginPath();
+      let started = false;
+      for (let ix = 0; ix < NXG; ix++) {
+        const T = g[iy * NXG + ix];
+        const t = which === 0 ? T0 : T0 + T;
+        const X = rect.x + ((ix + 0.5) / NXG) * rect.w;
+        started ? ctx.lineTo(X, yOf(t)) : (ctx.moveTo(X, yOf(t)), started = true);
+      }
+      ctx.stroke();
+    }
+    ctx.restore();
+    SEIS.tag(ctx, rect.x + 6, yOf(T0) - 16, 'top of fill', TEAL);
+
+    const ix = clamp(Math.round(S.px), 0, NXG - 1);
+    const XP = rect.x + ((ix + 0.5) / NXG) * rect.w;
+    ctx.save();
+    ctx.strokeStyle = CRIM; ctx.lineWidth = 1.6;
+    ctx.beginPath(); ctx.moveTo(XP, rect.y); ctx.lineTo(XP, rect.y + rect.h); ctx.stroke();
+    ctx.font = '9.5px "IBM Plex Mono", monospace';
+    ctx.fillStyle = CRIM; ctx.textAlign = 'left'; ctx.textBaseline = 'top';
+    /* wrapped inside the panel width, which is half the page on this step */
+    SEIS.captionLine(ctx, 'the analysis point: fill is ' +
+      (g[iy * NXG + ix] * 1000).toFixed(1) + ' ms here',
+      rect.x, rect.y + rect.h + 34, rect.w, { lineHeight: 11.5 });
+    ctx.restore();
+  }
+
+  /* Dragging the analysis point straight on the header map, so that the
+     circle on the map, the line on the section and every readout below move
+     together. */
+  function pickPoint(ev) {
+    const el = $('cHead');
+    if (!el || !HEADRECT) return;
+    const r = el.getBoundingClientRect();
+    if (!r.width || !r.height) return;
+    const x = (ev.clientX - r.left) * (el.clientWidth / r.width);
+    const y = (ev.clientY - r.top) * (el.clientHeight / r.height);
+    const px = clamp(Math.round(((x - HEADRECT.x) / HEADRECT.w) * NXG), 0, NXG - 1);
+    const py = clamp(Math.round(((y - HEADRECT.y) / HEADRECT.h) * NYG), 0, NYG - 1);
+    if (px === S.px && py === S.py) return;
+    S.px = px; S.py = py;
+    const a = $('px'), b = $('py');
+    if (a) a.value = String(px);
+    if (b) b.value = String(py);
+    syncLabels(); drawAll(); saveState();
+  }
+  (function () {
+    const el = $('cHead');
+    if (!el) return;
+    el.style.cursor = 'crosshair';
+    el.style.touchAction = 'none';
+    let down = false;
+    el.addEventListener('pointerdown', (ev) => { down = true; pickPoint(ev); });
+    el.addEventListener('pointermove', (ev) => { if (down || ev.buttons === 1) pickPoint(ev); });
+    el.addEventListener('pointerup', () => { down = false; });
+    el.addEventListener('pointerleave', () => { down = false; });
+    el.addEventListener('mousedown', (ev) => { down = true; pickPoint(ev); });
+    el.addEventListener('mousemove', (ev) => { if (ev.buttons === 1) pickPoint(ev); });
+    el.addEventListener('mouseup', () => { down = false; });
+  })();
+
+  /* ------------------------------------------------------------- step 1 */
+  function drawStep1() {
+    const el = $('c1');
+    if (!el) return;
+    const w = contentWidth(el), h = mapHeight(w, 430);
+    const ctx = SEIS.fitCanvas(el, w, h);
+    ctx.clearRect(0, 0, w, h);
+    const rect = { x: M.l + 8, y: M.t, w: w - M.l - M.r - 16, h: h - M.t - M.b };
+    const a = attributes(), i = idx();
+    const sp = specAt(i);
+    const mx = maxOf(sp) || 1;
+    SEIS.frame(ctx, rect);
+    ctx.save();
+    ctx.beginPath();
+    ctx.moveTo(rect.x, rect.y + rect.h);
+    for (let j = 0; j < NF; j++) {
+      ctx.lineTo(rect.x + ((FREQS[j] - FLO) / (FHI - FLO)) * rect.w,
+        rect.y + rect.h - (sp[j] / mx) * rect.h);
+    }
+    ctx.lineTo(rect.x + rect.w, rect.y + rect.h);
+    ctx.closePath();
+    ctx.fillStyle = 'rgba(11,114,133,0.14)'; ctx.fill();
+    ctx.restore();
+    series(ctx, rect, FREQS, Array.from(sp, (v) => v / mx), FLO, FHI, 0, 1.08, TEAL, 2);
+    SEIS.axisBottom(ctx, rect, FLO, FHI, 'frequency (Hz)', (v) => v.toFixed(0), { ticks: 6 });
+    SEIS.axisLeft(ctx, rect, 0, 1.08, 'relative magnitude', (v) => v.toFixed(1), { ticks: 5 });
+
+    const mark = (f, col, lab, up) => {
+      const X = rect.x + ((f - FLO) / (FHI - FLO)) * rect.w;
+      if (X < rect.x || X > rect.x + rect.w) return;
+      SEIS.dashedLine(ctx, X, rect.y, X, rect.y + rect.h, col, [4, 3], 1.3);
+      SEIS.tag(ctx, X + 5, rect.y + (up ? 6 : 22), lab, col);
+    };
+    mark(a.pf[i], CRIM, 'peak', true);
+    mark(a.mf[i], TEAL, 'mean', false);
+    const rtmLevel = (a.pm[i] - a.pa[i]) / mx;
+    const Yr = rect.y + rect.h - rtmLevel * rect.h;
+    SEIS.dashedLine(ctx, rect.x, Yr, rect.x + rect.w, Yr, 'rgba(92,102,112,0.6)', [3, 3], 1.2);
+
+    $('s1pf').textContent = a.pf[i].toFixed(1) + ' Hz';
+    $('s1pm').textContent = a.pm[i].toFixed(4);
+    $('s1mf').textContent = a.mf[i].toFixed(1) + ' Hz';
+    $('s1pa').textContent = a.pa[i].toFixed(4);
+    $('s1true').textContent = (thickness()[i] * 1000).toFixed(1) + ' ms';
+  }
+
+  /* ------------------------------------------------------------- step 2 */
+  function drawStep2() {
+    const A = $('c2a'), B = $('c2b');
+    if (!A || !B) return;
+    const a = attributes(), g = thickness();
+    drawMap(A, (ix, iy) => clamp((a.pf[iy * NXG + ix] - FLO) / (FHI - FLO), 0, 1), pfCol,
+      FLO + ' Hz', FHI + ' Hz', 'peak frequency', 300, true);
+    const mm = maxOf(a.pm) || 1;
+    drawMap(B, (ix, iy) => a.pm[iy * NXG + ix] / mm, pmCol, '0', 'max', 'peak magnitude', 300, true);
+
+    // thalweg and a margin on the middle inline
+    const iy = Math.round(NYG / 2);
+    let bt = 0, bi = 0, mi = -1, mt = Infinity;
+    for (let ix = 0; ix < NXG; ix++) {
+      const v = g[iy * NXG + ix];
+      if (v > bt) { bt = v; bi = ix; }
+      if (v > 0.003 && v < mt) { mt = v; mi = ix; }
+    }
+    $('s2ft').textContent = a.pf[iy * NXG + bi].toFixed(1) + ' Hz';
+    $('s2fm').textContent = mi >= 0 ? a.pf[iy * NXG + mi].toFixed(1) + ' Hz' : '—';
+    $('s2cf').textContent = pearson(a.pf, g, onChannel).toFixed(2);
+    $('s2cm').textContent = pearson(a.pm, g, onChannel).toFixed(2);
+  }
+
+  /* ------------------------------------------------------------- step 3 */
+  function drawStep3() {
+    const A = $('c3a'), B = $('c3b');
+    if (!A || !B) return;
+    const a = attributes(), g = thickness();
+    const mm = maxOf(a.pm) || 1;
+    const thr = (S.gate / 100) * mm;
+    drawMap(A, (ix, iy) => clamp((a.pf[iy * NXG + ix] - FLO) / (FHI - FLO), 0, 1), pfCol,
+      FLO + ' Hz', FHI + ' Hz', 'peak frequency', 290, true);
+    drawMap(B, (ix, iy) => {
+      const i = iy * NXG + ix;
+      return a.pm[i] < thr ? null : clamp((a.pf[i] - FLO) / (FHI - FLO), 0, 1);
+    }, pfCol, FLO + ' Hz', FHI + ' Hz', 'peak frequency, gated', 290, false);
+
+    let kept = 0, keptOn = 0, offN = 0, offErr = 0, offKeptN = 0, offKeptErr = 0;
+    const ref = 1000 / (2 * S.fd);          // what a value would imply, in ms
+    for (let i = 0; i < g.length; i++) {
+      const on = g[i] > 0.003;
+      const keep = a.pm[i] >= thr;
+      if (keep) { kept++; if (on) keptOn++; }
+      if (!on) {
+        // off the channel there is no right answer; measure the spread instead
+        offN++; offErr += Math.abs(1000 / (2 * a.pf[i]) - ref);
+        if (keep) { offKeptN++; offKeptErr += Math.abs(1000 / (2 * a.pf[i]) - ref); }
+      }
+    }
+    $('s3keep').textContent = (100 * kept / g.length).toFixed(0) + '%';
+    $('s3on').textContent = kept ? (100 * keptOn / kept).toFixed(0) + '%' : '—';
+    $('s3raw').textContent = offN ? (offErr / offN).toFixed(1) + ' ms' : '—';
+    $('s3gate').textContent = offKeptN ? (offKeptErr / offKeptN).toFixed(1) + ' ms' : 'none kept';
+  }
+
+  /* ------------------------------------------------------------- step 4 */
+  function drawStep4() {
+    const el = $('c4');
+    if (!el) return;
+    const w = contentWidth(el), h = mapHeight(w, 450);
+    const ctx = SEIS.fitCanvas(el, w, h);
+    ctx.clearRect(0, 0, w, h);
+    const a = attributes(), g = thickness();
+    const gap = 16;
+    const bw = (w - M.l - M.r - 2 * gap) / 3;
+    const bh = Math.min(h - M.t - M.b - 22, bw * NYG / NXG);
+    const pmx = maxOf(a.pa) || 1;
+    const panes = [
+      { d: a.pf, cmap: pfCol, lab: 'peak frequency', f: (v) => clamp((v - FLO) / (FHI - FLO), 0, 1) },
+      { d: a.mf, cmap: pfCol, lab: 'mean frequency', f: (v) => clamp((v - FLO) / (FHI - FLO), 0, 1) },
+      { d: a.pa, cmap: pmCol, lab: 'peak above avg', f: (v) => clamp(v / pmx, 0, 1) },
+    ];
+    panes.forEach((p, k) => {
+      const rect = { x: M.l + k * (bw + gap), y: M.t, w: bw, h: bh };
+      drawField(ctx, rect, (ix, iy) => p.f(p.d[iy * NXG + ix]), p.cmap);
+      SEIS.tag(ctx, rect.x + 6, rect.y + 6, p.lab, k === 2 ? TEAL : CRIM);
+      SEIS.axisBottom(ctx, rect, 0, NXG, k === 1 ? 'crossline' : '', (v) => v.toFixed(0), { ticks: 3 });
+      if (k === 0) SEIS.axisLeft(ctx, rect, 0, NYG, 'inline', (v) => v.toFixed(0), { ticks: 4, down: true });
+      /* the analysis point, on every panel: the three maps disagree at one
+         place, and the place has to be visible on all three for that to be
+         checkable */
+      const X = rect.x + (S.px / NXG) * rect.w, Y = rect.y + (S.py / NYG) * rect.h;
+      ctx.save();
+      ctx.strokeStyle = '#ffffff'; ctx.lineWidth = 2.6;
+      ctx.beginPath(); ctx.arc(X, Y, 5, 0, Math.PI * 2); ctx.stroke();
+      ctx.strokeStyle = CRIM; ctx.lineWidth = 1.5;
+      ctx.beginPath(); ctx.arc(X, Y, 5, 0, Math.PI * 2); ctx.stroke();
+      ctx.restore();
+    });
+    bar(ctx, { x: M.l, y: M.t + bh + 22, w: Math.min(170, bw), h: 8 }, pfCol,
+      FLO + ' Hz', FHI + ' Hz', 'frequency');
+
+    let d = 0, n = 0;
+    for (let i = 0; i < g.length; i++) {
+      if (!onChannel(i)) continue;
+      d += a.mf[i] - a.pf[i]; n++;
+    }
+    const ipt = idx();
+    $('s4pt').textContent = a.pf[ipt].toFixed(1) + ' / ' + a.mf[ipt].toFixed(1) + ' Hz';
+    $('s4diff').textContent = n ? (d / n).toFixed(1) + ' Hz' : '—';
+    $('s4cp').textContent = pearson(a.pf, g, onChannel).toFixed(2);
+    $('s4cm').textContent = pearson(a.mf, g, onChannel).toFixed(2);
+    $('s4ca').textContent = pearson(a.pa, g, onChannel).toFixed(2);
+  }
+
+  /* ------------------------------------------------------------- step 5 */
+  function drawStep5() {
+    const A = $('c5a'), B = $('c5b');
+    if (!A || !B) return;
+    const a = attributes(), g = thickness();
+    const mm = maxOf(a.pm) || 1;
+    const thr = 0.2 * mm;
+    const est = new Float64Array(g.length);
+    for (let i = 0; i < g.length; i++) est[i] = 1000 / (2 * a.pf[i]);
+
+    drawMap(A, (ix, iy) => {
+      const i = iy * NXG + ix;
+      return a.pm[i] < thr ? null : clamp(est[i] / 40, 0, 1);
+    }, SEIS.SEQMAPS.cividis, '0', '40 ms', 'thickness from peak f', 290, false);
+
+    drawMap(B, (ix, iy) => {
+      const i = iy * NXG + ix;
+      if (a.pm[i] < thr || !onChannel(i)) return null;
+      return clamp(0.5 + (est[i] - g[i] * 1000) / 40, 0, 1);
+    }, SEIS.COLORMAPS.bwr, '\u221220 ms', '+20 ms', 'error', 290, false);
+
+    let err = 0, bias = 0, n = 0;
+    const bins = {}, cnt = {};
+    for (let i = 0; i < g.length; i++) {
+      if (!onChannel(i) || a.pm[i] < thr) continue;
+      const t = g[i] * 1000, e = est[i] - t;
+      err += Math.abs(e); bias += e; n++;
+      const b = Math.round(t / 4) * 4;
+      bins[b] = (bins[b] || 0) + Math.abs(e); cnt[b] = (cnt[b] || 0) + 1;
+    }
+    let best = null, worst = null;
+    for (const b of Object.keys(bins)) {
+      if (cnt[b] < 20) continue;
+      const m = bins[b] / cnt[b];
+      if (best === null || m < best.m) best = { t: b, m };
+      if (worst === null || m > worst.m) worst = { t: b, m };
+    }
+    $('s5err').textContent = n ? (err / n).toFixed(1) + ' ms' : '—';
+    $('s5bias').textContent = n ? (bias / n >= 0 ? '+' : '') + (bias / n).toFixed(1) + ' ms' : '—';
+    $('s5best').textContent = best ? best.t + ' ms (' + best.m.toFixed(1) + ' off)' : '—';
+    $('s5worst').textContent = worst ? worst.t + ' ms (' + worst.m.toFixed(1) + ' off)' : '—';
+  }
+
+  /* =====================================================================
+     PLUMBING
+     ===================================================================== */
+  function syncLabels() {
+    $('fdV').textContent = S.fd + ' Hz';
+    $('noiseV').textContent = S.noise === 0 ? 'none' : S.noise + '%';
+    $('pxV').textContent = String(S.px);
+    $('pyV').textContent = String(S.py);
+    $('gateV').textContent = S.gate + '%';
+    document.querySelectorAll('#segBal button').forEach((b) => {
+      b.setAttribute('aria-pressed', b.dataset.b === S.bal);
+      b.classList.toggle('on', b.dataset.b === S.bal);
+    });
+    ['fd', 'noise', 'px', 'py', 'gate'].forEach((k) => {
+      const el = $(k);
+      if (el && String(S[k]) !== el.value) el.value = S[k];
+    });
+  }
+  function drawAll() {
+    const lab = document.querySelector('.labhead');
+    if (lab && !lab.hidden) { drawHeader(); drawHeaderSection(); }
+    if (visible('p1')) drawStep1();
+    if (visible('p2')) drawStep2();
+    if (visible('p3')) drawStep3();
+    if (visible('p4')) drawStep4();
+    if (visible('p5')) drawStep5();
+  }
+
+  const PANES = ['p1', 'p2', 'p3', 'p4', 'p5', 'pw', 'pe', 'pk', 'pm'];
+  const STEPNAMES = {
+    p1: 'The numbers', p2: 'Two maps', p3: 'Where it fails', p4: 'Peak vs mean',
+    p5: 'Thickness map', pw: 'Why it matters', pe: 'Exercises', pk: 'Key points', pm: 'Method',
+  };
+  function buildStepNav() {
+    PANES.forEach((id, i) => {
+      const pane = $(id);
+      if (!pane || pane.querySelector('.stepnav')) return;
+      const prev = PANES[i - 1], next = PANES[i + 1];
+      const nav = document.createElement('div');
+      nav.className = 'stepnav';
+      const mk = (target, text, ghost) => {
+        const b = document.createElement('button');
+        b.type = 'button';
+        b.className = 'btn' + (ghost ? ' ghost' : '') + ' small';
+        b.textContent = text;
+        b.addEventListener('click', () => {
+          showTab(target);
+          const t = document.querySelector('.tabhint');
+          if (t && t.scrollIntoView) t.scrollIntoView({ behavior: 'smooth', block: 'start' });
+        });
+        return b;
+      };
+      nav.appendChild(prev ? mk(prev, '\u2190 ' + STEPNAMES[prev], true)
+                           : document.createElement('span'));
+      const where = document.createElement('span');
+      where.className = 'where';
+      where.textContent = i < 5 ? 'step ' + (i + 1) + ' of 5' : STEPNAMES[id];
+      nav.appendChild(where);
+      nav.appendChild(next ? mk(next, STEPNAMES[next] + ' \u2192')
+                           : document.createElement('span'));
+      pane.appendChild(nav);
+    });
+  }
+  function showTab(id) {
+    PANES.forEach((q) => { const el = $(q); if (el) el.hidden = q !== id; });
+    document.querySelectorAll('#tabs button').forEach((b) => {
+      b.setAttribute('aria-selected', b.dataset.tab === id);
+    });
+    const lab = document.querySelector('.labhead');
+    if (lab) lab.hidden = (id === 'pw' || id === 'pe' || id === 'pk' || id === 'pm');
+    /* The forward link lives on the pager. Show it once the reader has reached
+       the exercises, not only on the two reference tabs — a student who works
+       the exercises and stops used to have no way on to the next module. */
+    const done = (id === 'pe' || id === 'pk' || id === 'pm');
+    if ($('nextup')) $('nextup').hidden = !(id === 'pk' || id === 'pm');
+    if ($('pager')) $('pager').hidden = !done;
+    S.tab = id;
+    drawAll();
+    saveState();
+  }
+  document.querySelectorAll('#tabs button').forEach((b) => {
+    b.addEventListener('click', () => showTab(b.dataset.tab));
+  });
+  document.querySelectorAll('#segBal button').forEach((b) => {
+    b.addEventListener('click', () => { S.bal = b.dataset.b; syncLabels(); drawAll(); saveState(); });
+  });
+  document.addEventListener('input', (ev) => {
+    const t = ev.target;
+    if (!t || t.tagName !== 'INPUT') return;
+    const id = t.id;
+    if (!(id in DEF)) return;
+    S[id] = parseFloat(t.value);
+    syncLabels(); drawAll(); saveState();
+  });
+  let rt;
+  window.addEventListener('resize', () => { clearTimeout(rt); rt = setTimeout(drawAll, 140); });
+
+  buildStepNav();
+  syncLabels();
+  showTab(PANES.indexOf(S.tab) >= 0 ? S.tab : 'p1');
+})();
+</script>
+</body>
+</html>

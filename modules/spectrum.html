@@ -1,0 +1,1604 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>What a seismic wavelet is made of | How Spectral Attributes Actually Work</title>
+<meta name="description" content="A seismic wavelet carries many frequencies at once. What the spectrum shows, how bandwidth changes the wavelet, what a sharp spectral edge does to its tail, why broadband is counted in octaves, and where the sample interval sets the ceiling.">
+<link rel="stylesheet" href="../assets/fonts.css">
+<link rel="stylesheet" href="../assets/style.css">
+</head>
+<body>
+
+<div class="wrap">
+  <header class="masthead">
+    <a class="brand" href="../index.html"><span class="dot"></span>How spectral attributes <b>actually</b> work</a>
+    <nav>
+      <a href="../index.html">All modules</a>
+      <a href="why.html">← Module 00</a>
+      <a href="#notes">Method &amp; references</a>
+    </nav>
+  </header>
+
+  <div class="mod-head">
+    <p class="eyebrow">Module 01 &nbsp;·&nbsp; Spectral attributes</p>
+    <h1>What a seismic wavelet is made of</h1>
+    <p class="sub">Seismic data are usually described by a single number, such as "30 Hz data." That number summarizes a range of frequencies that arrive together. The width and shape of the range determine how thin a bed the data can resolve and how much the wavelet oscillates after each reflection. These five steps construct a wavelet from its frequencies and then separate it again.</p>
+  </div>
+
+  <div class="labhead">
+    <div class="labgrid">
+      <div>
+        <p class="cap">One wavelet, two pictures <span>&mdash; the same information, twice</span></p>
+        <canvas id="cHead" aria-label="A seismic wavelet in time beside its amplitude spectrum"></canvas>
+      </div>
+      <div>
+        <p class="cap">Build the wavelet <span>&mdash; every step updates as you drag</span></p>
+        <div class="controls" id="winControls">
+          <div class="ctl-col">
+            <h2>Start from a survey</h2>
+            <div class="seg" id="segPreset" role="group" aria-label="Typical survey settings">
+              <button type="button" data-rf="15">Deep target</button>
+              <button type="button" data-rf="30">Land 3D</button>
+              <button type="button" data-rf="55">Shallow</button>
+            </div>
+            <p class="hint-line" style="margin:6px 0 0">Roughly 15, 30 and 55 Hz. Real surveys vary
+              widely; these are starting points, not standards.</p>
+          </div>
+          <div class="ctl-col">
+            <h2>Which wavelet</h2>
+            <div class="seg" id="segType" role="group" aria-label="Wavelet type">
+              <button type="button" data-type="ricker">Ricker</button>
+              <button type="button" data-type="ormsby">Ormsby</button>
+            </div>
+            <div class="ctl" id="ctlRicker">
+              <label for="rf">Wavelet peak frequency <span class="val" id="rfV">30 Hz</span></label>
+              <input type="range" data-key="rf" id="rf" min="8" max="90" step="1" value="30">
+            </div>
+          </div>
+          <div class="ctl-col" id="ctlOrmsby" hidden>
+            <h2>Ormsby corners</h2>
+            <div class="ctl">
+              <label for="o1">Low cut <span class="val" id="o1V">5 Hz</span></label>
+              <input type="range" data-key="o1" id="o1" min="1" max="30" step="1" value="5">
+            </div>
+            <div class="ctl">
+              <label for="o2">Low pass <span class="val" id="o2V">10 Hz</span></label>
+              <input type="range" data-key="o2" id="o2" min="2" max="40" step="1" value="10">
+            </div>
+            <div class="ctl">
+              <label for="o3">High pass <span class="val" id="o3V">50 Hz</span></label>
+              <input type="range" data-key="o3" id="o3" min="20" max="110" step="1" value="50">
+            </div>
+            <div class="ctl">
+              <label for="o4">High cut <span class="val" id="o4V">60 Hz</span></label>
+              <input type="range" data-key="o4" id="o4" min="25" max="125" step="1" value="60">
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <p class="tabhint">Work through the five steps in order, <b>then try the exercises</b>.
+    Method and references are there when you want them.</p>
+  <nav class="tabs" id="tabs" role="tablist" aria-label="Module steps">
+    <button role="tab" data-tab="p1" aria-selected="false">1 · Two pictures</button>
+    <button role="tab" data-tab="p2" aria-selected="false">2 · Sum of cosines</button>
+    <button role="tab" data-tab="p3" aria-selected="false">3 · The high end</button>
+    <button role="tab" data-tab="p4" aria-selected="false">4 · Octaves</button>
+    <button role="tab" data-tab="p5" aria-selected="false">5 · Nyquist</button>
+    <button role="tab" data-tab="pw" aria-selected="false">Why it matters</button>
+    <span class="gap"></span>
+    <button role="tab" data-tab="pe" aria-selected="false">Exercises</button>
+    <button role="tab" data-tab="pk" aria-selected="false">Key points</button>
+    <button role="tab" data-tab="pm" aria-selected="false">Method</button>
+  </nav>
+
+  <!-- =============================== STEP 1 =============================== -->
+  <section class="tabpane" id="p1" role="tabpanel" hidden>
+    <div class="plot-head" style="margin-bottom:14px">
+      <h3><span class="stepno">1</span>One wavelet in time and in frequency</h3>
+      <span class="hint">Time on the left, frequency on the right</span>
+    </div>
+
+    <p class="qbox"><b>Why this step is here.</b> A processing report gives the data as 30 Hz. A well tie gives 24 Hz. An attribute volume reports 34 Hz at the same location. What quantity is each of those numbers measuring?</p>
+
+    <p class="lede">The panel above the tabs shows one wavelet in two representations. On the left is its shape in time, the wavelet returned by each reflector. On the right is its <b>amplitude spectrum</b>, which gives the amount of each frequency the wavelet contains. The two representations hold the same information, and either can be computed from the other without loss.</p>
+    <p class="lede">Moving the peak frequency slider changes both representations together. A wavelet that becomes shorter in time becomes wider in frequency. This relationship holds for every wavelet and is the basis of module 02.</p>
+
+    <div class="plot">
+      <div class="plot-head">
+        <h3>The spectrum, with three different "frequencies" marked</h3>
+        <span class="hint">All three describe the same curve</span>
+      </div>
+      <canvas id="c1" aria-label="Amplitude spectrum with peak, mean and bandwidth marked"></canvas>
+    </div>
+    <div class="ctl-row" style="display:flex;flex-wrap:wrap;gap:18px;margin:12px 0 0">
+      <div class="ctl" id="ctlRf1" style="flex:1 1 220px;min-width:200px">
+        <label for="rf1">Ricker peak frequency <span class="val" id="rf1V">30 Hz</span></label>
+        <input type="range" data-key="rf" id="rf1" min="8" max="90" step="1" value="30">
+      </div>
+      <div class="ctl" style="flex:1 1 220px;min-width:200px">
+        <label for="vel">Interval velocity <span class="val" id="velV">2500 m/s</span></label>
+        <input type="range" data-key="vel" id="vel" min="1800" max="5000" step="50" value="2500">
+      </div>
+    </div>
+    <p class="hint-line">Wavelength is velocity divided by frequency, so both sliders change it. Raising
+      the frequency shortens the cycle in the ground; raising the velocity stretches it. With an Ormsby
+      wavelet selected, the four corner frequencies in the panel above do the same thing.</p>
+    <div class="stats">
+      <div class="stat key"><span>Peak frequency</span><b id="s1peak">—</b></div>
+      <div class="stat"><span>Mean frequency</span><b id="s1mean">—</b></div>
+      <div class="stat"><span>Bandwidth (half-magnitude)</span><b id="s1bw">—</b></div>
+      <div class="stat"><span>Wavelength in rock</span><b id="s1lam">—</b></div>
+      <div class="stat"><span>Wavelet length, to 1%</span><b id="s1len">—</b></div>
+    </div>
+    <div class="legend prose">
+      <span><b>Peak frequency and mean frequency are two different measurements of the same spectrum.</b> The 30 Hz Ricker has a peak at 30.0 Hz and a mean of 33.9 Hz. Its spectrum rises steeply from zero and falls away slowly, so the amplitude-weighted average lies above the most common value. For a Ricker the ratio is fixed at 2/&radic;&pi; &asymp; 1.128 at any peak frequency. A processing report giving 30 Hz and an attribute volume reporting 34 Hz at the same sample can both be correct, because they report different statistics of one spectrum. Module 06 computes both.</span>
+    </div>
+    <div class="legend prose">
+      <span><b>Frequency becomes a length in the ground when divided into a velocity.</b> Frequency by itself is a property of the wavelet. Velocity divided by frequency gives a <b>wavelength</b>: at 2500 m/s a 30 Hz wavelet has a wavelength of about 83 m, and a 15 Hz wavelet about 167 m. Bed thicknesses are compared against that length rather than against the frequency. Velocity increases with depth and the earth absorbs the higher frequencies during propagation, so wavelengths at depth are longer and the resolvable bed thickness is greater. Module 04 converts wavelength into a thickness limit, and the seismic resolution modules treat it in detail.</span>
+    </div>
+
+    <p class="lede">The sentence above about depth is the one thing on this page that
+      cannot be seen from the panels so far, so here it is on its own. The same source
+      wavelet is propagated to four depths through rock of the chosen quality factor
+      <b>Q</b>, which measures how lossy the rock is. Absorption removes high frequencies
+      faster than low ones, so the wavelet that arrives back from a deep reflector is not
+      the wavelet that left.</p>
+
+    <div class="plot">
+      <div class="plot-head">
+        <h3>The same wavelet, arriving from four depths</h3>
+        <span class="hint">Fixed axes, so any change on screen is a real change</span>
+      </div>
+      <canvas id="c1d" aria-label="One wavelet and its spectrum after propagating to four different depths"></canvas>
+    </div>
+    <div class="ctl" style="max-width:460px;margin:12px 0 0">
+      <label for="qf">Quality factor Q <span class="val" id="qfV">80</span></label>
+      <input type="range" id="qf" min="20" max="300" step="5" value="80">
+    </div>
+    <div class="stats">
+      <div class="stat key"><span>Peak frequency at 0.5 s</span><b id="s1d1">&mdash;</b></div>
+      <div class="stat"><span>At 3.0 s</span><b id="s1d2">&mdash;</b></div>
+      <div class="stat"><span>Thinnest bed, 0.5 s</span><b id="s1d3">&mdash;</b></div>
+      <div class="stat"><span>Thinnest bed, 3.0 s</span><b id="s1d4">&mdash;</b></div>
+    </div>
+    <div class="legend prose">
+      <span><b>The same survey resolves a thicker bed at depth than it does near the
+      surface.</b> The thickness readouts are 1/(2f) at the peak frequency that actually
+      arrives, converted at the velocity on the slider above. Lowering Q pulls the deep
+      spectrum down and the deep thickness limit up. Raising Q to a few hundred, which is
+      what a stiff well-cemented section might reach, brings the four spectra almost back
+      together. Nothing about the source changed in any of these cases, and nothing about
+      the bed did either.</span>
+    </div>
+  </section>
+
+  <!-- =============================== STEP 2 =============================== -->
+  <section class="tabpane" id="p2" role="tabpanel" hidden>
+    <div class="plot-head" style="margin-bottom:14px">
+      <h3><span class="stepno">2</span>Building the wavelet from cosines</h3>
+      <span class="hint">Add components one at a time</span>
+    </div>
+
+    <p class="qbox"><b>Why this step is here.</b> A trace is often described as containing 30 Hz. A trace is a single continuous curve, with no separable 30 Hz portion. In what sense does it contain a frequency?</p>
+
+    <p class="lede">The statement is arithmetic. Any wavelet can be decomposed into cosines of different frequencies, each with its own amplitude and its own shift in time. Summing those cosines reproduces the original shape exactly. The spectrum is the list of amplitudes required.</p>
+    <p class="lede">The gray curve below is the wavelet from the header. The crimson curve is the sum of the strongest few cosines only. Adding components one at a time shows which parts of the shape each frequency supplies. The first component is a single low-frequency oscillation. The narrow central peak forms only once the higher frequencies are included.</p>
+
+    <div class="ctl" style="max-width:420px;margin:0 0 12px">
+      <label for="ncomp">Components included <span class="val" id="ncompV">1</span></label>
+      <input type="range" id="ncomp" min="1" max="60" step="1" value="1">
+    </div>
+    <div class="plot">
+      <div class="plot-head">
+        <h3>The cosines themselves, and their sum</h3>
+        <span class="hint">Each row is one cosine; the bottom row is what they add up to</span>
+      </div>
+      <canvas id="c2c" aria-label="The individual cosine components stacked above the sum they produce"></canvas>
+    </div>
+    <p class="hint-line">Each row is one cosine of a single frequency, drawn at its own amplitude and
+      its own shift in time, with the strongest at the top. Above twelve components the rows would be
+      too thin to read, so the rest are added together and drawn as one row. Beneath the rule are the
+      sum, in crimson over the target wavelet in gray, and what is still missing from it. Those two
+      are drawn against the height of the target rather than against their own, so the sum growing
+      toward the wavelet is visible rather than scaled away.</p>
+
+    <div class="plot">
+      <div class="plot-head">
+        <h3>Partial sum against the target</h3>
+        <span class="hint">Gray: the wavelet. Crimson: what you have so far</span>
+      </div>
+      <canvas id="c2" aria-label="Partial Fourier reconstruction of the wavelet"></canvas>
+    </div>
+    <div class="stats">
+      <div class="stat key"><span>Components</span><b id="s2n">1</b></div>
+      <div class="stat"><span>Energy captured</span><b id="s2e">—</b></div>
+      <div class="stat"><span>Highest frequency used</span><b id="s2f">—</b></div>
+      <div class="stat"><span>Worst error, % of peak</span><b id="s2err">—</b></div>
+    </div>
+    <div class="legend prose">
+      <span><b>Most of the wavelet's shape comes from the combination of components rather than from the strongest ones.</b> On a 5-10-60-70 Ormsby, the strongest single component carries 3.6% of the energy, the strongest five carry 17.9%, and twenty are needed to exceed 70%. As components are added the central peak does not grow taller; it grows narrower. The added high-frequency cosines are in phase at the center and out of phase away from it, and that cancellation is what makes the wavelet compact. It also explains why a single frequency extracted from the data does not resemble the data. Module 03 examines one such component.</span>
+    </div>
+  </section>
+
+  <!-- =============================== STEP 3 =============================== -->
+  <section class="tabpane" id="p3" role="tabpanel" hidden>
+    <div class="plot-head" style="margin-bottom:14px">
+      <h3><span class="stepno">3</span>The high cut and the corner taper</h3>
+      <span class="hint">Fixed axes, so the change is real</span>
+    </div>
+
+    <p class="qbox"><b>Why this step is here.</b> Two reprocessed volumes both have wider spectra than the original. One resolves thinner beds; the other contains reflections that are not in the ground. What distinguishes them?</p>
+
+    <p class="lede">The two sliders change the spectrum in different ways. The first is the <b>high cut</b>, the frequency above which nothing is retained. Raising it narrows the wavelet's central lobe, which is what allows two closely spaced reflectors to remain separate. Lowering it widens the central lobe until close reflections merge.</p>
+    <p class="lede">The second slider is the <b>corner taper</b>, which sets how gradually the spectrum falls to zero at its edges. Holding the passband fixed and making the corners sharper leaves the central lobe almost unchanged and adds a long oscillating tail to the wavelet. Both panels use fixed axes, so any change visible on screen is a real change.</p>
+
+    <div class="controls" style="margin-bottom:14px">
+      <div class="ctl-col">
+        <div class="ctl">
+          <label for="hi">High cut <span class="val" id="hiV">60 Hz</span></label>
+          <input type="range" id="hi" min="22" max="110" step="1" value="60">
+        </div>
+      </div>
+      <div class="ctl-col">
+        <div class="ctl">
+          <label for="tap">Corner taper <span class="val" id="tapV">10 Hz</span></label>
+          <input type="range" id="tap" min="1" max="20" step="1" value="10">
+        </div>
+      </div>
+    </div>
+    <div class="sec-row">
+      <div class="panel-col">
+        <p class="sublabel"><b>The wavelet</b> <span class="note">fixed axes, ±60 ms</span></p>
+        <canvas id="c3a" aria-label="Wavelet in time, fixed axes"></canvas>
+      </div>
+      <div class="panel-col">
+        <p class="sublabel"><b>Its spectrum</b> <span class="note">fixed axes, 0&ndash;140 Hz</span></p>
+        <canvas id="c3b" aria-label="Amplitude spectrum of the same wavelet"></canvas>
+      </div>
+    </div>
+    <div class="stats">
+      <div class="stat key"><span>Central lobe, half-width</span><b id="s3lobe">—</b></div>
+      <div class="stat"><span>Bandwidth</span><b id="s3bw">—</b></div>
+      <div class="stat"><span>Ringing sidelobe</span><b id="s3side">—</b></div>
+      <div class="stat"><span>Wavelet length, to 1%</span><b id="s3len">—</b></div>
+    </div>
+    <div class="legend prose">
+      <span><b>Raising the high cut narrows the central lobe; sharpening the corners lengthens the tail.</b> Taking the high cut from 25 Hz to 110 Hz narrows the central lobe from 13.3 ms to 4.1 ms and shortens the whole wavelet from 176 ms to 98 ms. Returning the high cut to 60 Hz and tightening the taper instead changes the central lobe by half a millisecond, 6.9 ms to 7.4 ms, while the ringing sidelobe rises from 0.025 to 0.054 and the wavelet lengthens from 120 ms to 303 ms. The passband is identical in both cases. Each oscillation on that tail appears in the data at the position of a reflector, so a sharpened spectrum produces events that have no counterpart in the ground.</span>
+    </div>
+  </section>
+
+  <!-- =============================== STEP 4 =============================== -->
+  <section class="tabpane" id="p4" role="tabpanel" hidden>
+    <div class="plot-head" style="margin-bottom:14px">
+      <h3><span class="stepno">4</span>Bandwidth in hertz and in octaves</h3>
+      <span class="hint">Same width in Hz, moved up the spectrum</span>
+    </div>
+
+    <p class="qbox"><b>Why this step is here.</b> Two wavelets are both 30 Hz wide. One spans about 8 to 48 Hz, the other about 58 to 98 Hz. Their bandwidths in hertz are equal. Are the two wavelets equally useful?</p>
+
+    <p class="lede">The slider moves a band of fixed width in hertz up the spectrum. The bandwidth readout changes very little across the whole range. An <b>octave</b> is a doubling of frequency, and the number of octaves the band spans falls as the band moves upward: 8 to 48 Hz is more than two doublings, while 58 to 98 Hz is less than one.</p>
+
+    <p class="lede">The width of the spectrum sets how narrow the central peak of the wavelet is. The
+      number of octaves it spans sets how much the wavelet oscillates on either side of that peak. The
+      two are separate properties, and moving a band of constant width upward holds the first roughly
+      fixed while reducing the second, which is why the wavelet in the left panel develops a longer and
+      longer tail as the slider moves.</p>
+
+    <p class="lede"><b>What the tail does on a section.</b> The oscillations that follow a reflection
+      arrive at a spacing set by the center frequency of the data, and that spacing is the same
+      everywhere, so the oscillations are laterally continuous. On a section they have the appearance of
+      beds: parallel to the reflection above them, conformable with it, and traceable across the survey.
+      A single sand-shale interface can therefore be mapped as a package of thin units, and those units
+      will follow structure faithfully because they are attached to the event that produced them.
+      Distinguishing them from geology is a matter of comparing their spacing with the period of the
+      data rather than of inspecting them at higher gain.</p>
+
+    <p class="lede">The same arithmetic applies with depth. Absorption removes the high end of the band
+      preferentially, so a deep reflector is imaged mostly by what the low end carries. A survey that
+      recorded little below 8 Hz spans few octaves at depth however it is processed, and the wavelet
+      that comes back from a deep target rings for that reason rather than because of anything in the
+      rocks around it.</p>
+
+    <div class="ctl" style="max-width:460px;margin:0 0 12px">
+      <label for="cen">Band center <span class="val" id="cenV">28 Hz</span></label>
+      <input type="range" id="cen" min="28" max="78" step="1" value="28">
+    </div>
+    <div class="sec-row">
+      <div class="panel-col">
+        <p class="sublabel"><b>The wavelet</b> <span class="note">fixed axes, ±60 ms</span></p>
+        <canvas id="c4a" aria-label="Wavelet for a band of fixed width in hertz"></canvas>
+      </div>
+      <div class="panel-col">
+        <p class="sublabel"><b>Its spectrum</b> <span class="note">the width in Hz never changes</span></p>
+        <canvas id="c4b" aria-label="Spectrum of a band of fixed width in hertz"></canvas>
+      </div>
+    </div>
+    <div class="stats">
+      <div class="stat key"><span>Octaves spanned</span><b id="s4oct">—</b></div>
+      <div class="stat"><span>Bandwidth</span><b id="s4bw">—</b></div>
+      <div class="stat"><span>Ringing sidelobe</span><b id="s4side">—</b></div>
+      <div class="stat"><span>Central lobe, half-width</span><b id="s4lobe">—</b></div>
+    </div>
+    <div class="legend prose">
+      <span><b>The same bandwidth in hertz spans fewer octaves at a higher center frequency, and the wavelet oscillates more.</b> At a band center of 28 Hz the wavelet spans 2.12 octaves and its ringing sidelobe is 0.103 of its peak. At 78 Hz it spans 0.66 of an octave and the sidelobe is 0.700, so each reflection is followed by oscillations at seven tenths of its own amplitude. Bandwidth over the same range changes only from 35.0 Hz to 34.5 Hz. The high-frequency wavelet does have the narrower central lobe, 3.2 ms against 8.9 ms, so it separates close reflectors better, and the oscillating tail comes with it. An octave is added with the smallest change in frequency at the low end: taking a low cut from 10 Hz to 5 Hz adds a full octave, while adding 5 Hz above a 60 Hz high cut adds about a tenth of one. That is the basis of broadband acquisition.</span>
+    </div>
+  </section>
+
+  <!-- =============================== STEP 5 =============================== -->
+  <section class="tabpane" id="p5" role="tabpanel" hidden>
+    <div class="plot-head" style="margin-bottom:14px">
+      <h3><span class="stepno">5</span>Nyquist and aliasing</h3>
+      <span class="hint">What the sample interval decides</span>
+    </div>
+
+    <p class="qbox"><b>Why this step is here.</b> A decomposition requires a highest frequency. The data were recorded at a 4 ms sample interval. Is 130 Hz a valid request?</p>
+
+    <p class="lede">Seismic traces are recorded as values at regular intervals; 4 ms and 2 ms are the usual ones. A sampled trace cannot represent a frequency above half the sampling rate. That limit is the <b>Nyquist frequency</b>: 125 Hz at a 4 ms sample interval, 250 Hz at 2 ms.</p>
+    <p class="lede"><b>What aliasing is.</b> A sampled trace holds the value of the wave at the sample
+      times and holds nothing at all about what happened between them. When the wave completes more
+      than half a cycle from one sample to the next, more than one frequency passes through every
+      recorded point, and the trace cannot distinguish them. The lowest of those frequencies is what is
+      stored. Moving the tone above the Nyquist frequency shows the sampled points falling on a curve
+      quite different from the true one, and the recorded trace is that curve.</p>
+
+    <p class="lede">Nothing marks an aliased value as suspect. It has an ordinary amplitude, an
+      ordinary frequency, and it stacks and migrates like any other event. This is why an anti-alias
+      filter is applied before data are resampled rather than afterward: once the sampling has been
+      done the two frequencies are the same number and no processing separates them again.</p>
+
+    <p class="lede"><b>The same limit applies across a survey, not only down a trace.</b> Traces are
+      samples in space, spaced by the bin size, so there is a spatial Nyquist frequency as well. A
+      dipping reflector shifts in time from one trace to the next, and where that shift exceeds half a
+      period the reflector appears to dip the other way. Steep salt flanks, fault planes and the limbs
+      of tight folds are where this appears first, which is why a survey laid out for a flat-lying
+      target images a steep one badly whatever is done to it later.</p>
+
+    <p class="lede"><b>Where this constrains the modules ahead.</b> A decomposition asked for a
+      frequency above Nyquist returns a volume, because the arithmetic does not fail. What comes back
+      is whatever the interpolation put there, it varies smoothly across the survey, and a map of it
+      has the appearance of geology. Data recorded at 4 ms carry nothing above 125 Hz, and the highest
+      decomposition frequency worth requesting is well below that, because absorption has usually
+      removed the top of the band long before the sampling limit is reached.</p>
+
+    <div class="controls" style="margin-bottom:14px">
+      <div class="ctl-col">
+        <div class="ctl">
+          <label for="tone">True frequency <span class="val" id="toneV">60 Hz</span></label>
+          <input type="range" id="tone" min="10" max="240" step="2" value="60">
+        </div>
+      </div>
+      <div class="ctl-col">
+        <div class="ctl">
+          <label for="si">Sample interval <span class="val" id="siV">4 ms</span></label>
+          <input type="range" id="si" min="1" max="4" step="1" value="3">
+        </div>
+      </div>
+    </div>
+    <div class="plot">
+      <div class="plot-head">
+        <h3>One cosine, sampled</h3>
+        <span class="hint">Gray: the true wave. Dots: the samples. Teal: what the samples say</span>
+      </div>
+      <canvas id="c5" aria-label="A cosine, its samples, and the aliased frequency they imply"></canvas>
+    </div>
+    <div class="stats">
+      <div class="stat key"><span>Nyquist frequency</span><b id="s5ny">—</b></div>
+      <div class="stat"><span>True frequency</span><b id="s5true">—</b></div>
+      <div class="stat"><span>Comes back as</span><b id="s5alias">—</b></div>
+      <div class="stat"><span>Status</span><b id="s5stat">—</b></div>
+    </div>
+    <div class="legend prose">
+      <span><b>An aliased frequency appears within the band an interpreter is working in.</b> At a 4 ms sample interval a 150 Hz signal is recorded as 100 Hz and a 200 Hz signal as 50 Hz. Nothing in the sampled trace identifies these as false. The same limit applies to the modules ahead: a decomposition asked for a 130 Hz component of 4 ms data returns a value, and that value cannot be signal.</span>
+    </div>
+  </section>
+
+  <!-- ============================ WHY IT MATTERS =========================== -->
+  <section class="tabpane" id="pw" role="tabpanel" hidden>
+    <div class="plot-head" style="margin-bottom:14px">
+      <h3>Why it matters</h3>
+      <span class="hint">Where this shows up in real work</span>
+    </div>
+    <p class="lede">No attribute is computed in this module. The vocabulary introduced here is used in every module that follows, and several of the parameters those modules require are determined by it.</p>
+    <ul class="lede" style="padding-left:20px">
+      <li><b>Reading a processing report.</b> "Bandwidth 8&ndash;80 Hz" and "dominant frequency 35 Hz"
+        describe the same data and answer different questions. The first says what the data can resolve
+        and how much the wavelet rings; the second is one statistic of the curve.</li>
+      <li><b>Merging two surveys.</b> Two volumes with the same dominant frequency and different
+        bandwidths will not tie, and the mistie at the seam can be mistaken for a geological change.</li>
+      <li><b>Judging a brightening.</b> An amplitude change can come from the rocks or from a wavelet
+        with a longer tail produced by a different processing sequence. Step 3 is where that tail comes
+        from.</li>
+      <li><b>Choosing frequencies for a decomposition.</b> Every program in modules 05 through 08 asks
+        for a lowest and a highest frequency. Nyquist sets the hard ceiling; the recorded bandwidth sets
+        the useful one.</li>
+    </ul>
+    <p class="lede"><b>Two points that are commonly confused.</b> The first is treating dominant frequency as a property of the rocks. It is a property of the wavelet that traveled down and back, and it changes with depth, with the overburden, with the processing sequence and with the recording geometry. The second is assuming that a wider spectrum is always better. Widening a spectrum by sharpening its edges, which is the effect of unconstrained whitening, adds no resolution and adds oscillation. Module 05 demonstrates this.</p>
+    <div class="legend prose">
+      <span>Disagreements about the frequency content of a dataset often reduce to two statistics of the same spectrum, measured over different windows.</span>
+    </div>
+  </section>
+
+  <!-- ============================== EXERCISES ============================= -->
+  <section class="tabpane" id="pe" role="tabpanel" hidden>
+    <div class="tryit" style="max-width:none">
+      <h3>Exercises</h3>
+      <ol>
+        <li><b>Compare peak frequency with mean frequency.</b>
+          <em class="point">Why: two attribute volumes can report different frequencies at the same
+            sample, and both can be correct.</em>
+          In step 1, set the Ricker peak frequency to 15, then 30, then 60 Hz, and read both numbers each
+          time.
+          <em class="predict">Before looking: will the mean sit above the peak, below it, or in the same
+            place? Commit to an answer and to a reason.</em>
+          <details class="reveal"><summary>Hint</summary><span class="ans">Peak reads 15.0, 30.0 and
+            60.0 Hz; mean reads 16.9, 33.9 and 67.7 Hz. The ratio is 1.128 every time, which is 2/&radic;&pi;.
+            A Ricker spectrum is not symmetric — steep on the low side, a long tail on the high side — so
+            the average always sits above the most common value. Two consequences. A mean frequency
+            volume and a peak frequency volume will never agree on real data. And "35 Hz" does not pin
+            down a wavelet, because a Ricker with a 31 Hz peak has a 35 Hz mean.</span></details></li>
+
+        <li><b>Build a wavelet one component at a time.</b>
+          <em class="point">Why: the narrowness of a wavelet comes from interference between many
+            frequencies rather than from the amplitude of any one of them.</em>
+          In step 2, step the component count from 1 up to 40 and note where the shape becomes
+          recognizable, and what part of the curve is changing.
+          <details class="reveal"><summary>Hint</summary><span class="ans">One component captures 3.6% of
+            the energy and is a slow swell. Five reach 17.9%, ten reach 35.8%, twenty reach 71.2%, and it
+            takes forty to close the last of the error. The central peak does not get taller as
+            components are added — it gets narrower, because the new high-frequency cosines arrive in
+            phase at the center and out of phase everywhere else. That cancellation is what makes a
+            wavelet compact.</span></details></li>
+
+        <li><b>Widen the spectrum two ways and compare the results.</b>
+          <em class="point">Why: this is the test that separates a genuine resolution gain from a
+            lengthened wavelet.</em>
+          In step 3, first take the high cut from 25 to 110 Hz with the taper at 10 Hz. Then put the high
+          cut back to 60 Hz and take the taper from 10 Hz down to 1 Hz.
+          <details class="reveal"><summary>Hint</summary><span class="ans">The first change pulls the
+            central lobe from 13.3 ms to 4.1 ms, better than a factor of three. The second moves it by
+            half a millisecond, 6.9 to 7.4 ms, but takes the ringing sidelobe from 0.025 to 0.054 and the
+            wavelet's 1% length from 120 ms to 303 ms. The passband is identical in both. The difference
+            is between widening a spectrum and sharpening one: the useful question about a reprocessing
+            is whether the central lobe got narrower or whether the tail got longer.</span></details></li>
+
+        <li><b>Compare bandwidth in hertz with bandwidth in octaves.</b>
+          <em class="point">Why: hertz alone does not indicate whether a wavelet is broadband.</em>
+          Slide the band center from 28 Hz to 78 Hz and watch the bandwidth readout against the octave
+          readout and the ringing sidelobe.
+          <details class="reveal"><summary>Hint</summary><span class="ans">Bandwidth holds at 35.0, 35.0,
+            35.0 and 34.5 Hz across the whole slide. Octaves fall from 2.12 to 1.70 to 1.10 to 0.66, and
+            the ringing sidelobe climbs from 0.103 to 0.181 to 0.355 to 0.700. So two wavelets of equal
+            bandwidth in hertz are not equally good, and the octave count is what tracks the difference.
+            An octave is added most easily at the low end, which is why broadband
+            acquisition extends the low frequencies.</span></details></li>
+
+        <li><b>Record a frequency above the Nyquist limit.</b>
+          <em class="point">Why: an alias is indistinguishable from signal in the sampled trace, which is
+            why the filter is applied before resampling.</em>
+          In step 5, set the sample interval to 4 ms and walk the true frequency from 60 Hz up to 240 Hz.
+          <details class="reveal"><summary>Hint</summary><span class="ans">Below 125 Hz the samples follow
+            the true wave and the reported frequency is correct. At 125 Hz — Nyquist — there are two
+            samples per cycle and it is already marginal. Above it the reported frequency comes back
+            down: 150 Hz reports as 100 Hz, 200 Hz as 50 Hz, and 240 Hz as 10 Hz. Nothing in the sampled
+            trace flags any of it.</span></details></li>
+      </ol>
+    </div>
+  </section>
+
+  <!-- ============================= KEY POINTS ============================= -->
+  <section class="tabpane" id="pk" role="tabpanel" hidden>
+    <div class="takeaway">
+      <h3>If you remember nothing else</h3>
+      <ul>
+        <li><b>A wavelet carries a range of frequencies.</b> Peak, mean and dominant frequency are each
+          summaries of that range, and any one of them leaves most of the spectrum undescribed.</li>
+        <li><b>Peak and mean frequency are different numbers and both are correct.</b> For a Ricker the
+          mean sits 12.8% above the peak, always.</li>
+        <li><b>A wavelet that is short in time is wide in frequency.</b> The two representations always
+          change in opposite directions. Module 02 is built on that relationship.</li>
+        <li><b>Resolution comes from the high cut; oscillation comes from the corner taper.</b> Raising the
+          high cut narrows the central lobe. Sharpening the corners does not, and adds a tail that
+          appears in the data as reflectors.</li>
+        <li><b>Broadband is measured in octaves.</b> The same bandwidth in hertz spans fewer octaves at a
+          higher center frequency and produces a wavelet that oscillates more. Octaves are gained at the
+          low end of the spectrum.</li>
+        <li><b>Nyquist sets an absolute upper limit.</b> At a 4 ms sample interval it is 125 Hz, and a 150 Hz
+          event is recorded as 100 Hz, indistinguishable from signal.</li>
+      </ul>
+    </div>
+
+    <div class="takeaway" style="margin-top:18px">
+      <h3>Words introduced here</h3>
+      <dl class="terms">
+        <dt>amplitude spectrum</dt>
+        <dd>How much of each frequency a wavelet or a trace contains, plotted against frequency.</dd>
+        <dt>peak frequency</dt>
+        <dd>The frequency at which the amplitude spectrum is highest.</dd>
+        <dt>mean frequency</dt>
+        <dd>The average frequency across the spectrum, weighted by amplitude. Above the peak whenever
+          the spectrum has a long high-frequency tail.</dd>
+        <dt>dominant frequency</dt>
+        <dd>Used loosely for whichever of the two above a speaker has in mind. Worth asking which.</dd>
+        <dt>magnitude</dt>
+    <dd>How much energy sits at a given frequency. Used interchangeably with
+      the height of the amplitude spectrum at that frequency; module 03 gives
+      it a precise meaning once the spectrum is computed everywhere.</dd>
+    <dt>bandwidth</dt>
+        <dd>The width of the spectrum. Here, the range between the half-magnitude points either side of
+          the peak. Other definitions are in use; module 06 meets a second one.</dd>
+        <dt>low cut, high cut</dt>
+        <dd>The frequencies below and above which nothing is kept.</dd>
+        <dt>taper</dt>
+        <dd>How gradually the spectrum falls to zero at a cut. A sharp taper produces a long wavelet.</dd>
+        <dt>octave</dt>
+        <dd>A doubling of frequency. 5 to 10 Hz is one octave; so is 40 to 80 Hz.</dd>
+        <dt>ringing sidelobe</dt>
+        <dd>The bump following the wavelet's first trough. Large sidelobes appear in data as events that
+          are not reflectors.</dd>
+        <dt>Nyquist frequency</dt>
+        <dd>Half the sampling rate. The highest frequency a sampled trace can represent.</dd>
+        <dt>aliasing</dt>
+        <dd>A frequency above Nyquist reappearing as a lower one that was never recorded.</dd>
+        <dt>wavelength</dt>
+        <dd>Velocity divided by frequency. A length in the ground, which is what bed thicknesses get
+          compared against.</dd>
+      </dl>
+    </div>
+  </section>
+
+  <!-- =============================== METHOD =============================== -->
+  <section class="tabpane" id="pm" role="tabpanel" hidden>
+    <div class="plot-head" style="margin-bottom:14px">
+      <h3 id="notes">Method</h3>
+      <span class="hint">What is computed, and what is left out</span>
+    </div>
+    <p class="lede"><b>How the pictures are made.</b> The Ricker and Ormsby wavelets are evaluated in
+      closed form from <span class="k">assets/seismic.js</span>, sampled at 0.5 ms. Every amplitude
+      spectrum on this page is a direct discrete Fourier transform of that sampled wavelet, normalized so
+      its largest value is 1. Nothing is drawn from a stored curve, so an error in the arithmetic would
+      show up in the picture.</p>
+    <p class="lede"><b>The numbers in the readouts.</b> Peak frequency is the mode of the spectrum,
+      refined by fitting a parabola through the three samples around it. Mean frequency is the
+      amplitude-weighted average. Bandwidth is measured between the half-magnitude points either side of
+      the peak, which is the definition AASPI's <span class="k">spec_cwt</span> uses; module 06 meets a
+      second, incompatible definition based on percentiles, used by <span class="k">spec_cmp</span>.
+      Central lobe half-width is the time from the wavelet's center to its first zero crossing. The
+      ringing sidelobe is the largest excursion after the first trough, as a fraction of the peak.
+      Wavelet length is the last time at which the wavelet exceeds 1% of its peak. Wavelength is velocity
+      divided by peak frequency at a fixed 2500 m/s, which is a round number for clastic section at a few
+      kilometers and not a measurement of anything.</p>
+    <p class="lede"><b>The three survey presets</b> set the Ricker peak frequency to 15, 30 and 55 Hz.
+      They are illustrative of deep, ordinary and shallow targets, and real surveys range well outside
+      them; nothing in the module depends on the labels.</p>
+    <p class="lede"><b>Step 2's reconstruction</b> takes a real FFT of the sampled wavelet, sorts the
+      components by amplitude, and adds back the strongest N. That ordering is a teaching choice rather
+      than a standard: it makes the shape assemble as quickly as possible. Adding components in frequency
+      order gives the same final answer more slowly. The energy percentage is the summed squared
+      amplitude of the components used over that of all of them.</p>
+    <p class="lede"><b>Step 5's alias</b> is computed rather than drawn. The cosine is sampled at the
+      chosen interval, and the reported frequency is found by folding the true frequency about Nyquist as
+      many times as needed. The teal curve is the lowest-frequency cosine passing through every sample
+      point, which is what later processing would take the data to contain.</p>
+    <p class="lede"><b>Simplifications, stated plainly.</b> Every wavelet here is zero phase and
+      symmetric, which real source wavelets are not; phase is treated in module 03. There is no earth in
+      this module — no reflectivity, no noise, no attenuation, no propagation — so the spectrum on screen
+      belongs to the wavelet alone. Spectra are normalized to a peak of 1, so nothing here describes
+      absolute amplitude. The anti-alias filter that precedes real resampling is deliberately absent from
+      step 5, because the aliasing is the thing being shown.</p>
+    <p class="lede"><b>Where this departs from production software.</b> Nowhere yet. Nothing in this
+      module is an algorithm; it is arithmetic that any package performs identically. The departures start
+      in module 03, and each module from there carries its own list.</p>
+    <details class="reveal">
+      <summary>References</summary>
+      <ul class="lede" style="padding-left:20px">
+        <li>Ricker, N., 1953, The form and laws of propagation of seismic wavelets: <em>Geophysics</em>,
+          <b>18</b>, 10&ndash;40.</li>
+        <li>Sheriff, R. E., and L. P. Geldart, 1995, <em>Exploration Seismology</em>, 2nd ed.: Cambridge
+          University Press.</li>
+        <li>Yilmaz, Ö., 2001, <em>Seismic Data Analysis</em>: SEG Investigations in Geophysics 10.</li>
+        <li>Chopra, S., and K. J. Marfurt, 2007, <em>Seismic Attributes for Prospect Identification and
+          Reservoir Characterization</em>: SEG Geophysical Development Series 11.</li>
+        <li>AASPI, <em>Spectral Attributes: Program spec_cwt</em>, University of Oklahoma — for the
+          bandwidth and peak frequency definitions used in the readouts.</li>
+      </ul>
+    </details>
+  </section>
+
+  <section class="nextup" id="nextup" hidden>
+    <p class="eyebrow">Next up</p>
+    <h3>02 · Putting a window on the trace</h3>
+    <p>A spectrum of a whole trace says which frequencies are present and says nothing about where they
+      are. The fix is a short analysis window, and the fix has a limitation that never goes away.</p>
+    <a class="btn ghost" href="windows.html">Module 02 →</a>
+  </section>
+
+  <div class="pager" id="pager" hidden>
+    <a class="btn ghost" href="why.html">← Module 00: why bother with frequency</a>
+    <a class="btn ghost" href="../index.html">All modules</a>
+    <a class="btn ghost" href="windows.html">Module 02: putting a window on the trace →</a>
+  </div>
+
+  <footer>
+    <div class="foot-grid">
+      <p>Built for teaching by Dr. Heather Bedle and Dr. April Moreno-Ward, University of Oklahoma, with
+        the <a href="https://www.ou.edu/mcee/labs/aaspi">AASPI</a> consortium.</p>
+      <p class="lic">To cite: H. Bedle and A. Moreno-Ward, 2026, <i>How Spectral Attributes Actually
+        Work: A Set of Browser-Based Interactive Modules</i>: SSRN working paper, University of Oklahoma.
+        <span class="k">SSRN: [article link to follow]</span></p>
+      <p class="lic">Licensed <a href="https://creativecommons.org/licenses/by-sa/4.0/">CC BY-SA 4.0</a>.
+        Free to use, adapt and share, including in teaching, provided the source is credited and any
+        adaptation is released under the same license. If you use it in a course or a talk, a credit line
+        and a link back are all that is asked.</p>
+      <p class="lic">Nothing you do in this module leaves your browser. The only thing recorded is that
+        the page was opened, so that the university can see these are being used &mdash; no cookie, no
+        account, nothing about you.</p>
+    </div>
+  </footer>
+</div>
+
+<script src="../assets/count.js"></script>
+<script src="../assets/popout.js"></script>
+<script src="../assets/panelout.js"></script>
+<script src="../assets/glossary.js"></script>
+<script src="../assets/seismic.js"></script>
+<script>
+(function () {
+  'use strict';
+
+  if (typeof SEIS === 'undefined') {
+    const el = document.createElement('div');
+    el.setAttribute('style', 'background:#841617;color:#fff;padding:14px 18px;margin:16px 0;' +
+      'font:13px/1.6 ui-monospace,Menlo,monospace');
+    el.textContent = 'This module could not load assets/seismic.js. It expects it one directory up, ' +
+      'at ../assets/, and file names are case-sensitive on GitHub Pages.';
+    const w = document.querySelector('.wrap');
+    (w || document.body).insertBefore(el, w ? w.firstChild : null);
+    return;
+  }
+
+  const $ = (id) => document.getElementById(id);
+  const clamp = (v, a, b) => Math.max(a, Math.min(b, v));
+  const visible = (id) => { const el = $(id); return el && !el.hidden; };
+  const CRIM = '#841617', TEAL = '#0B7285', SLATE = '#5C6670', INK = '#16191C';
+
+  /* Sampling used for every wavelet on the page. Fine enough that the first
+     zero crossing is located to better than the readout's precision. */
+  const DT = 0.0005;
+  /* Interval velocity is driven by the slider in step 1, so that the wavelength
+     readout responds to the rock as well as to the wavelet. It converts a
+     frequency into a length and touches nothing else: every other panel in this
+     module is the wavelet alone, with no earth in it. */
+  const TSPAN = 0.060;                 // fixed time axis, +/- 60 ms
+  const FMAX = 140;                    // fixed frequency axis, for drawing
+  const NF = 421;                      // spectrum samples, ~1/3 Hz
+  /* Statistics are computed on a much wider spectrum than the one drawn. A
+     60 Hz Ricker still has real amplitude well above 140 Hz, and measuring its
+     mean frequency on the display axis alone truncates that tail and biases the
+     answer low — 66.7 Hz instead of 67.7 Hz. Draw narrow, measure wide. */
+  const FSTAT = 400, NFSTAT = 801;
+
+  const DEF = {
+    type: 'ricker', rf: 30, o1: 5, o2: 10, o3: 50, o4: 60,
+    ncomp: 1, hi: 60, tap: 10, cen: 28, tone: 60, si: 3, vel: 2500, qf: 80, tab: 'p1',
+  };
+  let S = SEIS.readState(DEF);
+  if (S.type !== 'ricker' && S.type !== 'ormsby') S.type = 'ricker';
+
+  const CAN_LINK = location.protocol !== 'file:';
+  const saveState = () => {
+    if (!CAN_LINK) return;
+    try { SEIS.writeState(S, DEF); } catch (e) { /* nothing shareable */ }
+  };
+
+  /* =====================================================================
+     WAVELETS AND THEIR MEASUREMENTS
+     ===================================================================== */
+
+  function headerWavelet() {
+    if (S.type === 'ormsby') {
+      // keep the four corners in order however the sliders are dragged
+      const f = [S.o1, S.o2, S.o3, S.o4].slice().sort((a, b) => a - b);
+      return SEIS.makeWavelet({ type: 'ormsby', f1: f[0], f2: Math.max(f[1], f[0] + 1),
+        f3: Math.max(f[2], f[1] + 1), f4: Math.max(f[3], f[2] + 1) });
+    }
+    return SEIS.makeWavelet({ type: 'ricker', f: S.rf });
+  }
+
+  function sampleWavelet(wav, span) {
+    const n = Math.ceil((span || 0.5) / DT);
+    const t = new Float64Array(2 * n + 1), v = new Float64Array(2 * n + 1);
+    for (let i = -n; i <= n; i++) { t[i + n] = i * DT; v[i + n] = wav.fn(i * DT); }
+    return { t, v, i0: n };
+  }
+
+  // amplitude spectrum, normalized to a peak of 1: [{f, a}]
+  function spectrumOf(wav) { return SEIS.spectrum(wav, DT, NF, FMAX); }
+  function statSpectrumOf(wav) { return SEIS.spectrum(wav, DT, NFSTAT, FSTAT); }
+
+  function specStats(pts) {
+    let jpk = 0;
+    for (let j = 1; j < pts.length; j++) if (pts[j].a > pts[jpk].a) jpk = j;
+    let peak = pts[jpk].f, peakA = pts[jpk].a;
+    if (jpk > 0 && jpk < pts.length - 1) {
+      const y0 = pts[jpk - 1].a, y1 = pts[jpk].a, y2 = pts[jpk + 1].a;
+      const den = y0 - 2 * y1 + y2;
+      if (Math.abs(den) > 1e-14) {
+        const d = 0.5 * (y0 - y2) / den;
+        peak = pts[jpk].f + d * (pts[jpk + 1].f - pts[jpk].f);
+        peakA = y1 - 0.25 * (y0 - y2) * d;
+      }
+    }
+    let sum = 0, fsum = 0;
+    for (const p of pts) { sum += p.a; fsum += p.a * p.f; }
+    const mean = sum > 0 ? fsum / sum : 0;
+    // half-magnitude points either side of the mode
+    let lo = pts[0].f, hi = pts[pts.length - 1].f;
+    for (let j = jpk; j > 0; j--) if (pts[j].a < peakA / 2) { lo = pts[j].f; break; }
+    for (let j = jpk; j < pts.length - 1; j++) if (pts[j].a < peakA / 2) { hi = pts[j].f; break; }
+    return { peak, peakA, mean, lo, hi, bw: hi - lo };
+  }
+
+  /* Central lobe half-width, ringing sidelobe and effective length, all read
+     off the sampled wavelet rather than assumed from a formula. */
+  function timeStats(wav) {
+    const s = sampleWavelet(wav, 0.5);
+    const c = s.i0;
+    let firstZero = null;
+    for (let i = c; i < s.v.length - 1; i++) {
+      if (s.v[i] >= 0 && s.v[i + 1] < 0) {
+        const f = s.v[i] / (s.v[i] - s.v[i + 1]);
+        firstZero = s.t[i] + f * DT;
+        break;
+      }
+    }
+    /* Two different things get called "the sidelobe". The TROUGH is the first
+       negative lobe, part of the wavelet's basic shape — it is -0.446 for every
+       Ricker, whatever its frequency. The RINGING sidelobe is the positive bump
+       after that trough, which is what a sharp spectral corner produces. Steps
+       3 and 4 are about the second one; step 1 reports the first. */
+    let trough = 0, seenTrough = false, side = 0;
+    for (let i = c + 1; i < s.v.length - 1; i++) {
+      trough = Math.min(trough, s.v[i]);
+      if (s.v[i] < s.v[i - 1] && s.v[i] < s.v[i + 1]) seenTrough = true;
+      if (seenTrough && s.v[i] > 0) side = Math.max(side, s.v[i]);
+    }
+    let len = 0;
+    for (let i = 0; i < s.v.length; i++) {
+      if (Math.abs(s.v[i]) > 0.01) len = Math.max(len, Math.abs(s.t[i]));
+    }
+    return { firstZero, trough, side, len };
+  }
+
+  /* =====================================================================
+     DRAWING
+     ===================================================================== */
+
+  const M = { l: 54, r: 16, t: 16, b: 34 };
+  function boxOf(ctx, w, h) { return { x: M.l, y: M.t, w: w - M.l - M.r, h: h - M.t - M.b }; }
+
+  // width from the parent's CONTENT box: a tab pane has padding, and
+  // clientWidth includes it, which overruns the canvas by ~52 px.
+  function contentWidth(el) {
+    const p = el.parentElement || el;
+    const cs = getComputedStyle(p);
+    return Math.max(240, p.clientWidth - parseFloat(cs.paddingLeft) - parseFloat(cs.paddingRight));
+  }
+
+  function series(ctx, rect, xs, ys, x0, x1, y0, y1, color, width) {
+    ctx.save();
+    ctx.beginPath();
+    ctx.lineWidth = width || 1.6;
+    ctx.strokeStyle = color;
+    let started = false;
+    for (let i = 0; i < xs.length; i++) {
+      if (xs[i] < x0 || xs[i] > x1) { started = false; continue; }
+      const X = rect.x + ((xs[i] - x0) / (x1 - x0)) * rect.w;
+      const Y = rect.y + rect.h - ((ys[i] - y0) / (y1 - y0)) * rect.h;
+      if (!started) { ctx.moveTo(X, Y); started = true; } else ctx.lineTo(X, Y);
+    }
+    ctx.stroke();
+    ctx.restore();
+  }
+
+  function zeroLine(ctx, rect, y0, y1) {
+    if (y0 > 0 || y1 < 0) return;
+    const Y = rect.y + rect.h - ((0 - y0) / (y1 - y0)) * rect.h;
+    SEIS.dashedLine(ctx, rect.x, Y, rect.x + rect.w, Y, 'rgba(92,102,112,0.45)', [3, 3], 1);
+  }
+
+  function drawWaveletInto(ctx, rect, wav, opts) {
+    const o = opts || {};
+    const s = sampleWavelet(wav, TSPAN + 0.01);
+    const xs = [], ys = [];
+    for (let i = 0; i < s.t.length; i++) { xs.push(s.t[i] * 1000); ys.push(s.v[i]); }
+    SEIS.frame(ctx, rect);
+    zeroLine(ctx, rect, -1.05, 1.05);
+    series(ctx, rect, xs, ys, -TSPAN * 1000, TSPAN * 1000, -1.05, 1.05, o.color || CRIM, 1.8);
+    SEIS.axisBottom(ctx, rect, -TSPAN * 1000, TSPAN * 1000, 'time (ms)', (v) => v.toFixed(0), { ticks: 6 });
+    SEIS.axisLeft(ctx, rect, -1.05, 1.05, 'amplitude', (v) => v.toFixed(1), { ticks: 5 });
+  }
+
+  function drawSpectrumInto(ctx, rect, pts, opts) {
+    const o = opts || {};
+    const xs = pts.map((p) => p.f), ys = pts.map((p) => p.a);
+    SEIS.frame(ctx, rect);
+    // fill under the curve, so the "how much of each frequency" reading is easy
+    ctx.save();
+    ctx.beginPath();
+    ctx.moveTo(rect.x, rect.y + rect.h);
+    for (let i = 0; i < xs.length; i++) {
+      if (xs[i] > FMAX) break;
+      const X = rect.x + (xs[i] / FMAX) * rect.w;
+      const Y = rect.y + rect.h - (ys[i] / 1.05) * rect.h;
+      ctx.lineTo(X, Y);
+    }
+    ctx.lineTo(rect.x + rect.w, rect.y + rect.h);
+    ctx.closePath();
+    ctx.fillStyle = 'rgba(11,114,133,0.14)';
+    ctx.fill();
+    ctx.restore();
+    series(ctx, rect, xs, ys, 0, FMAX, 0, 1.05, o.color || TEAL, 1.8);
+    SEIS.axisBottom(ctx, rect, 0, FMAX, 'frequency (Hz)', (v) => v.toFixed(0), { ticks: 7 });
+    SEIS.axisLeft(ctx, rect, 0, 1.05, 'relative amplitude', (v) => v.toFixed(1), { ticks: 5 });
+  }
+
+  function vmark(ctx, rect, f, color, label, up) {
+    const X = rect.x + (f / FMAX) * rect.w;
+    if (X < rect.x || X > rect.x + rect.w) return;
+    SEIS.dashedLine(ctx, X, rect.y, X, rect.y + rect.h, color, [4, 3], 1.2);
+    if (label) SEIS.tag(ctx, X + 4, rect.y + (up ? 6 : 22), label, color);
+  }
+
+  /* ------------------------------------------------------------- header */
+  function drawHeader() {
+    const el = $('cHead');
+    if (!el) return;
+    const w = contentWidth(el), h = 210;
+    const ctx = SEIS.fitCanvas(el, w, h);
+    ctx.clearRect(0, 0, w, h);
+    const gap = 26;
+    const half = (w - gap) / 2;
+    const wav = headerWavelet();
+    const rA = { x: M.l, y: M.t, w: half - M.l - M.r, h: h - M.t - M.b };
+    const rB = { x: half + gap + M.l, y: M.t, w: half - M.l - M.r, h: h - M.t - M.b };
+    drawWaveletInto(ctx, rA, wav);
+    drawSpectrumInto(ctx, rB, spectrumOf(wav));
+  }
+
+  /* The peak frequency of the wavelet above, drawn as a wave in the ground
+     against a fixed distance scale. Both sliders on this step move it: raising
+     the peak frequency packs more cycles into the same rock, and raising the
+     interval velocity stretches each cycle out. The distance axis is held at
+     0-500 m however the sliders move, because a wave that stretches against a
+     ruler that stretches with it shows nothing.
+
+     One wavelength is marked, since that is the number the scale above the
+     panel and the readout below it both quote. */
+  const LAM_MMAX = 500;
+
+  function drawStep1Wave(ctx, box, fPeak) {
+    if (box.h < 60) return;
+    const plot = { x: box.x + 4, y: box.y, w: box.w - 8, h: box.h - 34 };
+    const lam = S.vel / Math.max(fPeak, 1);           // meters
+    SEIS.frame(ctx, plot);
+    SEIS.axisBottom(ctx, plot, 0, LAM_MMAX, 'distance in rock (m)',
+      (v) => v.toFixed(0), { ticks: 6 });
+
+    const mid = plot.y + plot.h / 2;
+    ctx.save();
+    ctx.strokeStyle = 'rgba(92,102,112,0.45)';
+    ctx.lineWidth = 1;
+    ctx.beginPath(); ctx.moveTo(plot.x, mid); ctx.lineTo(plot.x + plot.w, mid); ctx.stroke();
+
+    ctx.strokeStyle = TEAL; ctx.lineWidth = 1.8;
+    ctx.beginPath();
+    const amp = plot.h * 0.34;
+    for (let px = 0; px <= plot.w; px++) {
+      const m = (px / plot.w) * LAM_MMAX;             // meters along the axis
+      const y = mid - amp * Math.cos(2 * Math.PI * m / lam);
+      px ? ctx.lineTo(plot.x + px, y) : ctx.moveTo(plot.x + px, y);
+    }
+    ctx.stroke();
+
+    // one wavelength, measured from crest to crest at the left-hand end
+    const xl = plot.x, xr = plot.x + (lam / LAM_MMAX) * plot.w;
+    if (xr - xl > 24 && xr <= plot.x + plot.w) {
+      ctx.strokeStyle = CRIM; ctx.lineWidth = 1.4;
+      const yb = plot.y + 12;
+      ctx.beginPath();
+      ctx.moveTo(xl, yb); ctx.lineTo(xr, yb);
+      ctx.moveTo(xl, yb - 4); ctx.lineTo(xl, yb + 4);
+      ctx.moveTo(xr, yb - 4); ctx.lineTo(xr, yb + 4);
+      ctx.stroke();
+      SEIS.tag(ctx, (xl + xr) / 2 - 34, yb + 12,
+        'one wavelength: ' + lam.toFixed(0) + ' m', CRIM);
+    } else {
+      ctx.font = '10px "IBM Plex Mono", monospace';
+      ctx.fillStyle = CRIM; ctx.textAlign = 'left'; ctx.textBaseline = 'top';
+      ctx.fillText('one wavelength: ' + lam.toFixed(0) + ' m', plot.x + 6, plot.y + 6);
+    }
+    ctx.restore();
+
+    ctx.save();
+    ctx.font = '10px "IBM Plex Mono", monospace';
+    ctx.fillStyle = SLATE;
+    SEIS.captionLine(ctx,
+      'the peak frequency ' + fPeak.toFixed(1) + ' Hz as a wave in rock at ' + S.vel + ' m/s',
+      plot.x, plot.y + plot.h + 24, plot.w, { lineHeight: 11.5 });
+    ctx.restore();
+  }
+
+  /* ------------------------------------------------------------- step 1 */
+  function drawStep1() {
+    const el = $('c1');
+    if (!el) return;
+    const w = contentWidth(el), h = 500;
+    const ctx = SEIS.fitCanvas(el, w, h);
+    ctx.clearRect(0, 0, w, h);
+    const rect = boxOf(ctx, w, h);
+    /* room beneath for the wavelength scale and then the panel that draws the
+       wavelength as a length of rock */
+    rect.h -= 200;
+    const wav = headerWavelet();
+    const pts = spectrumOf(wav);
+    const st = specStats(statSpectrumOf(wav));
+    drawSpectrumInto(ctx, rect, pts);
+
+    // half-magnitude level, so the bandwidth reading is visible not asserted
+    const Yh = rect.y + rect.h - ((st.peakA / 2) / 1.05) * rect.h;
+    SEIS.dashedLine(ctx, rect.x, Yh, rect.x + rect.w, Yh, 'rgba(92,102,112,0.55)', [3, 3], 1);
+    vmark(ctx, rect, st.peak, CRIM, 'peak', true);
+    vmark(ctx, rect, st.mean, TEAL, 'mean', false);
+    vmark(ctx, rect, st.lo, SLATE, '', true);
+    vmark(ctx, rect, st.hi, SLATE, '', true);
+    const Xl = rect.x + (st.lo / FMAX) * rect.w, Xh = rect.x + (st.hi / FMAX) * rect.w;
+    if (Xh > Xl) {
+      ctx.save();
+      ctx.strokeStyle = SLATE; ctx.lineWidth = 1.4;
+      ctx.beginPath(); ctx.moveTo(Xl, Yh); ctx.lineTo(Xh, Yh); ctx.stroke();
+      ctx.restore();
+      SEIS.tag(ctx, (Xl + Xh) / 2 - 26, Yh - 16, 'bandwidth', SLATE);
+    }
+
+    /* The frequency axis read a second time as the wavelength each frequency
+       has in rock at the velocity on the slider, drawn as an axis of its own
+       rather than a row of bare numbers. Frequency is a property of the
+       wavelet and is not a length in the ground until a velocity divides into
+       it. The panel beneath draws that length. */
+    const rowW = rect.y + rect.h + 34;
+    SEIS.scaleAxis(ctx, rect, rowW,
+      [10, 20, 30, 40, 60, 80, 100].filter((f) => f <= FMAX).map((f) => (
+        { x: rect.x + (f / FMAX) * rect.w, text: (S.vel / f).toFixed(0) })),
+      { color: CRIM, label: 'wavelength in rock (m) at ' + S.vel + ' m/s' });
+
+    drawStep1Wave(ctx, { x: rect.x, y: rect.y + rect.h + 84,
+                         w: rect.w, h: h - (rect.y + rect.h + 84) - 10 }, st.peak);
+
+    const ts = timeStats(wav);
+    $('s1peak').textContent = st.peak.toFixed(1) + ' Hz';
+    $('s1mean').textContent = st.mean.toFixed(1) + ' Hz';
+    $('s1bw').textContent = st.bw.toFixed(1) + ' Hz';
+    $('s1len').textContent = (ts.len * 1000).toFixed(1) + ' ms';
+    $('s1lam').textContent = (S.vel / st.peak).toFixed(0) + ' m';
+    /* The first-trough readout moved to step 3, where ringing is the subject.
+       Guarded rather than deleted so that an older copy of the markup, or a
+       module copied from this one that keeps the readout, still works. */
+    if ($('s1side')) $('s1side').textContent = ts.trough.toFixed(3);
+  }
+
+  /* ------------------------------------------------------------- step 2 */
+  let comps = null, compTrace = null, compN = 512, compDt = 0.001;
+
+  function buildComponents() {
+    const wav = headerWavelet();
+    const n = compN, dt = compDt;
+    const re = new Float64Array(n), im = new Float64Array(n);
+    const target = new Float64Array(n);
+    for (let i = 0; i < n; i++) {
+      const t = (i - n / 2) * dt;
+      target[i] = wav.fn(t);
+      re[i] = target[i];
+    }
+    SEIS.fft(re, im, false);
+    const list = [];
+    for (let k = 1; k < n / 2; k++) {
+      list.push({ k, f: k / (n * dt), re: re[k], im: im[k], a: Math.hypot(re[k], im[k]) });
+    }
+    list.sort((x, y) => y.a - x.a);
+    comps = list;
+    compTrace = target;
+  }
+
+  function partialSum(nUse) {
+    const n = compN, dt = compDt;
+    const out = new Float64Array(n);
+    for (let j = 0; j < nUse && j < comps.length; j++) {
+      const c = comps[j];
+      for (let i = 0; i < n; i++) {
+        const ph = 2 * Math.PI * c.k * i / n;
+        // one positive-frequency bin and its conjugate partner
+        out[i] += 2 * (c.re * Math.cos(ph) - c.im * Math.sin(ph)) / n;
+      }
+    }
+    return out;
+  }
+
+  /* One component on its own, sampled the same way the partial sum is, so a
+     row in the stack and the curve it contributes are the same numbers. */
+  function componentCurve(j) {
+    const n = compN, out = new Float64Array(n), c = comps[j];
+    for (let i = 0; i < n; i++) {
+      const ph = 2 * Math.PI * c.k * i / n;
+      out[i] = 2 * (c.re * Math.cos(ph) - c.im * Math.sin(ph)) / n;
+    }
+    return out;
+  }
+
+  /* The cosines drawn one per row, with their sum beneath a rule. The partial
+     sum panel below shows how close the reconstruction is; this one shows what
+     is being added, which is the part that is otherwise taken on trust. */
+  const STACK_MAX = 12;
+  function drawStep2Cosines() {
+    const el = $('c2c');
+    if (!el) return;
+    if (!comps) buildComponents();
+    const nUse = clamp(Math.round(S.ncomp), 1, 60);
+    const nRow = Math.min(nUse, STACK_MAX);
+    const extra = nUse - nRow;                 // components present but not drawn separately
+    const w = contentWidth(el);
+    const rowH = 24, headroom = 14;
+    /* The summed remainder is many components added together, so it is far
+       taller than any single row and needs a band of its own. */
+    const restH = 56;
+    const h = headroom + nRow * rowH + (extra > 0 ? restH : 0) + 14 + 62 + 34 + M.b;
+    const ctx = SEIS.fitCanvas(el, w, h);
+    ctx.clearRect(0, 0, w, h);
+
+    const x0 = M.l + 44, x1 = w - M.r;
+    const tMin = -TSPAN * 1000, tMax = TSPAN * 1000;
+    const X = (tms) => x0 + ((tms - tMin) / (tMax - tMin)) * (x1 - x0);
+    const curveAt = (arr, yc, half, scale, color, width) => {
+      ctx.beginPath();
+      ctx.strokeStyle = color;
+      ctx.lineWidth = width;
+      let started = false;
+      for (let i = 0; i < compN; i++) {
+        const tms = (i - compN / 2) * compDt * 1000;
+        if (tms < tMin || tms > tMax) continue;
+        const Y = yc - (arr[i] / scale) * half;
+        started ? ctx.lineTo(X(tms), Y) : (ctx.moveTo(X(tms), Y), started = true);
+      }
+      ctx.stroke();
+    };
+
+    /* One scale for every row, taken from the largest component rather than
+       from the rows on show, so a row keeps the same height as the slider
+       moves and a weak component looks weak. */
+    const c0 = componentCurve(0);
+    let amp = 0;
+    for (let i = 0; i < compN; i++) amp = Math.max(amp, Math.abs(c0[i]));
+    amp = amp || 1;
+
+    /* the height of the wavelet being built, used for every panel below the
+       rule so that all of them share one scale */
+    const targetPeak = () => {
+      let m = 0;
+      for (let i = 0; i < compN; i++) m = Math.max(m, Math.abs(compTrace[i]));
+      return m || 1;
+    };
+
+    ctx.save();
+    ctx.font = '9.5px "IBM Plex Mono", monospace';
+    for (let j = 0; j < nRow; j++) {
+      const yc = headroom + j * rowH + rowH / 2;
+      SEIS.dashedLine(ctx, x0, yc, x1, yc, 'rgba(92,102,112,0.30)', [3, 3], 1);
+      curveAt(componentCurve(j), yc, rowH * 0.42, amp, 'rgba(92,102,112,0.9)', 1.2);
+      ctx.fillStyle = SLATE;
+      ctx.textAlign = 'right'; ctx.textBaseline = 'middle';
+      ctx.fillText(comps[j].f.toFixed(0) + ' Hz', x0 - 8, yc);
+      if (j > 0) {
+        ctx.textAlign = 'center';
+        ctx.fillStyle = CRIM;
+        ctx.fillText('+', x0 - 26, yc);
+      }
+    }
+
+    /* Beyond twelve rows the strip would be unreadable, so the rest are added
+       together and drawn as one, in a band of their own because many
+       components summed are far taller than any one of them. Without this row
+       the panel stopped responding to the slider at twelve, which is well
+       before the reconstruction is finished. */
+    let restBottom = headroom + nRow * rowH;
+    if (extra > 0) {
+      const rest = new Float64Array(compN);
+      for (let j = nRow; j < nUse && j < comps.length; j++) {
+        const c = componentCurve(j);
+        for (let i = 0; i < compN; i++) rest[i] += c[i];
+      }
+      const yc = restBottom + restH / 2;
+      SEIS.dashedLine(ctx, x0, yc, x1, yc, 'rgba(92,102,112,0.30)', [3, 3], 1);
+      /* Drawn against the height of the target wavelet, the same scale the sum
+         below uses, and clipped to its own band so that a tall remainder
+         cannot run into the rows above it. */
+      ctx.save();
+      ctx.beginPath();
+      ctx.rect(x0 - 2, restBottom, x1 - x0 + 4, restH);
+      ctx.clip();
+      curveAt(rest, yc, restH * 0.40, targetPeak(), 'rgba(92,102,112,0.55)', 1.2);
+      ctx.restore();
+      ctx.fillStyle = SLATE;
+      ctx.textAlign = 'right'; ctx.textBaseline = 'middle';
+      ctx.fillText(extra + ' more', x0 - 8, yc);
+      ctx.textAlign = 'center'; ctx.fillStyle = CRIM;
+      ctx.fillText('+', x0 - 26, yc);
+      restBottom += restH;
+    }
+    ctx.restore();
+
+    /* the rule, and beneath it the sum and what is still missing from it */
+    const yRule = restBottom + 6;
+    ctx.save();
+    ctx.strokeStyle = 'rgba(22,25,28,0.55)'; ctx.lineWidth = 1;
+    ctx.beginPath(); ctx.moveTo(x0 - 34, yRule + 0.5); ctx.lineTo(x1, yRule + 0.5); ctx.stroke();
+    ctx.restore();
+
+    const sum = partialSum(nUse);
+    const resid = new Float64Array(compN);
+    for (let i = 0; i < compN; i++) resid[i] = compTrace[i] - sum[i];
+
+    /* Both of these are drawn against the peak of the target wavelet, not
+       against their own peak. Scaling each to itself held the sum at full
+       height whatever the slider said, so the reconstruction appeared to stop
+       changing once its shape had settled. */
+    const pk = targetPeak();
+
+    const ySum = yRule + 34;
+    ctx.save();
+    ctx.font = '9.5px "IBM Plex Mono", monospace';
+    SEIS.dashedLine(ctx, x0, ySum, x1, ySum, 'rgba(92,102,112,0.30)', [3, 3], 1);
+    curveAt(compTrace, ySum, 24, pk, 'rgba(92,102,112,0.55)', 2.6);
+    curveAt(sum, ySum, 24, pk, CRIM, 1.8);
+    ctx.fillStyle = CRIM; ctx.textAlign = 'right'; ctx.textBaseline = 'middle';
+    ctx.fillText('sum of ' + nUse, x0 - 8, ySum);
+    ctx.textAlign = 'center';
+    ctx.fillText('=', x0 - 26, ySum);
+    ctx.restore();
+
+    const yRes = ySum + 62;
+    ctx.save();
+    ctx.font = '9.5px "IBM Plex Mono", monospace';
+    SEIS.dashedLine(ctx, x0, yRes, x1, yRes, 'rgba(92,102,112,0.30)', [3, 3], 1);
+    curveAt(resid, yRes, 24, pk, TEAL, 1.6);
+    ctx.fillStyle = TEAL; ctx.textAlign = 'right'; ctx.textBaseline = 'middle';
+    ctx.fillText('still missing', x0 - 8, yRes);
+    ctx.restore();
+
+    SEIS.axisBottom(ctx, { x: x0, y: yRes + 26, w: x1 - x0, h: 0 },
+      tMin, tMax, 'time (ms)', (v) => v.toFixed(0), { ticks: 6 });
+  }
+
+  function drawStep2() {
+    const el = $('c2');
+    if (!el) return;
+    if (!comps) buildComponents();
+    const w = contentWidth(el), h = 300;
+    const ctx = SEIS.fitCanvas(el, w, h);
+    ctx.clearRect(0, 0, w, h);
+    const rect = boxOf(ctx, w, h);
+    const nUse = clamp(Math.round(S.ncomp), 1, 60);
+    const sum = partialSum(nUse);
+
+    const xs = [], yT = [], yS = [];
+    for (let i = 0; i < compN; i++) {
+      xs.push((i - compN / 2) * compDt * 1000);
+      yT.push(compTrace[i]); yS.push(sum[i]);
+    }
+    SEIS.frame(ctx, rect);
+    zeroLine(ctx, rect, -1.05, 1.05);
+    series(ctx, rect, xs, yT, -TSPAN * 1000, TSPAN * 1000, -1.05, 1.05, 'rgba(92,102,112,0.75)', 3);
+    series(ctx, rect, xs, yS, -TSPAN * 1000, TSPAN * 1000, -1.05, 1.05, CRIM, 1.8);
+    SEIS.axisBottom(ctx, rect, -TSPAN * 1000, TSPAN * 1000, 'time (ms)', (v) => v.toFixed(0), { ticks: 6 });
+    SEIS.axisLeft(ctx, rect, -1.05, 1.05, 'amplitude', (v) => v.toFixed(1), { ticks: 5 });
+
+    let eAll = 0, eUse = 0, fMax = 0, err = 0, pk = 0;
+    for (const c of comps) eAll += c.a * c.a;
+    for (let j = 0; j < nUse && j < comps.length; j++) {
+      eUse += comps[j].a * comps[j].a;
+      fMax = Math.max(fMax, comps[j].f);
+    }
+    for (let i = 0; i < compN; i++) {
+      pk = Math.max(pk, Math.abs(compTrace[i]));
+      err = Math.max(err, Math.abs(compTrace[i] - sum[i]));
+    }
+    $('s2n').textContent = String(nUse);
+    $('s2e').textContent = (100 * eUse / (eAll || 1)).toFixed(1) + '%';
+    $('s2f').textContent = fMax.toFixed(1) + ' Hz';
+    $('s2err').textContent = (100 * err / (pk || 1)).toFixed(1) + '%';
+  }
+
+  /* ------------------------------------------------------------- step 3 */
+  function step3Wavelet() {
+    const hi = S.hi, tap = S.tap;
+    /* The low end is pinned at 5-10 Hz so the two sliders are independent: the
+       high cut moves the passband, the taper changes only the sharpness of the
+       upper corner. An earlier version tied the low corner to the taper as
+       well, which meant "sharpen the edge" widened the band too and the
+       central lobe appeared to move when it should not have. */
+    return SEIS.makeWavelet({ type: 'ormsby', f1: 5, f2: 10, f3: hi, f4: hi + tap });
+  }
+
+  function drawStep3() {
+    const a = $('c3a'), b = $('c3b');
+    if (!a || !b) return;
+    const wav = step3Wavelet();
+    const w = contentWidth(a), h = 250;
+    const cA = SEIS.fitCanvas(a, w, h);
+    cA.clearRect(0, 0, w, h);
+    drawWaveletInto(cA, boxOf(cA, w, h), wav);
+
+    const w2 = contentWidth(b);
+    const cB = SEIS.fitCanvas(b, w2, h);
+    cB.clearRect(0, 0, w2, h);
+    const pts = spectrumOf(wav);
+    drawSpectrumInto(cB, boxOf(cB, w2, h), pts);
+
+    const st = specStats(statSpectrumOf(wav)), ts = timeStats(wav);
+    $('s3lobe').textContent = ts.firstZero ? (ts.firstZero * 1000).toFixed(1) + ' ms' : '—';
+    $('s3bw').textContent = st.bw.toFixed(1) + ' Hz';
+    $('s3side').textContent = ts.side.toFixed(3);
+    $('s3len').textContent = (ts.len * 1000).toFixed(0) + ' ms';
+  }
+
+  /* ------------------------------------------------------------- step 4 */
+  function step4Wavelet() {
+    // a band of fixed width in Hz, slid up the spectrum
+    const c = S.cen;                       // center of the flat part
+    const f2 = c - 15, f3 = c + 15;
+    return SEIS.makeWavelet({ type: 'ormsby', f1: Math.max(1, f2 - 5), f2, f3, f4: f3 + 5 });
+  }
+
+  function drawStep4() {
+    const a = $('c4a'), b = $('c4b');
+    if (!a || !b) return;
+    const wav = step4Wavelet();
+    const w = contentWidth(a), h = 250;
+    const cA = SEIS.fitCanvas(a, w, h);
+    cA.clearRect(0, 0, w, h);
+    drawWaveletInto(cA, boxOf(cA, w, h), wav);
+
+    const w2 = contentWidth(b);
+    const cB = SEIS.fitCanvas(b, w2, h);
+    cB.clearRect(0, 0, w2, h);
+    const pts = spectrumOf(wav);
+    drawSpectrumInto(cB, boxOf(cB, w2, h), pts);
+
+    const st = specStats(statSpectrumOf(wav)), ts = timeStats(wav);
+    const f2 = S.cen - 15, f3 = S.cen + 15;
+    const lowMid = Math.max(1, f2 - 5 + 2.5), hiMid = f3 + 2.5;
+    $('s4oct').textContent = (Math.log(hiMid / lowMid) / Math.LN2).toFixed(2);
+    $('s4bw').textContent = st.bw.toFixed(1) + ' Hz';
+    $('s4side').textContent = ts.side.toFixed(3);
+    $('s4lobe').textContent = ts.firstZero ? (ts.firstZero * 1000).toFixed(1) + ' ms' : '—';
+  }
+
+  /* ------------------------------------------------------------- step 5 */
+  const SI_MS = { 1: 1, 2: 2, 3: 4, 4: 8 };
+
+  function aliasOf(f, dt) {
+    const fs = 1 / dt, ny = fs / 2;
+    let a = f % fs;
+    if (a > ny) a = fs - a;
+    return a;
+  }
+
+  function drawStep5() {
+    const el = $('c5');
+    if (!el) return;
+    const w = contentWidth(el), h = 300;
+    const ctx = SEIS.fitCanvas(el, w, h);
+    ctx.clearRect(0, 0, w, h);
+    const rect = boxOf(ctx, w, h);
+    const dt = SI_MS[S.si] / 1000;
+    const f = S.tone;
+    const ny = 1 / (2 * dt);
+    const fa = aliasOf(f, dt);
+    const SPAN = 0.100;                    // 100 ms of record, fixed
+
+    SEIS.frame(ctx, rect);
+    zeroLine(ctx, rect, -1.15, 1.15);
+
+    // the true wave, drawn finely
+    const xs = [], ys = [];
+    for (let t = 0; t <= SPAN; t += 0.00005) { xs.push(t * 1000); ys.push(Math.cos(2 * Math.PI * f * t)); }
+    series(ctx, rect, xs, ys, 0, SPAN * 1000, -1.15, 1.15, 'rgba(92,102,112,0.7)', 2.4);
+
+    // what the samples imply
+    const xa = [], ya = [];
+    for (let t = 0; t <= SPAN; t += 0.00005) { xa.push(t * 1000); ya.push(Math.cos(2 * Math.PI * fa * t)); }
+    if (Math.abs(fa - f) > 0.01) {
+      series(ctx, rect, xa, ya, 0, SPAN * 1000, -1.15, 1.15, TEAL, 1.8);
+    }
+
+    // the samples themselves
+    ctx.save();
+    ctx.fillStyle = CRIM;
+    for (let t = 0; t <= SPAN + 1e-9; t += dt) {
+      const v = Math.cos(2 * Math.PI * f * t);
+      const X = rect.x + (t / SPAN) * rect.w;
+      const Y = rect.y + rect.h - ((v + 1.15) / 2.3) * rect.h;
+      ctx.beginPath(); ctx.arc(X, Y, 3.4, 0, Math.PI * 2); ctx.fill();
+    }
+    ctx.restore();
+
+    SEIS.axisBottom(ctx, rect, 0, SPAN * 1000, 'time (ms)', (v) => v.toFixed(0), { ticks: 6 });
+    SEIS.axisLeft(ctx, rect, -1.15, 1.15, 'amplitude', (v) => v.toFixed(1), { ticks: 5 });
+
+    $('s5ny').textContent = ny.toFixed(0) + ' Hz';
+    $('s5true').textContent = f.toFixed(0) + ' Hz';
+    $('s5alias').textContent = fa.toFixed(0) + ' Hz';
+    const aliased = Math.abs(fa - f) > 0.01;
+    $('s5stat').textContent = aliased ? 'aliased' : (f > ny * 0.95 ? 'at the limit' : 'recorded correctly');
+  }
+
+  /* =====================================================================
+     PLUMBING
+     ===================================================================== */
+
+  function syncLabels() {
+    $('rfV').textContent = S.rf + ' Hz';
+    $('o1V').textContent = S.o1 + ' Hz';
+    $('o2V').textContent = S.o2 + ' Hz';
+    $('o3V').textContent = S.o3 + ' Hz';
+    $('o4V').textContent = S.o4 + ' Hz';
+    $('ncompV').textContent = String(S.ncomp);
+    $('hiV').textContent = S.hi + ' Hz';
+    $('tapV').textContent = S.tap + ' Hz';
+    $('cenV').textContent = S.cen + ' Hz';
+    $('toneV').textContent = S.tone + ' Hz';
+    $('siV').textContent = SI_MS[S.si] + ' ms';
+    $('velV').textContent = S.vel + ' m/s';
+    $('ctlRicker').hidden = S.type !== 'ricker';
+    $('ctlOrmsby').hidden = S.type !== 'ormsby';
+    document.querySelectorAll('#segType button').forEach((b) => {
+      b.setAttribute('aria-pressed', b.dataset.type === S.type);
+      b.classList.toggle('on', b.dataset.type === S.type);
+    });
+    document.querySelectorAll('#segPreset button').forEach((b) => {
+      const on = S.type === 'ricker' && Math.abs(S.rf - parseFloat(b.dataset.rf)) < 0.5;
+      b.setAttribute('aria-pressed', on);
+      b.classList.toggle('on', on);
+    });
+    $('rf1V').textContent = S.rf + ' Hz';
+    /* Step 1's copy of the peak frequency slider is a Ricker control, so it
+       goes away with the Ormsby wavelet exactly as the panel's copy does. */
+    $('ctlRf1').hidden = S.type !== 'ricker';
+    /* Every range input that names a state key, so the panel's copy and step
+       1's copy always read the same value. */
+    document.querySelectorAll('input[type="range"][data-key]').forEach((el) => {
+      const k = el.dataset.key;
+      if (k in S && String(S[k]) !== el.value) el.value = S[k];
+    });
+    ['rf', 'o1', 'o2', 'o3', 'o4', 'ncomp', 'hi', 'tap', 'cen', 'tone', 'si', 'vel'].forEach((k) => {
+      const el = $(k);
+      if (el && String(S[k]) !== el.value) el.value = S[k];
+    });
+  }
+
+  /* The wavelet at four depths. The volume library carries the constant-Q
+     operator, so this panel and the attenuation in the later modules are the
+     same arithmetic rather than two implementations of it. */
+  const DEPTHS = [0.5, 1.0, 2.0, 3.0];
+
+  function drawStep1Depth() {
+    const el = $('c1d');
+    if (!el) return;
+    const w = contentWidth(el), h = 300;
+    const ctx = SEIS.fitCanvas(el, w, h);
+    ctx.clearRect(0, 0, w, h);
+
+    const gap = 26, half = (w - 54 - 20 - gap) / 2;
+    const rL = { x: 54, y: 14, w: half, h: h - 52 };
+    const rR = { x: 54 + half + gap, y: 14, w: half, h: h - 52 };
+
+    /* one small volume per depth is unnecessary: the operator alone is what is
+       wanted, so build a single-trace volume whose t0 puts the reflection at
+       the depth in question and read the wavelet back off it */
+    const wav = headerWavelet();
+    const cols = ['#0B7285', '#2F7A8C', '#A24245', '#841617'];
+    const peaks = [], thin = [];
+
+    SEIS.frame(ctx, rL); SEIS.frame(ctx, rR);
+    DEPTHS.forEach((t, k) => {
+      const tstar = t / S.qf;
+      const { time, spec } = propagate(wav, tstar);
+      plotCurve(ctx, rL, time.x, time.y, -0.06, 0.06, -0.5, 1.05, cols[k]);
+      plotCurve(ctx, rR, spec.x, spec.y, 0, 100, 0, 1.05, cols[k]);
+      peaks.push(spec.peak);
+      thin.push(1000 / (2 * spec.peak));
+    });
+    SEIS.axisBottom(ctx, rL, -60, 60, 'time (ms)', (v) => v.toFixed(0), { ticks: 5 });
+    SEIS.axisBottom(ctx, rR, 0, 100, 'frequency (Hz)', (v) => v.toFixed(0), { ticks: 5 });
+    DEPTHS.forEach((t, k) => {
+      SEIS.tag(ctx, rR.x + rR.w - 74, rR.y + 8 + k * 15, t.toFixed(1) + ' s', cols[k]);
+    });
+
+    const m = (ms) => (ms / 1000) * S.vel / 2;
+    $('s1d1').textContent = peaks[0].toFixed(1) + ' Hz';
+    $('s1d2').textContent = peaks[3].toFixed(1) + ' Hz';
+    $('s1d3').textContent = thin[0].toFixed(1) + ' ms = ' + m(thin[0]).toFixed(0) + ' m';
+    $('s1d4').textContent = thin[3].toFixed(1) + ' ms = ' + m(thin[3]).toFixed(0) + ' m';
+  }
+
+  /* Apply the constant-Q operator to a wavelet and return both pictures. */
+  function propagate(wav, tstar) {
+    const dtw = 0.0005;
+    let n = 1; while (n < Math.ceil(2 * Math.max(wav.halfLength * (1 + 6 * tstar * wav.fdom), 0.06) / dtw)) n *= 2;
+    const re = new Float64Array(n), im = new Float64Array(n);
+    for (let i = 0; i < n; i++) re[i] = wav.fn((i < n / 2 ? i : i - n) * dtw);
+    SEIS.fft(re, im, false);
+    for (let j = 0; j < n; j++) {
+      const kk = j < n / 2 ? j : j - n;
+      const f = Math.abs(kk) / (n * dtw);
+      const a = Math.exp(-Math.PI * f * tstar);
+      re[j] *= a; im[j] *= a;
+    }
+    /* the spectrum, before inverting */
+    const sx = [], sy = [];
+    let mx = 0;
+    for (let j = 0; j < n / 2; j++) {
+      const f = j / (n * dtw);
+      if (f > 100) break;
+      const a = Math.hypot(re[j], im[j]);
+      sx.push(f); sy.push(a);
+      if (a > mx) mx = a;
+    }
+    let peak = 0, pv = 0;
+    for (let j = 0; j < sy.length; j++) { sy[j] /= (mx || 1); if (sy[j] > pv) { pv = sy[j]; peak = sx[j]; } }
+
+    SEIS.fft(re, im, true);
+    const tx = [], ty = [];
+    let tm = 0;
+    for (let i = -Math.round(0.06 / dtw); i <= Math.round(0.06 / dtw); i++) {
+      const v = re[(i + n) % n];
+      tx.push(i * dtw); ty.push(v);
+      if (Math.abs(v) > tm) tm = Math.abs(v);
+    }
+    /* normalised to the shallowest arrival, so the loss shows as shape rather
+       than as everything shrinking to nothing */
+    for (let i = 0; i < ty.length; i++) ty[i] /= (tm || 1);
+    return { time: { x: tx, y: ty }, spec: { x: sx, y: sy, peak } };
+  }
+
+  function plotCurve(ctx, rect, xs, ys, x0, x1, y0, y1, color) {
+    ctx.save();
+    ctx.strokeStyle = color; ctx.lineWidth = 1.8;
+    ctx.beginPath();
+    for (let i = 0; i < xs.length; i++) {
+      const X = rect.x + ((xs[i] - x0) / (x1 - x0)) * rect.w;
+      const Y = rect.y + rect.h - ((ys[i] - y0) / (y1 - y0)) * rect.h;
+      i ? ctx.lineTo(X, Y) : ctx.moveTo(X, Y);
+    }
+    ctx.stroke();
+    ctx.restore();
+  }
+
+  function drawAll() {
+    if (!$('cHead').closest('.labhead').hidden) drawHeader();
+    if (visible('p1')) { drawStep1(); drawStep1Depth(); }
+    if (visible('p2')) { drawStep2Cosines(); drawStep2(); }
+    if (visible('p3')) drawStep3();
+    if (visible('p4')) drawStep4();
+    if (visible('p5')) drawStep5();
+  }
+
+  const PANES = ['p1', 'p2', 'p3', 'p4', 'p5', 'pw', 'pe', 'pk', 'pm'];
+  const STEPNAMES = {
+    p1: 'Two pictures', p2: 'Sum of cosines', p3: 'The high end', p4: 'Octaves',
+    p5: 'Nyquist', pw: 'Why it matters', pe: 'Exercises', pk: 'Key points', pm: 'Method',
+  };
+
+  function buildStepNav() {
+    PANES.forEach((id, i) => {
+      const pane = $(id);
+      if (!pane || pane.querySelector('.stepnav')) return;
+      const prev = PANES[i - 1], next = PANES[i + 1];
+      const nav = document.createElement('div');
+      nav.className = 'stepnav';
+      const mk = (target, text, ghost) => {
+        const b = document.createElement('button');
+        b.type = 'button';
+        b.className = 'btn' + (ghost ? ' ghost' : '') + ' small';
+        b.textContent = text;
+        b.addEventListener('click', () => {
+          showTab(target);
+          const t = document.querySelector('.tabhint');
+          if (t && t.scrollIntoView) t.scrollIntoView({ behavior: 'smooth', block: 'start' });
+        });
+        return b;
+      };
+      nav.appendChild(prev ? mk(prev, '\u2190 ' + STEPNAMES[prev], true)
+                           : document.createElement('span'));
+      const where = document.createElement('span');
+      where.className = 'where';
+      where.textContent = i < 5 ? 'step ' + (i + 1) + ' of 5' : STEPNAMES[id];
+      nav.appendChild(where);
+      nav.appendChild(next ? mk(next, STEPNAMES[next] + ' \u2192')
+                           : document.createElement('span'));
+      pane.appendChild(nav);
+    });
+  }
+
+  function showTab(id) {
+    PANES.forEach((q) => { const el = $(q); if (el) el.hidden = q !== id; });
+    document.querySelectorAll('#tabs button').forEach((b) => {
+      b.setAttribute('aria-selected', b.dataset.tab === id);
+    });
+    const lab = document.querySelector('.labhead');
+    // the header wavelet drives steps 1 and 2 only; the rest have their own
+    if (lab) lab.hidden = !(id === 'p1' || id === 'p2' || id === 'p3' || id === 'p4' || id === 'p5');
+    /* The forward link lives on the pager. Show it once the reader has reached
+       the exercises, not only on the two reference tabs — a student who works
+       the exercises and stops used to have no way on to the next module. */
+    const done = (id === 'pe' || id === 'pk' || id === 'pm');
+    if ($('nextup')) $('nextup').hidden = !(id === 'pk' || id === 'pm');
+    if ($('pager')) $('pager').hidden = !done;
+    S.tab = id;
+    drawAll();
+    saveState();
+  }
+  document.querySelectorAll('#tabs button').forEach((b) => {
+    b.addEventListener('click', () => showTab(b.dataset.tab));
+  });
+
+  /* The three survey presets set the Ricker peak frequency and nothing else.
+     They exist so that the module opens on something a geologist recognizes —
+     a deep target, an ordinary land survey, a shallow high-resolution one —
+     rather than on an unlabeled 30. The numbers are illustrative and the
+     Method tab says so. */
+  document.querySelectorAll('#segPreset button').forEach((b) => {
+    b.addEventListener('click', () => {
+      S.type = 'ricker';
+      S.rf = parseFloat(b.dataset.rf);
+      comps = null;
+      syncLabels(); drawAll(); saveState();
+    });
+  });
+
+  document.querySelectorAll('#segType button').forEach((b) => {
+    b.addEventListener('click', () => {
+      S.type = b.dataset.type;
+      comps = null;
+      syncLabels(); drawAll(); saveState();
+    });
+  });
+
+  document.addEventListener('input', (ev) => {
+    const t = ev.target;
+    if (!t || t.tagName !== 'INPUT') return;
+    /* data-key rather than id, so a step can carry its own copy of a control
+       that lives in the header panel. Step 1 has a second peak frequency
+       slider beside its velocity slider, because the panel's copy is scrolled
+       out of sight while that step is being read. Ids stay unique; both copies
+       name the same state key. */
+    const key = t.dataset.key || t.id;
+    if (!(key in DEF)) return;
+    S[key] = parseFloat(t.value);
+    // anything that changes the header wavelet invalidates step 2's components
+    if (['rf', 'o1', 'o2', 'o3', 'o4'].indexOf(key) >= 0) comps = null;
+    syncLabels(); drawAll(); saveState();
+  });
+
+  let rt;
+  window.addEventListener('resize', () => { clearTimeout(rt); rt = setTimeout(drawAll, 140); });
+
+  buildStepNav();
+  syncLabels();
+  showTab(PANES.indexOf(S.tab) >= 0 ? S.tab : 'p1');
+})();
+</script>
+</body>
+</html>

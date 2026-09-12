@@ -1,0 +1,1223 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>What actually comes out of a spectral decomposition | How Spectral Attributes Actually Work</title>
+<meta name="description" content="Spectral decomposition hands you volumes called magnitude, phase and voice, one set per frequency. What each of them is, why a voice is a narrow bandpass of the data, why spectral phase needs a traveltime correction to be readable, and what an iso-frequency slice actually shows.">
+<link rel="stylesheet" href="../assets/fonts.css">
+<link rel="stylesheet" href="../assets/style.css">
+</head>
+<body>
+
+<div class="wrap">
+  <header class="masthead">
+    <a class="brand" href="../index.html"><span class="dot"></span>How spectral attributes <b>actually</b> work</a>
+    <nav>
+      <a href="../index.html">All modules</a>
+      <a href="windows.html">← Module 02</a>
+      <a href="#notes">Method &amp; references</a>
+    </nav>
+  </header>
+
+  <div class="mod-head">
+    <p class="eyebrow">Module 03 &nbsp;·&nbsp; Spectral attributes</p>
+    <h1>What actually comes out of a spectral decomposition</h1>
+    <p class="sub">A spectral decomposition writes files with names like <span class="k">spec_mag_3d_cwt_survey_20.H</span> and <span class="k">spec_voice_4d_cwt_survey.H</span>. Three kinds of output come out of one calculation: magnitude, phase and voice. These five steps show what each one holds, which is worth loading, and what happens to a wedge when it is imaged one frequency at a time.</p>
+  </div>
+
+  <div class="labhead">
+    <div class="labgrid">
+      <div>
+        <p class="cap">One trace, decomposed <span>&mdash; time down, frequency across, magnitude in color</span></p>
+        <canvas id="cHead" aria-label="A trace beside its time-frequency magnitude"></canvas>
+      </div>
+      <div>
+        <p class="cap">Set the decomposition <span>&mdash; every step updates as you drag</span></p>
+        <div class="controls" id="winControls">
+          <div class="ctl-col">
+            <h2>The frequency you look at</h2>
+            <div class="ctl">
+              <label for="fc">Component frequency <span class="val" id="fcV">30 Hz</span></label>
+              <input type="range" data-key="fc" id="fc" min="8" max="90" step="1" value="30">
+            </div>
+            <div class="ctl">
+              <label for="sig">Wavelet bandwidth <span class="val" id="sigV">moderate</span></label>
+              <input type="range" data-key="sig" id="sig" min="40" max="200" step="10" value="100">
+            </div>
+          </div>
+          <div class="ctl-col">
+            <h2>The earth</h2>
+            <div class="ctl">
+              <label for="thick">Wedge maximum <span class="val" id="thickV">40 ms</span></label>
+              <input type="range" data-key="thick" id="thick" min="10" max="60" step="2" value="40">
+            </div>
+            <div class="ctl">
+              <label for="ix">Trace shown <span class="val" id="ixV">60</span></label>
+              <input type="range" data-key="ix" id="ix" min="0" max="99" step="1" value="60">
+            </div>
+            <div class="ctl">
+              <label for="noise">Noise <span class="val" id="noiseV">none</span></label>
+              <input type="range" data-key="noise" id="noise" min="0" max="40" step="2" value="0">
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <p class="tabhint">Work through the five steps in order, <b>then try the exercises</b>. Steps 3 and 5
+    are marked as advanced: they concern the arithmetic of the decomposition rather than what is done
+    with it, and nothing later in the set depends on either.
+    Step 3 is optional on a first pass — nothing after it depends on phase.
+    Method and references are there when you want them.</p>
+  <nav class="tabs" id="tabs" role="tablist" aria-label="Module steps">
+    <button role="tab" data-tab="p1" aria-selected="false">1 · The voice</button>
+    <button role="tab" data-tab="p2" aria-selected="false">2 · Three volumes</button>
+    <button role="tab" data-tab="p3" aria-selected="false">3 · Advanced: phase</button>
+    <button role="tab" data-tab="p4" aria-selected="false">4 · One slice</button>
+    <button role="tab" data-tab="p5" aria-selected="false">5 · Advanced: adding up</button>
+    <button role="tab" data-tab="pw" aria-selected="false">Why it matters</button>
+    <span class="gap"></span>
+    <button role="tab" data-tab="pe" aria-selected="false">Exercises</button>
+    <button role="tab" data-tab="pk" aria-selected="false">Key points</button>
+    <button role="tab" data-tab="pm" aria-selected="false">Method</button>
+  </nav>
+
+  <!-- =============================== STEP 1 =============================== -->
+  <section class="tabpane" id="p1" role="tabpanel" hidden>
+    <div class="plot-head" style="margin-bottom:14px">
+      <h3><span class="stepno">1</span>What a voice is</h3>
+      <span class="hint">Change the component frequency and watch</span>
+    </div>
+    <p class="qbox"><b>Why this step is here.</b> A directory holds a volume named <span class="k">spec_voice</span>. It opens looking like seismic. What is different about it?</p>
+    <p class="lede">The gray trace below is the input data and the crimson trace is the voice at the chosen frequency. Moving the component frequency slider changes which part of the trace the voice follows and which part it discards.</p>
+
+    <p class="lede"><b>What a voice is, as a piece of data.</b> It has the same number of samples as the
+      input, the same time axis, and the same reflectors at the same times. Nothing has moved and
+      nothing has been added. What has been removed is every frequency except a narrow range, and with
+      them, the response of every bed whose thickness does not suit that range. A voice is therefore the
+      section with one bed thickness left in it and the rest suppressed, which is why a body that is
+      unremarkable on the full-bandwidth data can dominate a voice, and why a body that dominates the
+      full-bandwidth data can be almost absent from one.</p>
+
+    <div class="plot">
+      <div class="plot-head">
+        <h3>The trace, and one voice from it</h3>
+        <span class="hint">Gray: the trace. Crimson: the voice at the chosen frequency</span>
+      </div>
+      <canvas id="c1" aria-label="A seismic trace with one spectral voice overlaid"></canvas>
+    </div>
+    <div class="stats">
+      <div class="stat key"><span>Component frequency</span><b id="s1f">—</b></div>
+      <div class="stat"><span>Filter bandwidth here</span><b id="s1bw">—</b></div>
+      <div class="stat"><span>Voice peak amplitude</span><b id="s1amp">—</b></div>
+      <div class="stat"><span>As a fraction of the trace</span><b id="s1frac">—</b></div>
+    </div>
+    <div class="legend prose">
+      <span><b>A voice is the output of a narrow bandpass filter.</b> There is no separable 30 Hz part of a trace: a filter has a width, and the voice contains everything that width passed. Two decompositions asked for the same center frequency will produce different voices if their filters differ in width, and that width is set by a parameter that is rarely reported alongside the volume.</span>
+    </div>
+  </section>
+
+  <!-- =============================== STEP 2 =============================== -->
+  <section class="tabpane" id="p2" role="tabpanel" hidden>
+    <div class="plot-head" style="margin-bottom:14px">
+      <h3><span class="stepno">2</span>Magnitude, phase and voice</h3>
+      <span class="hint">The same decomposition, written down three ways</span>
+    </div>
+    <p class="qbox"><b>Why this step is here.</b> Three volumes came out of one run. Are they three measurements or three views of one?</p>
+    <p class="lede"><b>Magnitude is the same quantity modules 01 and 02 called the amplitude
+      spectrum.</b> Nothing new is being introduced here. AASPI and most interpretation software label
+      the file <i>magnitude</i>; textbooks and processing reports usually say <i>amplitude spectrum</i>.
+      Both names are in normal use and both turn up, sometimes on the same screen. This set uses
+      "amplitude spectrum" when it is talking about the shape of a spectrum and "magnitude" when it is
+      talking about the file or the attribute, which is roughly how the two words divide in practice.</p>
+    <p class="lede">Each panel below is the whole time-frequency plane for this trace: time down the side, frequency across, and the quantity in color. They are three views of one complex number at every point.</p>
+
+    <p class="lede"><b>What separates the two panels.</b> Magnitude is a size and carries no sign. It
+      states how much energy the trace holds at that frequency at that time and says nothing about
+      which way the wave was pointing. The voice keeps the sign. It is the waveform of that one
+      frequency: what would be left of the trace if every other frequency were filtered out of it, and
+      like any waveform it swings positive and negative as it passes.</p>
+
+    <p class="lede"><b>Red and blue on the voice panel are the sign.</b> Red is a positive value and
+      blue a negative one, the same convention a seismic section uses for a peak and a trough. Reading
+      down the panel at one frequency, the alternation from red to blue and back is that filtered
+      waveform oscillating in time. Where the magnitude panel shows a single smooth bright patch, the
+      voice panel shows several stripes inside the same patch, because one burst of energy is several
+      cycles long. Both panels are drawn from the same numbers.</p>
+
+    <p class="lede">Which one is used follows from that. A thickness map is made from magnitude, because
+      thickness sets how much energy returns at a frequency and not its sign. A voice volume is what is
+      used to look at the data as seismic at one frequency: it can be displayed as a section, picked
+      like any other section, and added back to the other voices to return the original trace, which is
+      what step 5 does. Magnitude cannot be added back into anything, because the sign that would be
+      needed has been discarded.</p>
+
+    <div class="sec-row">
+      <div class="panel-col">
+        <p class="sublabel"><b>Magnitude</b> <span class="note">how much, always positive</span></p>
+        <canvas id="c2a" aria-label="Time-frequency magnitude"></canvas>
+      </div>
+      <div class="panel-col">
+        <p class="sublabel"><b>Voice</b> <span class="note">magnitude × cos(phase)</span></p>
+        <canvas id="c2b" aria-label="Time-frequency voice"></canvas>
+      </div>
+    </div>
+    <div class="stats">
+      <div class="stat key"><span>Magnitude at the marker</span><b id="s2mag">—</b></div>
+      <div class="stat"><span>Phase there</span><b id="s2ph">—</b></div>
+      <div class="stat"><span>Voice there</span><b id="s2v">—</b></div>
+      <div class="stat"><span>mag × cos(phase)</span><b id="s2chk">—</b></div>
+    </div>
+    <div class="legend prose">
+      <span><b>Magnitude is smooth and the voice oscillates, which decides what each is used for.</b> Magnitude answers how much energy sits at a frequency at a time, and every spectral attribute in the modules ahead is computed from it. A voice answers what the data look like through that filter, and is for display and for interpretation on a section. Loading a voice volume to compute an attribute from it reintroduces the oscillation that the magnitude had already removed.</span>
+    </div>
+  </section>
+
+  <!-- =============================== STEP 3 =============================== -->
+  <section class="tabpane" id="p3" role="tabpanel" hidden>
+    <div class="plot-head" style="margin-bottom:14px">
+      <h3><span class="stepno">3</span>Advanced concept: correcting spectral phase</h3>
+      <span class="hint">And the one correction that fixes it</span>
+    </div>
+    <div class="legend prose" style="margin-bottom:16px">
+      <span><b>This step is optional on a first pass.</b> It is the hardest page in the set, and nothing
+      later depends on it: modules 04 through 09 are built entirely on magnitude. If phase is new to
+      you, read the first paragraph, skip to step 4, and come back to this once the rest of the set
+      makes sense. It is here because the third file in a project directory has to be explained by
+      somebody, and because a phase panel that has not been corrected is unreadable in a way that looks
+      like a software fault.</span>
+    </div>
+    <p class="qbox"><b>Why this step is here.</b> A spectral phase volume opens as a field of stripes with no obvious relation to the geology. Is anything in it?</p>
+    <p class="lede">The correction is one line of arithmetic: subtract 2π<i>ft</i> from the phase at every sample, removing the rotation that traveltime alone produces. What remains is the phase of the reflection.</p>
+
+    <p class="lede"><b>Most of both panels is not a measurement.</b> Phase is the angle of a complex
+      number, and the arithmetic returns an angle wherever that number is not exactly zero, including
+      the large parts of the plane where the magnitude panel in step 2 is almost black. In those
+      regions the angle is the angle of a very small number, it takes any value between −180° and
+      +180°, and it draws as fine stripes. Nothing there corresponds to anything in the trace. The
+      panels are drawn without that region masked because masking it is a display choice that the
+      reader should make knowingly, and because a phase volume opened in interpretation software
+      arrives in exactly this state.</p>
+
+    <p class="lede"><b>So the two panels are read only where the magnitude is strong</b>: the band
+      around the reflection, at the frequencies the wavelet carries. There the raw panel stripes
+      steadily downward, because a fixed frequency accumulates 2π<i>ft</i> of rotation as time
+      increases, and the higher the frequency the faster it turns. That is the rotation the correction
+      removes, and the readouts count it: the raw wraps per 100 ms fall to near zero after correction,
+      and the corrected value at the top of the wedge settles on a number that describes the
+      reflection rather than its arrival time.</p>
+
+    <p class="lede">The behavior toward the edges of the corrected panel follows from the same thing.
+      At the low-frequency end the correction 2π<i>ft</i> is small, so little changes; at the
+      high-frequency end it is large and turns rapidly with both frequency and time, so a region with
+      no signal in it goes from one pattern of stripes to another. Neither is a fault in the
+      correction. The stripes are the phase of noise before and after, rearranged.</p>
+
+    <div class="sec-row">
+      <div class="panel-col">
+        <p class="sublabel"><b>Raw phase</b> <span class="note">stripes from the clock</span></p>
+        <canvas id="c3a" aria-label="Raw spectral phase"></canvas>
+      </div>
+      <div class="panel-col">
+        <p class="sublabel"><b>Corrected phase</b> <span class="note">2πft removed</span></p>
+        <canvas id="c3b" aria-label="Spectral phase with the traveltime rotation removed"></canvas>
+      </div>
+    </div>
+    <div class="stats">
+      <div class="stat"><span>Component frequency</span><b id="s3f">—</b></div>
+      <div class="stat key"><span>Raw phase wraps per 100 ms</span><b id="s3wrap">—</b></div>
+      <div class="stat"><span>Corrected wraps per 100 ms</span><b id="s3wrapc">—</b></div>
+      <div class="stat"><span>Corrected phase at the wedge top</span><b id="s3top">—</b></div>
+    </div>
+    <div class="legend prose">
+      <span><b>The correction makes phase comparable between frequencies.</b> Uncorrected, a 60 Hz panel carries three times as many stripes as a 20 Hz panel, and the difference is entirely the clock rather than the rocks. After the correction the two panels can be laid against each other, and a phase that varies with frequency at one place is describing something about that place.</span>
+    </div>
+  </section>
+
+  <!-- =============================== STEP 4 =============================== -->
+  <section class="tabpane" id="p4" role="tabpanel" hidden>
+    <div class="plot-head" style="margin-bottom:14px">
+      <h3><span class="stepno">4</span>One frequency, across a whole line</h3>
+      <span class="hint">Where this stops being an exercise</span>
+    </div>
+    <p class="qbox"><b>Why this step is here.</b> An iso-frequency section is bright over one part of a bed and dark over another. Did the rock change?</p>
+    <p class="lede">The top panel is the seismic line. Below it is the magnitude of a single frequency component across the same line — an iso-frequency section, which is the form an interpreter usually receives.</p>
+
+    <p class="lede"><b>What a brightening along one bed means.</b> The iso-frequency section brightens
+      and dims along a reflector that is continuous and unremarkable on the seismic above it. Nothing
+      about that pattern requires the rock to change. A prograding shoreface sand thickens seaward and
+      thins landward over a few kilometers, and one component brightens across the reach where the sand
+      is near the thickness that component responds to and dims on either side of it. The lithology, the
+      porosity and the pore fluid can be identical along the whole body.</p>
+
+    <p class="lede">A second cause produces the same pattern and is not thickness at all. The impedance
+      contrast at the top of the bed can change laterally while the thickness stays constant, and that
+      brightens the component too. The two are separated by looking at a second component rather than by
+      looking harder at the first. A thickness change puts the bright patch somewhere else at a
+      different frequency; a contrast change brightens the same place at every frequency. That test
+      needs only one more volume, and it is the reason iso-frequency volumes are delivered as a set.</p>
+
+    <div class="plot">
+      <div class="plot-head">
+        <h3>The line, and one frequency of it</h3>
+        <span class="hint">The wedge thins to the right</span>
+      </div>
+      <canvas id="c4" aria-label="A wedge seismic line above the magnitude of one frequency component"></canvas>
+    </div>
+    <div class="stats">
+      <div class="stat key"><span>Component frequency</span><b id="s4f">—</b></div>
+      <div class="stat"><span>Brightest at trace</span><b id="s4tr">—</b></div>
+      <div class="stat"><span>Bed thickness there</span><b id="s4th">—</b></div>
+      <div class="stat"><span>1/(2 × frequency)</span><b id="s4pred">—</b></div>
+    </div>
+    <div class="legend prose">
+      <span><b>Each frequency is brightest over a different part of the same wedge.</b> Nothing about the model changes between one iso-frequency section and the next. What changes is the bed thickness that the filter responds to, so a bright zone marks where the bed suits the frequency rather than where the rock is different. Module 04 puts numbers on which thickness goes with which frequency.</span>
+    </div>
+  </section>
+
+  <!-- =============================== STEP 5 =============================== -->
+  <section class="tabpane" id="p5" role="tabpanel" hidden>
+    <div class="plot-head" style="margin-bottom:14px">
+      <h3><span class="stepno">5</span>Advanced concept: adding the voices back together</h3>
+      <span class="hint">Yes — but only on the right frequency grid</span>
+    </div>
+    <p class="qbox"><b>Why this step is here.</b> If the voices are slices of the data, adding them all back should return the data. Does it?</p>
+    <p class="lede">The choice is how to space the requested frequencies. Equally spaced — every 2 Hz, say — is the default in most software. A fixed number per octave spaces them more closely at the low end and more widely at the high end. The two look interchangeable in a parameter dialog and are not.</p>
+
+    <p class="lede">The choice has a stratigraphic consequence as well as an arithmetic one. Equal
+      spacing in hertz samples thin beds finely and thick beds coarsely: components at 60 and 62 Hz
+      respond to thicknesses about a quarter of a millisecond apart, while components at 10 and 12 Hz
+      respond to thicknesses more than eight milliseconds apart. A section of stacked thin sands is well
+      described on that grid. A section of thick amalgamated channel fills, or a carbonate platform with
+      tens of milliseconds between its bounding surfaces, is described by only a handful of the
+      components requested. Per-octave spacing distributes the components evenly across thickness
+      instead, leaving fewer of them at the high end.</p>
+
+    <div class="seg" id="segGrid" role="group" aria-label="Frequency spacing" style="margin-bottom:14px">
+      <button type="button" data-g="linear">Equally spaced</button>
+      <button type="button" data-g="log">Per octave</button>
+    </div>
+    <div class="sec-row">
+      <div class="panel-col">
+        <p class="sublabel"><b>Original and reconstruction</b> <span class="note">gray then crimson</span></p>
+        <canvas id="c5a" aria-label="The trace and the sum of its voices"></canvas>
+      </div>
+      <div class="panel-col">
+        <p class="sublabel"><b>Gain of the whole filter bank</b> <span class="note">flat means it works</span></p>
+        <canvas id="c5b" aria-label="Summed gain of the filter bank against frequency"></canvas>
+      </div>
+    </div>
+    <div class="stats">
+      <div class="stat key"><span>Frequency spacing</span><b id="s5g">—</b></div>
+      <div class="stat"><span>Components used</span><b id="s5n">—</b></div>
+      <div class="stat"><span>Bank gain ripple</span><b id="s5rip">—</b></div>
+      <div class="stat"><span>Match to the original</span><b id="s5fit">—</b></div>
+    </div>
+    <div class="legend prose">
+      <span><b>Equally spaced frequencies do not reconstruct; per-octave frequencies do.</b> Each filter in this family is proportionally wide, so its width grows with its center frequency. On an equally spaced grid the high frequencies are therefore sampled more densely relative to their own width than the low ones, the summed gain rises with frequency, and the reconstruction comes back tilted toward the high end. On a per-octave grid the summed gain is flat and one scalar restores the trace.</span>
+    </div>
+  </section>
+
+  <!-- ============================ WHY IT MATTERS =========================== -->
+  <section class="tabpane" id="pw" role="tabpanel" hidden>
+    <div class="plot-head" style="margin-bottom:14px">
+      <h3>Why it matters</h3>
+      <span class="hint">Where this shows up in real work</span>
+    </div>
+    <p class="lede">This module is what turns a directory of unfamiliar files into volumes that can be opened with an expectation of what is in them.</p>
+    <ul class="lede" style="padding-left:20px">
+      <li><b>Choosing what to load.</b> Magnitude for anything that will be interpreted as an attribute
+        or blend in color; voice when you want something that still reads as seismic and can be picked;
+        phase only if you have checked whether the traveltime correction was applied.</li>
+      <li><b>Not filling the disk.</b> Asking for magnitude, phase and voice at every 1 Hz over a whole
+        survey is three volumes per frequency and will fill a drive. Deciding what you actually need
+        starts with knowing what each one is.</li>
+      <li><b>Reading someone else's iso-frequency section.</b> A 20 Hz section and a 50 Hz section of the
+        same survey showing different features is normal and expected, not a sign that one is wrong.</li>
+      <li><b>Setting the frequency range and increment.</b> Every program asks. Step 5 is the reason the
+        answer is not "as fine as I can afford."</li>
+      <li><b>Knowing when reconstruction is safe.</b> Any workflow that decomposes, modifies and
+        recombines — spectral balancing in module 05, bandwidth extension later — depends on the
+        reconstruction actually working.</li>
+    </ul>
+    <p class="lede"><b>Where an iso-frequency section gets misread.</b> The commonest error is treating it as the geology that exists at that frequency. It shows which parts of the section suit that filter, and a part that suits a different filter is not absent from the earth. The second error is comparing two iso-frequency sections without knowing the filter widths behind them, since a wider filter produces a smoother, brighter section for reasons that have nothing to do with the rocks.</p>
+    <div class="legend prose">
+      <span>Three things determine what a spectral volume can be used for: which quantity it holds, which frequencies were requested and how they were spaced, and whether the data were balanced first.</span>
+    </div>
+  </section>
+
+  <!-- ============================== EXERCISES ============================= -->
+  <section class="tabpane" id="pe" role="tabpanel" hidden>
+    <div class="tryit" style="max-width:none">
+      <h3>Exercises</h3>
+      <ol>
+        <li><b>Watch a voice lose its data.</b>
+          <em class="point">Why: a voice is a filter output, so what it drops is decided by a parameter rather than by the earth.</em>
+           In step 1, take the component frequency from 8 Hz to 90 Hz
+          and watch the fraction readout.
+          <em class="predict">Before you drag it: at a component frequency the trace barely contains, will the voice come back wrong, or come back small? They are different failures.</em>
+          <details class="reveal"><summary>Hint</summary><span class="ans">The voice is only ever a
+            fraction of the trace, and the fraction peaks where the component frequency matches what the
+            trace actually contains. Away from that the voice becomes small, which
+            faithfully reports that there is very little of that frequency present. This is worth
+            internalizing before module 06: a spectral attribute computed where the magnitude is tiny is
+            describing rounding error. Note that the filter bandwidth readout grows as you raise the
+            frequency — 5.3 Hz at 20 Hz, 10.6 at 40, 21.2 at 80 — so the high-frequency voices are
+            averaging over a wider slice of the spectrum than the low-frequency ones. On the default
+            wedge trace the voice peaks at about 46% of the trace amplitude near 35 Hz, which is the
+            frequency the section was made with, and falls to 1.5% at 10 Hz and 4.8% at 80 Hz.</span></details></li>
+        <li><b>Check that the three outputs really are one object.</b>
+          <em class="point">Why: three volumes on disk are one calculation, and knowing that decides which is worth loading.</em>
+           In step 2, move the trace slider and
+          compare the last two readouts at several positions.
+          <details class="reveal"><summary>Hint</summary><span class="ans">They agree everywhere, to the
+            last digit shown, because the voice is not computed independently — it is magnitude times the
+            cosine of phase, by definition. Which means the three volumes the software wrote are
+            redundant: any one of them can be rebuilt from the other two, which matters when disk space
+            is the constraint, and it is also why the voice volumes are the ones most often skipped
+            in practice, even though they are the easiest to look at.</span></details></li>
+        <li><b>Show why phase needs correcting.</b>
+          <em class="point">Why: an uncorrected phase panel is mostly a picture of the clock, and it is often discarded on that basis.</em>
+           In step 3, set the component frequency to 20 Hz and
+          read the wrap counts, then set it to 60 Hz and read them again.
+          <details class="reveal"><summary>Hint</summary><span class="ans">The raw phase wraps 2.2 times per
+            100 ms at 20 Hz, 4.2 times at 40 Hz and 5.1 times at 60 Hz — tracking the frequency itself,
+            because that is essentially all it is measuring. It runs slightly under at the top of the
+            band, and that is worth understanding rather than ignoring: the filter at 60 Hz is 16 Hz wide
+            and this trace has far more energy below 60 Hz than above it, so the energy that actually gets
+            through rotates a little slower than the label on the filter. The corrected panel drops to 0.0
+            wraps at 20 and 40 Hz and 1.0 at 60 Hz, and what is left is structure rather than clock. The
+            practical consequence: two raw phase panels at different frequencies cannot be compared at
+            all, and a raw phase volume corendered with seismic shows stripes that track two-way time
+            rather than geology. If a phase display looks like a barcode, this is why.</span></details></li>
+        <li><b>Make each frequency find its own bed.</b>
+          <em class="point">Why: this is the effect every later module rests on, seen here on a section rather than a map.</em>
+           In step 4, step the component frequency through
+          15, 25, 40 and 60 Hz, reading which trace is brightest and how thick the bed is there.
+          <details class="reveal"><summary>Hint</summary><span class="ans">The bright zone marches from
+            the thick end of the wedge toward the thin end as the frequency rises, and the thickness where
+            it peaks tracks 1/(2f) closely: 31.5 ms against a predicted 33.3 at 15 Hz, 19.4 against 20.0
+            at 25 Hz, 12.9 against 12.5 at 40 Hz, and 9.3 against 8.3 at 60 Hz. The bright zone marches
+            from trace 21 to trace 76 as you go. That relationship is the whole of module 04, and it is
+            the basis of every thickness estimate ever made from a spectral volume. For now the point is narrower and more important: no single
+            iso-frequency section shows you the wedge. Each one shows you the part of the wedge that
+            happens to suit it, which is why software offers you fifty of them.</span></details></li>
+        <li><b>Break the reconstruction, then fix it.</b>
+          <em class="point">Why: the frequency spacing is a parameter that looks cosmetic in a dialog and decides whether the voices sum back to the data.</em>
+           In step 5, switch between the two frequency
+          spacings and compare the ripple and match readouts.
+          <details class="reveal"><summary>Hint</summary><span class="ans">On the equally spaced grid the
+            bank gain climbs steadily with frequency — 106% variation across the middle of the band — so
+            the sum of the voices is the trace with its high frequencies exaggerated, and the match comes
+            out at 75.7%: recognizable, but not the data. On the per-octave grid the ripple falls to 4%
+            and the match reaches 99.2% after a single scale factor, using 33 components instead of 48. Both
+            grids are offered by the same programs with no guidance, and the answer depends on what you
+            are doing: if you only want to look at individual components, equal spacing is fine and easier
+            to think about, but the moment anything gets summed, balanced or reconstructed, the spacing
+            stops being cosmetic.</span></details></li>
+              <li><b>Give one dim patch on an iso-frequency section three explanations.</b>
+          <em class="point">Why: a dim patch has several possible causes, and an interpretation that names only one has not been tested.</em>
+           In step 4,
+          find a place on the 40 Hz section where the magnitude is low, then change the component
+          frequency and the wedge maximum.
+          <details class="reveal"><summary>Hint</summary><span class="ans">Low magnitude on a single
+            iso-frequency section means "there is little energy at this frequency here," and that has
+            several causes which the section itself cannot separate. The bed may be the wrong thickness,
+            so the interference notch for this bed sits at the frequency being displayed. There may
+            be no reflector at all, so there is nothing at any frequency. The reflection coefficients may
+            be small, so the event is weak across the whole band. Or the frequency you asked for may be
+            outside what the wavelet carried, in which case every trace on the section is dim for a
+            reason that has nothing to do with the earth. The first three are told apart by looking at
+            other frequencies; the fourth is told apart by looking at the wavelet spectrum in module 01.
+            This is why interpreters load several components rather than one.</span></details></li>
+</ol>
+    </div>
+  </section>
+
+  <!-- ============================= KEY POINTS ============================= -->
+  <section class="tabpane" id="pk" role="tabpanel" hidden>
+    <div class="takeaway">
+      <h3>Key points</h3>
+      <ul>
+        <li><b>Magnitude, phase and voice are one complex number written three ways.</b> Voice equals
+          magnitude times the cosine of phase, so any one file can be rebuilt from the other two.</li>
+        <li><b>A voice is the data through a narrow bandpass filter,</b> not "the 30 Hz that was in the
+          ground." The filter has to have width, and in a wavelet transform that width grows with
+          frequency.</li>
+        <li><b>Magnitude is what attributes are built from</b> because it is smooth and single-signed.
+          Voices are what you display when the result should still read as a seismic section.</li>
+        <li><b>Raw spectral phase mostly measures the clock.</b> Subtracting 2πft leaves the phase of the
+          reflection, and only the corrected version can be compared between frequencies.</li>
+        <li><b>An iso-frequency section shows which parts of the earth suit that filter,</b> so different
+          frequencies light up different geology and none of them is the right one.</li>
+        <li><b>Voices only sum back to the data on a per-octave frequency grid.</b> On an evenly spaced
+          grid the filter bank's gain climbs with frequency and the reconstruction comes back blued.</li>
+      </ul>
+    </div>
+    <div class="takeaway" style="margin-top:18px">
+      <h3>Words introduced here</h3>
+      <dl class="terms">
+        <dt>voice</dt>
+        <dd>The data passed through one narrow filter. Looks like seismic, and is what a
+          <span class="k">spec_voice</span> volume holds.</dd>
+        <dt>magnitude</dt>
+        <dd>How much energy sits at each frequency at each time. The amplitude spectrum of modules 01
+          and 02, computed everywhere. Every spectral attribute is built from it.</dd>
+        <dt>spectral phase</dt>
+        <dd>The angle of the same complex number. Unreadable until the traveltime rotation is removed.</dd>
+        <dt>iso-frequency section</dt>
+        <dd>Magnitude at one frequency, displayed across a line or a volume. The usual form an
+          interpreter receives.</dd>
+        <dt>continuous wavelet transform</dt>
+        <dd>The decomposition used here and by <span class="k">spec_cwt</span>: a filter whose width is
+          proportional to its center frequency.</dd>
+        <dt>filter bandwidth</dt>
+        <dd>How wide each of those filters is. Rarely reported with the volume, and it decides how much
+          two decompositions of the same data will differ.</dd>
+        <dt>octave</dt>
+        <dd>A doubling of frequency. Spacing the requested frequencies per octave rather than evenly is
+          what lets the voices sum back to the data.</dd>
+        <dt>reconstruction</dt>
+        <dd>Adding the voices back together to recover the input trace.</dd>
+      </dl>
+    </div>
+
+  </section>
+
+  <!-- =============================== METHOD =============================== -->
+  <section class="tabpane" id="pm" role="tabpanel" hidden>
+    <div class="plot-head" style="margin-bottom:14px">
+      <h3 id="notes">Method</h3>
+      <span class="hint">What is computed, and what is left out</span>
+    </div>
+    <p class="lede"><b>The decomposition</b> is a continuous wavelet transform from
+      <span class="k">assets/spectral.js</span>, built the way AASPI's <span class="k">spec_cwt</span>
+      builds it: a complex Morlet mother wavelet centered at 1 Hz inside a Gaussian window, scaled to
+      reach every other frequency. Because the whole family is scaled from one shape, every filter has the
+      same ratio of center frequency to bandwidth, which is why the bandwidth readout in step 1 grows in
+      proportion to the frequency. It is implemented as a multiplication in the frequency domain, which
+      the documentation notes is equivalent to convolving the trace with the scaled wavelet.</p>
+    <p class="lede"><b>The earth model</b> is a wedge: two reflection coefficients of opposite sign, the
+      upper one fixed and the lower one moving down linearly across a hundred traces, convolved with a
+      zero-phase Ricker. The model is built from reflection coefficients and a source wavelet; module 00 explains both, and the two-way time convention, if those are unfamiliar. Thicknesses throughout are in milliseconds of two-way time. Times are computed analytically rather than rounded to the sample grid, so the
+      thinning is smooth instead of stair-stepped.</p>
+    <p class="lede"><b>The phase correction</b> in step 3 subtracts 2πft from the phase at every sample
+      and wraps the result back into ±π. This is what AASPI's programs apply on output, and their
+      documentation states it explicitly. The wrap counts in the readout are counted rather than derived:
+      the code walks down the trace and tallies how many times the phase jumps by more than π.</p>
+    <p class="lede"><b>The bandwidth quoted in step 1</b> is the full half-power width of the analysis
+      filter, computed in closed form as 0.2651 divided by the Gaussian width and scaled to the component
+      frequency. A note for anyone checking this against the AASPI documentation: the quantity that
+      documentation labels as a half-bandwidth is numerically the full half-power bandwidth, and its
+      Figures 4 and 5 pair their bandwidth values with the opposite variances. The arithmetic here follows
+      the numbers rather than the captions.</p>
+    <p class="lede"><b>Two conventions for "bandwidth," and where each is used.</b> There is more than
+      one place to measure the width of a spectrum, and the number you get depends on which you pick.
+      Modules 00, 01 and 04 measure between the <b>half-amplitude</b> points, the frequencies at which
+      the curve has fallen to half its peak height. This module and module 08 quote the analysis
+      filter's <b>half-power</b> width, the points at which the squared amplitude has halved, which is
+      the −3 dB width engineers normally mean and is the narrower of the two. Neither is more correct.
+      They are just different definitions, so a bandwidth quoted without one is incomplete — which is
+      also why the AASPI programs do not all agree with each other on the number.</p>
+    <p class="lede"><b>Normalization, and why absolute numbers here do not match AASPI.</b> Every filter
+      in this module has unit gain at its own center frequency, so a cosine of amplitude A at the
+      analysis frequency comes back with magnitude A. That makes the readouts mean something without a
+      scale factor. AASPI does not normalize this way. Shapes, ratios and the position of everything are
+      comparable; absolute magnitudes are not.</p>
+    <p class="lede"><b>Simplifications, stated plainly.</b> There is no noise, no attenuation, no
+      multiples and no propagation — the wedge response is a convolution, nothing more. The trace is
+      analysed on its own rather than as part of a 3D volume, so nothing here involves the spatial dimensions, which is where the storage and run time of a real spectral volume are set. Reconstruction in step 5 compares against a
+      single scale factor rather than performing the full inverse transform, which needs an admissibility
+      integral this module does not need to introduce. And the wedge is symmetric and zero phase, which
+      real wedges are not.</p>
+    <p class="lede"><b>Where this departs from production software.</b> AASPI writes magnitude, phase and
+      voice as separate volumes, either one per frequency or as a single 4D cube; here they are computed
+      on demand and never stored, so the disk-space problem that shapes so much real practice is invisible
+      in this module. The reconstruction test in step 5 is also a cleaner comparison than production ever
+      gets, because the input has no noise in it.</p>
+    <details class="reveal">
+      <summary>References</summary>
+      <ul class="lede" style="padding-left:20px">
+        <li>Grossmann, A., and J. Morlet, 1984, Decomposition of Hardy functions into square integrable
+          wavelets of constant shape: <em>SIAM Journal on Mathematical Analysis</em>, <b>15</b>,
+          723&ndash;736.</li>
+        <li>Sinha, S., P. Routh, P. Anno, and J. Castagna, 2005, Spectral decomposition of seismic data
+          with continuous-wavelet transform: <em>Geophysics</em>, <b>70</b>, P19&ndash;P25.</li>
+        <li>Partyka, G., J. Gridley, and J. Lopez, 1999, Interpretational applications of spectral
+          decomposition in reservoir characterization: <em>The Leading Edge</em>, <b>18</b>,
+          353&ndash;360.</li>
+        <li>Mallat, S., 2009, <em>A Wavelet Tour of Signal Processing</em>, 3rd ed.: Academic Press.</li>
+        <li>AASPI, <em>Spectral Attributes: Program spec_cwt</em>, University of Oklahoma — for the Morlet
+          parameterization, the voice definition and the 2πft phase correction.</li>
+      </ul>
+    </details>
+  </section>
+
+  <section class="nextup" id="nextup" hidden>
+    <p class="eyebrow">Next up</p>
+    <h3>04 · Tuning, and what a thin bed does to amplitude</h3>
+    <p>You have already seen it: the frequency that lights up a bed tracks its thickness. Time to find out
+      where that relationship comes from, how far it can be trusted, and how to read a thickness off a
+      spectrum.</p>
+    <a class="btn ghost" href="tuning.html">Module 04 →</a>
+  </section>
+
+  <div class="pager" id="pager" hidden>
+    <a class="btn ghost" href="windows.html">← Module 02: why one spectrum isn't enough</a>
+    <a class="btn ghost" href="../index.html">All modules</a>
+    <a class="btn ghost" href="tuning.html">Module 04: tuning and the thin bed →</a>
+  </div>
+
+  <footer>
+    <div class="foot-grid">
+      <p>Built for teaching by Dr. Heather Bedle and Dr. April Moreno-Ward, University of Oklahoma, with
+        the <a href="https://www.ou.edu/mcee/labs/aaspi">AASPI</a> consortium.</p>
+      <p class="lic">To cite: H. Bedle and A. Moreno-Ward, 2026, <i>How Spectral Attributes Actually
+        Work: A Set of Browser-Based Interactive Modules</i>: SSRN working paper, University of Oklahoma.
+        <span class="k">SSRN: [article link to follow]</span></p>
+      <p class="lic">Licensed <a href="https://creativecommons.org/licenses/by-sa/4.0/">CC BY-SA 4.0</a>.
+        Free to use, adapt and share, including in teaching, provided the source is credited and any
+        adaptation is released under the same license. If you use it in a course or a talk, a credit line
+        and a link back are all that is asked.</p>
+      <p class="lic">Nothing you do in this module leaves your browser. The only thing recorded is that
+        the page was opened, so that the university can see these are being used &mdash; no cookie, no
+        account, nothing about you.</p>
+    </div>
+  </footer>
+</div>
+
+<script src="../assets/count.js"></script>
+<script src="../assets/popout.js"></script>
+<script src="../assets/panelout.js"></script>
+<script src="../assets/glossary.js"></script>
+<script src="../assets/seismic.js"></script>
+<script src="../assets/spectral.js"></script>
+<script>
+(function () {
+  'use strict';
+
+  if (typeof SEIS === 'undefined' || typeof SPEC === 'undefined') {
+    const missing = [];
+    if (typeof SEIS === 'undefined') missing.push('assets/seismic.js');
+    if (typeof SPEC === 'undefined') missing.push('assets/spectral.js');
+    const el = document.createElement('div');
+    el.setAttribute('style', 'background:#841617;color:#fff;padding:14px 18px;margin:16px 0;' +
+      'font:13px/1.6 ui-monospace,Menlo,monospace');
+    el.textContent = 'This module could not load ' + missing.join(' and ') +
+      '. It expects them one directory up, at ../assets/, and file names are ' +
+      'case-sensitive on GitHub Pages.';
+    const w = document.querySelector('.wrap');
+    (w || document.body).insertBefore(el, w ? w.firstChild : null);
+    return;
+  }
+
+  const $ = (id) => document.getElementById(id);
+  const clamp = (v, a, b) => Math.max(a, Math.min(b, v));
+  const visible = (id) => { const el = $(id); return el && !el.hidden; };
+  const CRIM = '#841617', TEAL = '#0B7285', SLATE = '#5C6670';
+
+  const DT = 0.001;
+  const NT = 420;                    // 420 ms of record
+  const NX = 100;                    // traces across the wedge
+  const T0 = 0.120;                  // the top of the wedge, fixed
+  const FDOM = 35;                   // the wavelet that made the section
+  const FMAX = 100;
+
+  // the frequency axis used for the time-frequency panels
+  const TFREQS = [];
+  for (let f = 6; f <= FMAX; f += 2) TFREQS.push(f);
+
+  const DEF = { fc: 30, sig: 100, thick: 40, ix: 60, noise: 0, grid: 'linear', tab: 'p1' };
+  let S = SEIS.readState(DEF);
+  if (S.grid !== 'linear' && S.grid !== 'log') S.grid = 'linear';
+
+  const CAN_LINK = location.protocol !== 'file:';
+  const saveState = () => {
+    if (!CAN_LINK) return;
+    try { SEIS.writeState(S, DEF); } catch (e) { /* nothing shareable */ }
+  };
+
+  const sigma = () => S.sig / 100;         // the Gaussian width of the mother wavelet
+
+  /* =====================================================================
+     THE WEDGE
+     Two reflection coefficients of opposite sign; the lower one walks down
+     across the line. Timing is analytic, so the thinning is smooth.
+     ===================================================================== */
+  let LINE = null, LINEKEY = '';
+  function buildLine() {
+    const key = [S.thick, S.noise].join('|');
+    if (LINE && LINEKEY === key) return LINE;
+    const wav = SEIS.makeWavelet({ type: 'ricker', f: FDOM });
+    const traces = [], thick = new Float64Array(NX);
+    for (let ix = 0; ix < NX; ix++) {
+      // thick on the left, thin on the right
+      const T = (1 - ix / (NX - 1)) * (S.thick / 1000);
+      thick[ix] = T;
+      const tr = new Float64Array(NT);
+      for (let i = 0; i < NT; i++) {
+        const t = i * DT;
+        tr[i] = 0.1 * wav.fn(t - T0) - 0.1 * wav.fn(t - (T0 + T));
+      }
+      /* Band-limited noise, seeded from the trace number so the field varies
+         along the line rather than repeating, and so the same slider setting
+         always gives the same picture. Amplitude is a percentage of the
+         reflection coefficient the model contains. */
+      if (S.noise > 0) {
+        const rnd = SEIS.mulberry32((1013904223 + ix * 1664525) >>> 0);
+        const raw = new Float64Array(NT), sm = new Float64Array(NT);
+        for (let i = 0; i < NT; i++) raw[i] = rnd() * 2 - 1;
+        for (let i = 1; i < NT - 1; i++) sm[i] = (raw[i - 1] + raw[i] + raw[i + 1]) / 3;
+        let rms = 0;
+        for (let i = 0; i < NT; i++) rms += sm[i] * sm[i];
+        rms = Math.sqrt(rms / NT) || 1;
+        const amp = (S.noise / 100) * 0.1 / rms;
+        for (let i = 0; i < NT; i++) tr[i] += amp * sm[i];
+      }
+      traces.push(tr);
+    }
+    LINE = { traces, thick };
+    LINEKEY = key;
+    return LINE;
+  }
+  function currentTrace() { return buildLine().traces[clamp(Math.round(S.ix), 0, NX - 1)]; }
+
+  /* The time-frequency transform of the displayed trace, cached. */
+  let TFC = null, TFKEY = '';
+  function tfOf() {
+    const key = [S.thick, S.ix, S.sig].join('|');
+    if (TFC && TFKEY === key) return TFC;
+    TFC = SPEC.cwt(currentTrace(), DT, TFREQS, { sigma: sigma(), t0: 0 });
+    TFKEY = key;
+    return TFC;
+  }
+
+  /* One component of the displayed trace, at exactly the chosen frequency. */
+  function componentOf(freq) {
+    return SPEC.cwt(currentTrace(), DT, [freq], { sigma: sigma(), t0: 0 });
+  }
+
+  /* =====================================================================
+     DRAWING
+     ===================================================================== */
+  const M = { l: 54, r: 16, t: 16, b: 34 };
+  function boxOf(w, h) { return { x: M.l, y: M.t, w: w - M.l - M.r, h: h - M.t - M.b }; }
+  function contentWidth(el) {
+    const p = el.parentElement || el;
+    const cs = getComputedStyle(p);
+    return Math.max(240, p.clientWidth - parseFloat(cs.paddingLeft) - parseFloat(cs.paddingRight));
+  }
+
+  function series(ctx, rect, xs, ys, x0, x1, y0, y1, color, width) {
+    ctx.save();
+    ctx.beginPath();
+    ctx.lineWidth = width || 1.6;
+    ctx.strokeStyle = color;
+    let started = false;
+    for (let i = 0; i < xs.length; i++) {
+      if (xs[i] < x0 || xs[i] > x1) { started = false; continue; }
+      const X = rect.x + ((xs[i] - x0) / (x1 - x0)) * rect.w;
+      const Y = rect.y + rect.h - ((clamp(ys[i], y0, y1) - y0) / (y1 - y0)) * rect.h;
+      if (!started) { ctx.moveTo(X, Y); started = true; } else ctx.lineTo(X, Y);
+    }
+    ctx.stroke();
+    ctx.restore();
+  }
+
+  function drawField(ctx, rect, get, nx, ny, cmap) {
+    const off = document.createElement('canvas');
+    off.width = nx; off.height = ny;
+    const octx = off.getContext('2d');
+    const img = octx.createImageData(nx, ny);
+    for (let iy = 0; iy < ny; iy++) {
+      for (let ix = 0; ix < nx; ix++) {
+        const c = cmap(get(ix, iy));
+        const o = (iy * nx + ix) * 4;
+        img.data[o] = c[0]; img.data[o + 1] = c[1]; img.data[o + 2] = c[2]; img.data[o + 3] = 255;
+      }
+    }
+    octx.putImageData(img, 0, 0);
+    ctx.save();
+    ctx.imageSmoothingEnabled = true;
+    ctx.drawImage(off, rect.x, rect.y, rect.w, rect.h);
+    ctx.restore();
+    SEIS.frame(ctx, rect);
+  }
+
+  function seqBar(ctx, rect, cmap, lo, hi, label) {
+    const n = Math.max(2, Math.round(rect.w));
+    for (let i = 0; i < n; i++) {
+      const c = cmap(i / (n - 1));
+      ctx.fillStyle = 'rgb(' + c[0] + ',' + c[1] + ',' + c[2] + ')';
+      ctx.fillRect(rect.x + i * (rect.w / n), rect.y, rect.w / n + 1, rect.h);
+    }
+    ctx.save();
+    ctx.strokeStyle = 'rgba(22,25,28,.45)'; ctx.lineWidth = 1;
+    ctx.strokeRect(rect.x + 0.5, rect.y + 0.5, rect.w, rect.h);
+    ctx.font = '9.5px "IBM Plex Mono", monospace';
+    ctx.fillStyle = SLATE; ctx.textBaseline = 'top';
+    ctx.textAlign = 'left'; ctx.fillText(lo, rect.x, rect.y + rect.h + 4);
+    ctx.textAlign = 'right'; ctx.fillText(hi, rect.x + rect.w, rect.y + rect.h + 4);
+    ctx.textAlign = 'center'; ctx.fillText(label, rect.x + rect.w / 2, rect.y + rect.h + 4);
+    ctx.restore();
+  }
+
+  /* A time-frequency panel: time DOWN the side, frequency across. Every one of
+     these carries a color bar, because a reader should never have to guess
+     whether bright means high or low. */
+  /* BAR_GAP clears the axis label beneath the panel. The color bar used to sit
+     26 px below the frame, and the frequency label is written 22 px below it
+     and is about 13 px tall, so the two were printed on top of one another. */
+  const BAR_GAP = 46;
+
+  function drawTF(el, get, cmap, label, lo, hi) {
+    const w = contentWidth(el), h = 324;
+    const ctx = SEIS.fitCanvas(el, w, h);
+    ctx.clearRect(0, 0, w, h);
+    const rect = { x: M.l, y: M.t, w: w - M.l - M.r, h: h - M.t - M.b - BAR_GAP };
+    drawField(ctx, rect, get, TFREQS.length, NT, cmap);
+    SEIS.axisBottom(ctx, rect, TFREQS[0], FMAX, 'frequency (Hz)', (v) => v.toFixed(0), { ticks: 5 });
+    SEIS.axisLeft(ctx, rect, 0, NT * DT * 1000, 'time (ms)', (v) => v.toFixed(0), { ticks: 5, down: true });
+    seqBar(ctx, { x: rect.x, y: rect.y + rect.h + BAR_GAP, w: Math.min(200, rect.w), h: 9 }, cmap, lo, hi, label);
+    return ctx;
+  }
+
+  /* A trace with time down the side, so that it can be set beside a
+     time-frequency panel and read against the same axis, and so that it looks
+     like the seismic displays the rest of the work is done on. */
+  function drawTraceVert(ctx, rect, curves, opts) {
+    const o = opts || {};
+    const amp = o.amp || 0.16;
+    const t0 = o.t0 === undefined ? 0 : o.t0;
+    const t1 = o.t1 === undefined ? NT * DT * 1000 : o.t1;
+    SEIS.frame(ctx, rect);
+    const X0 = rect.x + rect.w / 2;
+    SEIS.dashedLine(ctx, X0, rect.y, X0, rect.y + rect.h, 'rgba(92,102,112,0.45)', [3, 3], 1);
+    for (const c of curves) {
+      ctx.save();
+      ctx.beginPath();
+      ctx.rect(rect.x, rect.y, rect.w, rect.h);
+      ctx.clip();
+      ctx.beginPath();
+      ctx.strokeStyle = c.color || CRIM;
+      ctx.lineWidth = c.width || 1.7;
+      let started = false;
+      for (let i = 0; i < NT; i++) {
+        const tms = i * DT * 1000;
+        if (tms < t0 || tms > t1) continue;
+        const Y = rect.y + ((tms - t0) / (t1 - t0)) * rect.h;
+        const X = X0 + clamp(c.tr[i] / amp, -1, 1) * (rect.w / 2);
+        started ? ctx.lineTo(X, Y) : (ctx.moveTo(X, Y), started = true);
+      }
+      ctx.stroke();
+      ctx.restore();
+    }
+    SEIS.axisLeft(ctx, rect, t0, t1, 'time (ms)', (v) => v.toFixed(0), { ticks: 5, down: true });
+    SEIS.axisBottom(ctx, rect, -amp, amp, 'amplitude', (v) => v.toFixed(2), { ticks: 3 });
+  }
+
+  function drawTraceInto(ctx, rect, tr, opts) {
+    const o = opts || {};
+    const xs = [], ys = [];
+    for (let i = 0; i < NT; i++) { xs.push(i * DT * 1000); ys.push(tr[i]); }
+    SEIS.frame(ctx, rect);
+    const Y0 = rect.y + rect.h / 2;
+    SEIS.dashedLine(ctx, rect.x, Y0, rect.x + rect.w, Y0, 'rgba(92,102,112,0.45)', [3, 3], 1);
+    const amp = o.amp || 0.16;
+    series(ctx, rect, xs, ys, 0, NT * DT * 1000, -amp, amp, o.color || CRIM, o.width || 1.7);
+    if (!o.noAxes) {
+      SEIS.axisBottom(ctx, rect, 0, NT * DT * 1000, 'time (ms)', (v) => v.toFixed(0), { ticks: 6 });
+      SEIS.axisLeft(ctx, rect, -amp, amp, 'amplitude', (v) => v.toFixed(2), { ticks: 5 });
+    }
+  }
+
+  /* ------------------------------------------------------------- header */
+  function drawHeader() {
+    const el = $('cHead');
+    if (!el) return;
+    const w = contentWidth(el), h = 300;
+    const ctx = SEIS.fitCanvas(el, w, h);
+    ctx.clearRect(0, 0, w, h);
+    /* The trace is drawn with time down so that it and the time-frequency
+       panel beside it share one time axis and can be read across. */
+    const gap = 30, split = Math.round(w * 0.34);
+    const rA = { x: M.l, y: M.t, w: split - M.l - 10, h: h - M.t - M.b };
+    const rB = { x: split + gap + M.l, y: M.t, w: w - split - gap - M.l - M.r, h: h - M.t - M.b };
+    drawTraceVert(ctx, rA, [{ tr: currentTrace(), color: CRIM, width: 1.7 }]);
+
+    const tf = tfOf();
+    let mx = 0;
+    for (let j = 0; j < TFREQS.length; j++) {
+      for (let i = 0; i < NT; i++) mx = Math.max(mx, tf.mag[j][i]);
+    }
+    mx = mx || 1;
+    drawField(ctx, rB, (ix, iy) => tf.mag[ix][iy] / mx, TFREQS.length, NT, SEIS.SEQMAPS.viridis);
+    SEIS.axisBottom(ctx, rB, TFREQS[0], FMAX, 'frequency (Hz)', (v) => v.toFixed(0), { ticks: 5 });
+    SEIS.axisLeft(ctx, rB, 0, NT * DT * 1000, 'time (ms)', (v) => v.toFixed(0), { ticks: 5, down: true });
+    // where the component slider currently sits
+    const X = rB.x + ((S.fc - TFREQS[0]) / (FMAX - TFREQS[0])) * rB.w;
+    if (X >= rB.x && X <= rB.x + rB.w) {
+      SEIS.dashedLine(ctx, X, rB.y, X, rB.y + rB.h, '#ffffff', [5, 4], 1.4);
+    }
+  }
+
+  /* ------------------------------------------------------------- step 1 */
+  function drawStep1() {
+    const el = $('c1');
+    if (!el) return;
+    const w = contentWidth(el), h = 300;
+    const ctx = SEIS.fitCanvas(el, w, h);
+    ctx.clearRect(0, 0, w, h);
+    const rect = boxOf(w, h);
+    const tr = currentTrace();
+    const cp = componentOf(S.fc);
+
+    drawTraceInto(ctx, rect, tr, { color: 'rgba(92,102,112,0.75)', width: 2.6 });
+    const xs = [], ys = [];
+    for (let i = 0; i < NT; i++) { xs.push(i * DT * 1000); ys.push(cp.voice[0][i]); }
+    series(ctx, rect, xs, ys, 0, NT * DT * 1000, -0.16, 0.16, CRIM, 1.8);
+
+    let mv = 0, mt = 0;
+    for (let i = 0; i < NT; i++) {
+      mv = Math.max(mv, Math.abs(cp.voice[0][i]));
+      mt = Math.max(mt, Math.abs(tr[i]));
+    }
+    $('s1f').textContent = S.fc.toFixed(0) + ' Hz';
+    $('s1bw').textContent = (SPEC.morletBandwidth(sigma()) * S.fc).toFixed(1) + ' Hz';
+    $('s1amp').textContent = mv.toFixed(4);
+    $('s1frac').textContent = (100 * mv / (mt || 1)).toFixed(1) + '%';
+  }
+
+  /* ------------------------------------------------------------- step 2 */
+  function drawStep2() {
+    const a = $('c2a'), b = $('c2b');
+    if (!a || !b) return;
+    const tf = tfOf();
+    let mx = 0;
+    for (let j = 0; j < TFREQS.length; j++) {
+      for (let i = 0; i < NT; i++) mx = Math.max(mx, tf.mag[j][i]);
+    }
+    mx = mx || 1;
+    drawTF(a, (ix, iy) => tf.mag[ix][iy] / mx, SEIS.SEQMAPS.viridis, 'magnitude', '0', 'max');
+    drawTF(b, (ix, iy) => 0.5 + 0.5 * clamp(tf.voice[ix][iy] / mx, -1, 1),
+      SEIS.SEQMAPS.structure, 'voice', '\u2212', '+');
+
+    // the marker: the chosen frequency at the top of the wedge
+    const j = Math.max(0, Math.round((S.fc - TFREQS[0]) / 2));
+    const i = Math.round(T0 / DT);
+    const m = tf.mag[Math.min(j, TFREQS.length - 1)][i];
+    const ph = tf.phase[Math.min(j, TFREQS.length - 1)][i];
+    const v = tf.voice[Math.min(j, TFREQS.length - 1)][i];
+    $('s2mag').textContent = m.toFixed(4);
+    $('s2ph').textContent = (ph * 180 / Math.PI).toFixed(1) + '°';
+    $('s2v').textContent = v.toFixed(4);
+    $('s2chk').textContent = (m * Math.cos(ph)).toFixed(4);
+  }
+
+  /* ------------------------------------------------------------- step 3 */
+  /* Count wraps only where there is something to have a phase. Away from the
+     events the magnitude is essentially zero and the phase is whatever the
+     rounding error says, which does not advance at the signal's rate and drags
+     the count below the frequency it should equal. Gate on magnitude, and
+     divide by the time actually counted rather than the whole record. */
+  function wrapsPer100ms(phase, mag) {
+    let mx = 0;
+    for (let i = 0; i < NT; i++) mx = Math.max(mx, mag[i]);
+    const gate = 0.1 * mx;
+    let n = 0, counted = 0;
+    for (let i = 1; i < NT; i++) {
+      if (mag[i] < gate || mag[i - 1] < gate) continue;
+      counted++;
+      if (Math.abs(phase[i] - phase[i - 1]) > Math.PI) n++;
+    }
+    return counted > 0 ? n / (counted * DT * 10) : 0;
+  }
+
+  function drawStep3() {
+    const a = $('c3a'), b = $('c3b');
+    if (!a || !b) return;
+    const tf = tfOf();
+    const cyc = SEIS.COLORMAPS.bwr;
+    drawTF(a, (ix, iy) => tf.phase[ix][iy] / Math.PI, cyc, 'raw phase', '\u2212180°', '+180°');
+    drawTF(b, (ix, iy) => tf.phaseCorr[ix][iy] / Math.PI, cyc, 'corrected', '\u2212180°', '+180°');
+
+    const j = clamp(Math.round((S.fc - TFREQS[0]) / 2), 0, TFREQS.length - 1);
+    $('s3f').textContent = TFREQS[j].toFixed(0) + ' Hz';
+    $('s3wrap').textContent = wrapsPer100ms(tf.phase[j], tf.mag[j]).toFixed(1);
+    $('s3wrapc').textContent = wrapsPer100ms(tf.phaseCorr[j], tf.mag[j]).toFixed(1);
+    $('s3top').textContent =
+      (tf.phaseCorr[j][Math.round(T0 / DT)] * 180 / Math.PI).toFixed(0) + '°';
+  }
+
+  /* ------------------------------------------------------------- step 4 */
+  let ISO = null, ISOKEY = '';
+  function isoSection() {
+    const key = [S.thick, S.sig, S.fc].join('|');
+    if (ISO && ISOKEY === key) return ISO;
+    const line = buildLine();
+    const mag = [];
+    for (let ix = 0; ix < NX; ix++) {
+      const c = SPEC.cwt(line.traces[ix], DT, [S.fc], { sigma: sigma(), t0: 0 });
+      mag.push(c.mag[0]);
+    }
+    ISO = { mag };
+    ISOKEY = key;
+    return ISO;
+  }
+
+  function drawStep4() {
+    const el = $('c4');
+    if (!el) return;
+    const w = contentWidth(el), h = 470;
+    const ctx = SEIS.fitCanvas(el, w, h);
+    ctx.clearRect(0, 0, w, h);
+    const line = buildLine();
+    const iso = isoSection();
+    /* The record runs to 420 ms; the wedge top is at 120 ms and its thickest
+       base plus the tail of the wavelet is inside 260. The bottom third held
+       nothing and made both panels shorter than they needed to be. */
+    const NTS = 300;
+    const paneH = (h - M.t - M.b - 104) / 2;
+    const r1 = { x: M.l, y: M.t, w: w - M.l - M.r, h: paneH };
+    const r2 = { x: M.l, y: M.t + paneH + 44, w: w - M.l - M.r, h: paneH };
+
+    let mxA = 0;
+    for (let ix = 0; ix < NX; ix++) {
+      for (let i = 0; i < NT; i++) mxA = Math.max(mxA, Math.abs(line.traces[ix][i]));
+    }
+    mxA = mxA || 1;
+    drawField(ctx, r1, (ix, iy) => 0.5 + 0.5 * clamp(line.traces[ix][iy] / mxA, -1, 1),
+      NX, NTS, SEIS.COLORMAPS.gray);
+    SEIS.axisLeft(ctx, r1, 0, NTS * DT * 1000, 'time (ms)', (v) => v.toFixed(0), { ticks: 4, down: true });
+    SEIS.tag(ctx, r1.x + 6, r1.y + 6, 'seismic', SLATE);
+
+    let mxM = 0;
+    for (let ix = 0; ix < NX; ix++) {
+      for (let i = 0; i < NT; i++) mxM = Math.max(mxM, iso.mag[ix][i]);
+    }
+    mxM = mxM || 1;
+    drawField(ctx, r2, (ix, iy) => iso.mag[ix][iy] / mxM, NX, NTS, SEIS.SEQMAPS.viridis);
+    SEIS.axisBottom(ctx, r2, 0, NX - 1, 'trace', (v) => v.toFixed(0), { ticks: 6 });
+    SEIS.axisLeft(ctx, r2, 0, NTS * DT * 1000, 'time (ms)', (v) => v.toFixed(0), { ticks: 4, down: true });
+    SEIS.tag(ctx, r2.x + 6, r2.y + 6, S.fc.toFixed(0) + ' Hz magnitude', CRIM);
+    seqBar(ctx, { x: r2.x, y: r2.y + r2.h + BAR_GAP, w: Math.min(200, r2.w), h: 9 },
+      SEIS.SEQMAPS.viridis, '0', 'max', 'magnitude');
+
+    /* Brightness of every trace, summed down the wedge interval. */
+    const i0 = Math.round((T0 - 0.02) / DT), i1 = Math.round((T0 + S.thick / 1000 + 0.02) / DT);
+    const bright = new Float64Array(NX);
+    for (let ix = 0; ix < NX; ix++) {
+      let acc = 0;
+      for (let i = Math.max(0, i0); i < Math.min(NT, i1); i++) acc += iso.mag[ix][i];
+      bright[ix] = acc;
+    }
+    // three-point smoothing, so a single ragged sample cannot win
+    const sm = new Float64Array(NX);
+    for (let ix = 0; ix < NX; ix++) {
+      const a = bright[Math.max(0, ix - 1)], b = bright[ix], c = bright[Math.min(NX - 1, ix + 1)];
+      sm[ix] = (a + 2 * b + c) / 4;
+    }
+    let gmax = 0;
+    for (let ix = 0; ix < NX; ix++) gmax = Math.max(gmax, sm[ix]);
+    /* Take the FIRST maximum scanning in from the thin end. A wedge tunes
+       wherever |sin(pi f T)| = 1, so there is a second, equally bright zone at
+       three times the thickness, and a fourth at five times. Picking the global
+       maximum lets the module hop between lobes as the frequency changes, which
+       is true to the physics and useless as a demonstration. Module 04 takes
+       the higher lobes seriously. */
+    let bestIx = 0;
+    for (let ix = NX - 2; ix >= 1; ix--) {
+      if (sm[ix] >= sm[ix + 1] && sm[ix] > sm[ix - 1] && sm[ix] > 0.5 * gmax) { bestIx = ix; break; }
+    }
+    if (!bestIx) {
+      for (let ix = 0; ix < NX; ix++) if (sm[ix] === gmax) bestIx = ix;
+    }
+    $('s4f').textContent = S.fc.toFixed(0) + ' Hz';
+    $('s4tr').textContent = String(bestIx);
+    $('s4th').textContent = (line.thick[bestIx] * 1000).toFixed(1) + ' ms';
+    $('s4pred').textContent = (1000 / (2 * S.fc)).toFixed(1) + ' ms';
+  }
+
+  /* ------------------------------------------------------------- step 5 */
+  function gridFreqs() {
+    const out = [];
+    if (S.grid === 'log') {
+      for (let f = 6; f <= FMAX; f *= Math.pow(2, 1 / 8)) out.push(f);
+    } else {
+      for (let f = 6; f <= FMAX; f += 2) out.push(f);
+    }
+    return out;
+  }
+
+  function drawStep5() {
+    const a = $('c5a'), b = $('c5b');
+    if (!a || !b) return;
+    const tr = currentTrace();
+    const freqs = gridFreqs();
+    const tf = SPEC.cwt(tr, DT, freqs, { sigma: sigma(), t0: 0 });
+    const sum = SPEC.voiceSum(tf);
+
+    // one scale factor is allowed; the shape is what is being tested
+    let num = 0, den = 0;
+    for (let i = 0; i < NT; i++) { num += sum[i] * tr[i]; den += sum[i] * sum[i]; }
+    const k = den > 0 ? num / den : 0;
+    let err = 0, pk = 0;
+    for (let i = 0; i < NT; i++) {
+      err = Math.max(err, Math.abs(k * sum[i] - tr[i]));
+      pk = Math.max(pk, Math.abs(tr[i]));
+    }
+
+    const h = 340;
+    const wA = contentWidth(a);
+    const cA = SEIS.fitCanvas(a, wA, h);
+    cA.clearRect(0, 0, wA, h);
+    const rA = boxOf(wA, h);
+    const scaled = new Float64Array(NT);
+    for (let i = 0; i < NT; i++) scaled[i] = k * sum[i];
+    drawTraceVert(cA, rA, [
+      { tr: tr, color: 'rgba(92,102,112,0.75)', width: 2.8 },
+      { tr: scaled, color: CRIM, width: 1.6 },
+    ]);
+
+    /* Bank gain measured over the INTERIOR of the family, 20-70 Hz, on a fixed
+       axis. Measured out to the ends instead, both grids look bad, because a
+       filter bank is not expected to be flat where it has run out of filters. */
+    const axis = [];
+    for (let f = 20; f <= 70; f += 1) axis.push(f);
+    const gain = SPEC.filterBankSum(freqs, sigma(), axis);
+    let mn = Infinity, mxg = -Infinity;
+    for (const v of gain) { mn = Math.min(mn, v); mxg = Math.max(mxg, v); }
+    const ripple = (mxg - mn) / ((mxg + mn) / 2);
+
+    const wB = contentWidth(b);
+    const cB = SEIS.fitCanvas(b, wB, h);
+    cB.clearRect(0, 0, wB, h);
+    const rB = boxOf(wB, h);
+    SEIS.frame(cB, rB);
+    series(cB, rB, axis, gain.map((v) => v / (mxg || 1)), 20, 70, 0, 1.15, TEAL, 2);
+    SEIS.axisBottom(cB, rB, 20, 70, 'frequency (Hz)', (v) => v.toFixed(0), { ticks: 6 });
+    SEIS.axisLeft(cB, rB, 0, 1.15, 'relative gain', (v) => v.toFixed(1), { ticks: 5 });
+
+    $('s5g').textContent = S.grid === 'log' ? '8 per octave' : 'every 2 Hz';
+    $('s5n').textContent = String(freqs.length);
+    $('s5rip').textContent = (100 * ripple).toFixed(0) + '%';
+    $('s5fit').textContent = (100 * (1 - err / (pk || 1))).toFixed(1) + '%';
+  }
+
+  /* =====================================================================
+     PLUMBING
+     ===================================================================== */
+  function syncLabels() {
+    $('fcV').textContent = S.fc + ' Hz';
+    const sg = sigma();
+    $('sigV').textContent = sg < 0.7 ? 'broad' : (sg > 1.4 ? 'narrow' : 'moderate');
+    $('thickV').textContent = S.thick + ' ms';
+    $('ixV').textContent = String(S.ix);
+    $('noiseV').textContent = S.noise === 0 ? 'none' : S.noise + '%';
+    document.querySelectorAll('#segGrid button').forEach((b) => {
+      b.setAttribute('aria-pressed', b.dataset.g === S.grid);
+      b.classList.toggle('on', b.dataset.g === S.grid);
+    });
+    ['fc', 'sig', 'thick', 'ix', 'noise'].forEach((k) => {
+      const el = $(k);
+      if (el && String(S[k]) !== el.value) el.value = S[k];
+    });
+  }
+
+  function drawAll() {
+    const lab = document.querySelector('.labhead');
+    if (lab && !lab.hidden) drawHeader();
+    if (visible('p1')) drawStep1();
+    if (visible('p2')) drawStep2();
+    if (visible('p3')) drawStep3();
+    if (visible('p4')) drawStep4();
+    if (visible('p5')) drawStep5();
+  }
+
+  const PANES = ['p1', 'p2', 'p3', 'p4', 'p5', 'pw', 'pe', 'pk', 'pm'];
+  const STEPNAMES = {
+    p1: 'The voice', p2: 'Three volumes', p3: 'Phase', p4: 'One slice',
+    p5: 'Adding up', pw: 'Why it matters', pe: 'Exercises', pk: 'Key points', pm: 'Method',
+  };
+
+  function buildStepNav() {
+    PANES.forEach((id, i) => {
+      const pane = $(id);
+      if (!pane || pane.querySelector('.stepnav')) return;
+      const prev = PANES[i - 1], next = PANES[i + 1];
+      const nav = document.createElement('div');
+      nav.className = 'stepnav';
+      const mk = (target, text, ghost) => {
+        const b = document.createElement('button');
+        b.type = 'button';
+        b.className = 'btn' + (ghost ? ' ghost' : '') + ' small';
+        b.textContent = text;
+        b.addEventListener('click', () => {
+          showTab(target);
+          const t = document.querySelector('.tabhint');
+          if (t && t.scrollIntoView) t.scrollIntoView({ behavior: 'smooth', block: 'start' });
+        });
+        return b;
+      };
+      nav.appendChild(prev ? mk(prev, '\u2190 ' + STEPNAMES[prev], true)
+                           : document.createElement('span'));
+      const where = document.createElement('span');
+      where.className = 'where';
+      where.textContent = i < 5 ? 'step ' + (i + 1) + ' of 5' : STEPNAMES[id];
+      nav.appendChild(where);
+      nav.appendChild(next ? mk(next, STEPNAMES[next] + ' \u2192')
+                           : document.createElement('span'));
+      pane.appendChild(nav);
+    });
+  }
+
+  function showTab(id) {
+    PANES.forEach((q) => { const el = $(q); if (el) el.hidden = q !== id; });
+    document.querySelectorAll('#tabs button').forEach((b) => {
+      b.setAttribute('aria-selected', b.dataset.tab === id);
+    });
+    const lab = document.querySelector('.labhead');
+    // step 4 shows the whole line, so a single-trace header would only distract
+    if (lab) lab.hidden = !(id === 'p1' || id === 'p2' || id === 'p3' || id === 'p4' || id === 'p5');
+    /* The forward link lives on the pager. Show it once the reader has reached
+       the exercises, not only on the two reference tabs — a student who works
+       the exercises and stops used to have no way on to the next module. */
+    const done = (id === 'pe' || id === 'pk' || id === 'pm');
+    if ($('nextup')) $('nextup').hidden = !(id === 'pk' || id === 'pm');
+    if ($('pager')) $('pager').hidden = !done;
+    S.tab = id;
+    drawAll();
+    saveState();
+  }
+  document.querySelectorAll('#tabs button').forEach((b) => {
+    b.addEventListener('click', () => showTab(b.dataset.tab));
+  });
+
+  document.querySelectorAll('#segGrid button').forEach((b) => {
+    b.addEventListener('click', () => {
+      S.grid = b.dataset.g;
+      syncLabels(); drawAll(); saveState();
+    });
+  });
+
+  document.addEventListener('input', (ev) => {
+    const t = ev.target;
+    if (!t || t.tagName !== 'INPUT') return;
+    const id = t.id;
+    if (!(id in DEF)) return;
+    S[id] = parseFloat(t.value);
+    syncLabels(); drawAll(); saveState();
+  });
+
+  let rt;
+  window.addEventListener('resize', () => { clearTimeout(rt); rt = setTimeout(drawAll, 140); });
+
+  buildStepNav();
+  syncLabels();
+  showTab(PANES.indexOf(S.tab) >= 0 ? S.tab : 'p1');
+})();
+</script>
+</body>
+</html>
