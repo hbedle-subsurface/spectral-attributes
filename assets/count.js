@@ -14,8 +14,9 @@
    next and which need rewriting. Knowing anything about the person using them
    does not, so nothing here tries to.
 
-   WHAT IS SENT, once per page load: the page path, the page title, the
-   referrer, the screen size, and the browser's own user-agent string. No
+   WHAT IS SENT, once per page load: the page path with the query string
+   stripped off, the page title, the referrer, the screen size, and the
+   browser's own user-agent string. No
    cookies are set and no identifier is stored. Nothing that happens inside a
    module — no slider, no click, no computed trace — ever leaves the browser.
    This is the only third-party request a page makes: the stylesheet, the
@@ -55,6 +56,20 @@
   if (dnt === '1' || dnt === 'yes') return;
 
   var endpoint = COUNT_HOST || ('https://' + COUNT_CODE + '.goatcounter.com/count');
+
+  /* The path is sent WITHOUT the query string. Every module writes its slider
+     positions into the query string so that a configuration can be handed out
+     as a link, and GoatCounter's default path is pathname + search, so a
+     shared link would otherwise put a reader's control settings into the
+     count. Overriding path with the bare pathname keeps the dashboard to one
+     row per page and keeps module state out of it. Referrer is left to the
+     default: it is the page someone arrived from, not anything they did here.
+
+     GoatCounter reads window.goatcounter for its settings, so this has to be
+     set before its script loads. */
+  window.goatcounter = window.goatcounter || {};
+  if (window.goatcounter.path == null) window.goatcounter.path = location.pathname;
+
   var s = document.createElement('script');
   s.async = true;
   s.src = 'https://gc.zgo.at/count.js';

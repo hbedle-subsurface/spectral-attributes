@@ -149,8 +149,9 @@ provided the source is credited and any adaptation is released under the same
 license. If you use it in a course or a talk, a credit line and a link back are
 all that is asked. The full terms are in `LICENSE.md` at the repository root.
 
-> Bedle, H., and A. Moreno-Ward, 2026, *How Spectral Attributes Actually Work: A
-> Set of Browser-Based Interactive Modules*: SSRN working paper, University of
-> Oklahoma. SSRN: *[article link to follow]*
+> Bedle, H., and A. Moreno-Ward, 2026, *How Spectral Attributes Actually Work:
+> Ten Interactive Browser-Based Modules for Learning Spectral Decomposition,
+> Tuning, Spectral Balancing, and RGB Blending*: SSRN working paper, University
+> of Oklahoma. SSRN: *[article link to follow]*
 >
 > https://hbedle-subsurface.github.io/spectral-attributes/

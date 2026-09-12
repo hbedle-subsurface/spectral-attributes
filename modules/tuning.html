@@ -627,7 +627,7 @@
       <p>Built for teaching by Dr. Heather Bedle and Dr. April Moreno-Ward, University of Oklahoma, with
         the <a href="https://www.ou.edu/mcee/labs/aaspi">AASPI</a> consortium.</p>
       <p class="lic">To cite: H. Bedle and A. Moreno-Ward, 2026, <i>How Spectral Attributes Actually
-        Work: A Set of Browser-Based Interactive Modules</i>: SSRN working paper, University of Oklahoma.
+        Work: Ten Interactive Browser-Based Modules for Learning Spectral Decomposition, Tuning, Spectral Balancing, and RGB Blending</i>: SSRN working paper, University of Oklahoma.
         <span class="k">SSRN: [article link to follow]</span></p>
       <p class="lic">Licensed <a href="https://creativecommons.org/licenses/by-sa/4.0/">CC BY-SA 4.0</a>.
         Free to use, adapt and share, including in teaching, provided the source is credited and any
@@ -1182,19 +1182,53 @@
 
   /* ------------------------------------------------------------- step 4 */
   /* Amplitude tuning for one wavelet frequency: the thickness at which a
-     doublet response is brightest, found by scanning thickness directly. */
+     doublet response is brightest, found by scanning thickness directly.
+
+     Both tuning thicknesses scale as one over the wavelet frequency, so their
+     ratio is a constant of the wavelet shape and the module says so. Scanning
+     on a 0.25 ms grid with the amplitude read off the 1 ms sample grid did not
+     return that constant: at 45 Hz, where the doublet tunes at under 9 ms, the
+     ratio came out 0.787 against 0.780 everywhere else, so a quantity the
+     module calls fixed appeared to drift. Both maxima are now interpolated
+     with a parabola, the same way step 1 refines its reading off the wedge,
+     and the ratio holds at 0.779 to 0.780 across the range. */
   function ampTuning(fd) {
     const wav = SEIS.makeWavelet({ type: 'ricker', f: fd });
-    let best = -1, bestT = 0;
-    for (let Tms = 0.5; Tms <= 60; Tms += 0.25) {
+    const STEP = 0.25;
+    /* The brightness of one thickness, refined off the sample grid. The
+       waveform peak is found on the 1 ms grid and then interpolated with a
+       parabola through the sample either side of it, because sampling the
+       amplitude every millisecond quantizes the brightness and a 45 Hz
+       doublet tunes at under 9 ms, where that quantization is the whole
+       difference between two neighboring thicknesses. */
+    const bright = (Tms) => {
       const T = Tms / 1000;
-      let mx = 0;
+      let mx = -1, prev = 0, at = 0, before = 0, after = 0;
+      let last = 0;
       for (let t = T0 - 0.03; t <= T0 + T + 0.03; t += DT) {
         const v = Math.abs(RTOP * wav.fn(t - T0) + RBOT * wav.fn(t - (T0 + T)));
-        if (v > mx) mx = v;
+        if (v > mx) { mx = v; at = t; before = prev; }
+        else if (at === last) { /* nothing */ }
+        prev = v;
+        last = t;
       }
+      // the sample after the peak
+      after = Math.abs(RTOP * wav.fn(at + DT - T0) + RBOT * wav.fn(at + DT - (T0 + T)));
+      const den = before - 2 * mx + after;
+      if (den < 0) {
+        const d = 0.5 * (before - after) / den;
+        return mx - 0.25 * (before - after) * d;
+      }
+      return mx;
+    };
+    let best = -1, bestT = 0;
+    for (let Tms = 0.5; Tms <= 60; Tms += STEP) {
+      const mx = bright(Tms);
       if (mx > best) { best = mx; bestT = Tms; }
     }
+    const a = bright(bestT - STEP), c = bright(bestT + STEP);
+    const den = a - 2 * best + c;
+    if (den < 0) bestT += STEP * 0.5 * (a - c) / den;
     return bestT;
   }
 
